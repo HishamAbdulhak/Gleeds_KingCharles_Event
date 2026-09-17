@@ -6,7 +6,7 @@ Kahoot-style real-time quiz (Spring Boot + STOMP backend, Next.js frontend, Post
 
 ### Issue tracker
 
-Local markdown files under `.scratch/<feature>/`. See `docs/agents/issue-tracker.md`.
+GitHub Issues on `HishamAbdulhak/Gleeds_KingCharles_Event` via the `gh` CLI; the spec lives at `.scratch/quiz-app/spec.md`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

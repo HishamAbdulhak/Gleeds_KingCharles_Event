@@ -1,6 +1,6 @@
 # Spec: King Charles Quiz — Solo & Battle with Day Leaderboard
 
-Status: ready-for-agent
+Status: ready-for-agent (implementation tickets: GitHub issues #1–#11)
 
 Vocabulary: see `CONTEXT.md`. Supersedes `PLAN.md` wherever they conflict (Battle is no longer a 1v1 finale; Solo Mode and the Day Leaderboard are new).
 
