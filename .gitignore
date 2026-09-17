@@ -26,3 +26,8 @@ frontend/next-env.d.ts
 
 # claude local
 .claude/settings.local.json
+
+# agent skills (local only — see CLAUDE.md "Stack skills" to reinstall)
+.agents/
+.claude/skills/
+skills-lock.json
