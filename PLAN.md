@@ -19,7 +19,7 @@ Greenfield build (directory is empty). Kahoot-style real-time quiz for a Gleeds 
 charles-quiz/
 ├── docker-compose.yml                  # postgres:16 only (dev)
 ├── README.md
-├── backend/                            # Spring Boot 3.x, Java 21, Maven
+├── backend/                            # Spring Boot 4.x, Java 21, Maven
 │   ├── pom.xml
 │   └── src/
 │       ├── main/java/com/gleeds/quiz/
@@ -52,7 +52,7 @@ charles-quiz/
 │           ├── ScoringServiceTest.java
 │           ├── BattleServiceTest.java          # 2 threads → exactly 1 winner
 │           └── QuestionImportServiceTest.java
-└── frontend/                           # Next.js 15, TypeScript, Tailwind
+└── frontend/                           # Next.js 16, TypeScript, Tailwind
     ├── package.json
     ├── app/
     │   ├── layout.tsx                  # theme (royal purple/gold + Saudi green)
