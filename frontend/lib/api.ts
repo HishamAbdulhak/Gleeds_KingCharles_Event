@@ -4,16 +4,23 @@ const TOKEN_KEY = "adminToken";
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
-/** fetch with the admin JWT attached. Throws an Error with `status` on non-2xx. */
+/** fetch with the admin JWT attached. Throws an Error with `status` on non-2xx; message is the body's `message` when it has one. */
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
-  if (init.body) headers.set("Content-Type", "application/json");
+  if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
   const token = getToken();
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
-  if (!res.ok) throw Object.assign(new Error(await res.text().catch(() => res.statusText)), { status: res.status });
-  return res.json();
+  if (!res.ok) {
+    const text = await res.text().catch(() => res.statusText);
+    let message = text;
+    try {
+      message = JSON.parse(text).message ?? text;
+    } catch {}
+    throw Object.assign(new Error(message), { status: res.status });
+  }
+  return res.status === 204 ? (undefined as T) : res.json();
 }
 
 export async function login(email: string, password: string) {

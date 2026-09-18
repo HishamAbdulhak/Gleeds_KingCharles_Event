@@ -20,7 +20,12 @@ export default function AdminHome() {
           Log out
         </Link>
       </header>
-      <p className="text-cream/80">Question Bank, Settings and Leads will appear here.</p>
+      <nav className="flex flex-col gap-2">
+        <Link href="/admin/questions" className="text-gold-300 underline">
+          Question Bank
+        </Link>
+      </nav>
+      <p className="text-cream/80">Settings and Leads will appear here.</p>
     </main>
   );
 }
