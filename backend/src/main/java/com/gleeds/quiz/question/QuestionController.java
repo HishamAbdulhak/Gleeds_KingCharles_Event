@@ -1,9 +1,11 @@
 package com.gleeds.quiz.question;
 
+import java.net.URI;
 import java.util.List;
 
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -39,9 +41,9 @@ public class QuestionController {
 	}
 
 	@PostMapping
-	@ResponseStatus(HttpStatus.CREATED)
-	QuestionDto create(@Valid @RequestBody QuestionDto dto) {
-		return repo.save(new Question(dto)).toDto();
+	ResponseEntity<QuestionDto> create(@Valid @RequestBody QuestionDto dto) {
+		var saved = repo.save(new Question(dto)).toDto();
+		return ResponseEntity.created(URI.create("/api/admin/questions/" + saved.id())).body(saved);
 	}
 
 	@PutMapping("/{id}")

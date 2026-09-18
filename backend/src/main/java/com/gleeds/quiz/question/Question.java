@@ -45,7 +45,10 @@ public class Question {
 		apply(dto);
 	}
 
-	/** Copies every editable field from the DTO; null {@code timeLimitSec} / {@code active} keep their defaults. */
+	/**
+	 * Copies every editable field from the DTO. Omitted {@code timeLimitSec} / {@code active} keep the current value
+	 * (the field defaults on a new Question), so a PUT without {@code active} can't silently reactivate.
+	 */
 	public void apply(QuestionDto dto) {
 		text = dto.text();
 		optionA = dto.optionA();
@@ -53,9 +56,9 @@ public class Question {
 		optionC = dto.optionC();
 		optionD = dto.optionD();
 		correctOption = dto.correctOption();
-		timeLimitSec = dto.timeLimitSec() == null ? 20 : dto.timeLimitSec();
+		timeLimitSec = dto.timeLimitSec() == null ? timeLimitSec : dto.timeLimitSec();
 		category = dto.category();
-		active = dto.active() == null || dto.active();
+		active = dto.active() == null ? active : dto.active();
 	}
 
 	public QuestionDto toDto() {

@@ -80,6 +80,7 @@ class QuestionBankTest {
 		assertThat(created.getStatusCode()).isEqualTo(HttpStatus.CREATED);
 		assertThat(created.getBody().get("id")).isNotNull();
 		assertThat(created.getBody().get("active")).isEqualTo(true);
+		assertThat(created.getHeaders().getLocation()).hasPath("/api/admin/questions/" + created.getBody().get("id"));
 
 		var questions = list();
 		assertThat(questions).hasSize(1);
@@ -118,6 +119,21 @@ class QuestionBankTest {
 		assertThat(status).isEqualTo(HttpStatus.OK);
 		assertThat(list()).singleElement().satisfies(saved -> assertThat(saved).containsEntry("id", (int) id)
 				.containsEntry("text", "New text").containsEntry("correctOption", 0).containsEntry("active", false));
+	}
+
+	@Test
+	void updateWithoutActiveOrTimeLimitKeepsTheCurrentValues() {
+		var id = create("Deactivated");
+		var off = question("Deactivated");
+		off.put("active", false);
+		admin.put().uri("/api/admin/questions/{id}", id).body(off).retrieve().toBodilessEntity();
+		var q = question("Still deactivated");
+		q.remove("timeLimitSec");   // fixture never sets "active", so this PUT omits both
+
+		admin.put().uri("/api/admin/questions/{id}", id).body(q).retrieve().toBodilessEntity();
+
+		assertThat(list()).singleElement().satisfies(saved -> assertThat(saved).containsEntry("active", false)
+				.containsEntry("timeLimitSec", 30));
 	}
 
 	@Test

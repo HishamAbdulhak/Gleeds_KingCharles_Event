@@ -6,8 +6,8 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 
 /**
- * API shape of a question, both directions. {@code id} is ignored on input; {@code timeLimitSec} defaults to 20
- * and {@code active} to true when omitted.
+ * API shape of a question, both directions. {@code id} is ignored on input; omitted {@code timeLimitSec} /
+ * {@code active} mean 20 / true on create and "unchanged" on update.
  */
 public record QuestionDto(
 		Long id,
