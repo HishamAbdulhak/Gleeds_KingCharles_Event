@@ -13,6 +13,10 @@ spring:
     placeholders:   # V2__seed_admin.sql
       admin_email: ${admin.email}
       admin_password: ${admin.password}
+  web:
+    error:   # client errors as {"message": …, "errors": [{field, defaultMessage}]} so the UI can show the reason
+      include-message: always
+      include-binding-errors: always
 
 # No defaults on purpose: the app refuses to start without them.
 jwt:

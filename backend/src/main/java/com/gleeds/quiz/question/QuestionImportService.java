@@ -4,9 +4,7 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
 import org.apache.commons.csv.CSVFormat;
@@ -68,14 +66,12 @@ public class QuestionImportService {
 		if (!missing.isEmpty()) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing column(s): " + String.join(", ", missing));
 		}
-		Map<String, Integer> columnIndex = IntStream.range(0, header.size()).boxed()
-				.collect(Collectors.toMap(header::get, i -> i, (first, dup) -> first));
 
 		var valid = new ArrayList<Question>();
 		var errors = new ArrayList<RowError>();
 		for (var row : rows.subList(1, rows.size())) {
 			var problems = new ArrayList<String>();
-			Function<String, String> cell = column -> row.cell(columnIndex.getOrDefault(column, -1));
+			Function<String, String> cell = column -> row.cell(header.indexOf(column));
 
 			var correct = cell.apply("correct").toUpperCase();
 			Integer correctOption = correct.length() == 1 && "ABCD".contains(correct) ? "ABCD".indexOf(correct) : null;
@@ -112,13 +108,8 @@ public class QuestionImportService {
 
 	/** Sheet column names, not DTO field names: "optionB" → "b". */
 	private static String describe(ConstraintViolation<QuestionDto> v) {
-		var field = v.getPropertyPath().toString();
-		var column = switch (field) {
-			case "optionA", "optionB", "optionC", "optionD" -> field.substring(6).toLowerCase();
-			case "timeLimitSec" -> "time_limit";
-			default -> field;
-		};
-		return column + " " + v.getMessage();
+		var column = v.getPropertyPath().toString().replaceFirst("^option(.)$", "$1").replace("timeLimitSec", "time_limit");
+		return column.toLowerCase() + " " + v.getMessage();
 	}
 
 	private static List<Row> read(MultipartFile file) {

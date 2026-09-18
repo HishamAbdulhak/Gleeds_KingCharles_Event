@@ -4,7 +4,9 @@ const TOKEN_KEY = "adminToken";
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
 
-/** fetch with the admin JWT attached. Throws an Error with `status` on non-2xx; message is the body's `message` when it has one. */
+type ErrorBody = { message?: string; errors?: { field: string; defaultMessage: string }[] };
+
+/** fetch with the admin JWT attached. Throws an Error with `status` on non-2xx; message comes from Boot's error body. */
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
@@ -16,7 +18,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     const text = await res.text().catch(() => res.statusText);
     let message = text;
     try {
-      message = JSON.parse(text).message ?? text;
+      const body: ErrorBody = JSON.parse(text);
+      message = body.errors?.map((e) => `${e.field}: ${e.defaultMessage}`).join(", ") || body.message || text;
     } catch {}
     throw Object.assign(new Error(message), { status: res.status });
   }

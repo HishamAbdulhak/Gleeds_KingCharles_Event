@@ -2,6 +2,7 @@ package com.gleeds.quiz;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -26,6 +27,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
 /** Boundary test: Question Bank CRUD and CSV/XLSX import over HTTP, real Postgres. */
@@ -61,16 +63,8 @@ class QuestionBankTest {
 	}
 
 	static Map<String, Object> question(String text) {
-		var q = new HashMap<String, Object>();
-		q.put("text", text);
-		q.put("optionA", "A");
-		q.put("optionB", "B");
-		q.put("optionC", "C");
-		q.put("optionD", "D");
-		q.put("correctOption", 2);
-		q.put("timeLimitSec", 30);
-		q.put("category", "ROYAL");
-		return q;
+		return new HashMap<>(Map.of("text", text, "optionA", "A", "optionB", "B", "optionC", "C", "optionD", "D",
+				"correctOption", 2, "timeLimitSec", 30, "category", "ROYAL"));
 	}
 
 	List<Map<String, Object>> list() {
@@ -100,11 +94,9 @@ class QuestionBankTest {
 		q.put("correctOption", 4);
 		q.put("timeLimitSec", 3);
 
-		var response = admin.post().uri("/api/admin/questions").body(q)
-				.exchange((req, res) -> Map.of("status", res.getStatusCode(), "body", new String(res.getBody().readAllBytes())));
-
-		assertThat(response.get("status")).isEqualTo(HttpStatus.BAD_REQUEST);
-		assertThat((String) response.get("body")).contains("optionB").contains("correctOption").contains("timeLimitSec");
+		assertThatThrownBy(() -> admin.post().uri("/api/admin/questions").body(q).retrieve().toBodilessEntity())
+				.isInstanceOfSatisfying(HttpClientErrorException.BadRequest.class, e -> assertThat(e.getResponseBodyAsString())
+						.contains("optionB").contains("correctOption").contains("timeLimitSec"));
 		assertThat(list()).isEmpty();
 	}
 
@@ -240,18 +232,9 @@ class QuestionBankTest {
 
 	@Test
 	void importWithoutRequiredColumnsIs400WithTheMissingNames() {
-		var parts = new LinkedMultiValueMap<String, Object>();
-		parts.add("file", new ByteArrayResource("text,a,b\nQ,1,2".getBytes(UTF_8)) {
-			@Override
-			public String getFilename() {
-				return "bad.csv";
-			}
-		});
-		var response = admin.post().uri("/api/admin/questions/import").contentType(MediaType.MULTIPART_FORM_DATA)
-				.body(parts)
-				.exchange((req, res) -> Map.of("status", res.getStatusCode(), "body", new String(res.getBody().readAllBytes())));
-		assertThat(response.get("status")).isEqualTo(HttpStatus.BAD_REQUEST);
-		assertThat((String) response.get("body")).contains("c, d, correct");
+		assertThatThrownBy(() -> importFile("bad.csv", "text,a,b\nQ,1,2".getBytes(UTF_8)))
+				.isInstanceOfSatisfying(HttpClientErrorException.BadRequest.class,
+						e -> assertThat(e.getResponseBodyAsString()).contains("c, d, correct"));
 		assertThat(list()).isEmpty();
 	}
 }

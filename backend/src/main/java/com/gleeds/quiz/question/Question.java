@@ -15,9 +15,6 @@ import jakarta.persistence.Table;
 @Table(name = "question")
 public class Question {
 
-	/** Matches the column default in V1__init.sql. */
-	public static final int DEFAULT_TIME_LIMIT_SEC = 20;
-
 	@Id
 	@GeneratedValue(strategy = GenerationType.IDENTITY)
 	private Long id;
@@ -37,7 +34,7 @@ public class Question {
 	@JdbcTypeCode(SqlTypes.SMALLINT)
 	private int correctOption;
 
-	private int timeLimitSec = DEFAULT_TIME_LIMIT_SEC;
+	private int timeLimitSec = 20;   // matches the column default in V1__init.sql
 	private String category;
 	private boolean active = true;
 
@@ -56,7 +53,7 @@ public class Question {
 		optionC = dto.optionC();
 		optionD = dto.optionD();
 		correctOption = dto.correctOption();
-		timeLimitSec = dto.timeLimitSec() == null ? DEFAULT_TIME_LIMIT_SEC : dto.timeLimitSec();
+		timeLimitSec = dto.timeLimitSec() == null ? 20 : dto.timeLimitSec();
 		category = dto.category();
 		active = dto.active() == null || dto.active();
 	}
