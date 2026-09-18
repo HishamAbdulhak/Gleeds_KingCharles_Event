@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
-import { ApiError, login } from "@/lib/api";
+import { login } from "@/lib/api";
 
 export default function AdminLogin() {
   const router = useRouter();
@@ -18,7 +18,7 @@ export default function AdminLogin() {
       await login(String(form.get("email")), String(form.get("password")));
       router.replace("/admin");
     } catch (err) {
-      setError(err instanceof ApiError && err.status === 401 ? "Wrong email or password." : "Could not reach the server.");
+      setError((err as { status?: number }).status === 401 ? "Wrong email or password." : "Could not reach the server.");
       setBusy(false);
     }
   }
