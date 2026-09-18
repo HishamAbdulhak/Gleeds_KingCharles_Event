@@ -3,15 +3,16 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { clearToken, useToken } from "@/lib/api";
+import { clearToken, getToken, useToken } from "@/lib/api";
 
 export default function AdminHome() {
   const router = useRouter();
   const token = useToken();
 
+  // Read localStorage directly: during hydration `token` is still the server snapshot (null).
   useEffect(() => {
-    if (!token) router.replace("/admin/login");
-  }, [token, router]);
+    if (!getToken()) router.replace("/admin/login");
+  }, [router]);
 
   if (!token) return null;
 
