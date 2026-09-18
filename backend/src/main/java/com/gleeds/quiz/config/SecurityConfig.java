@@ -18,8 +18,6 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
-import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
-import org.springframework.security.oauth2.server.resource.authentication.JwtGrantedAuthoritiesConverter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -29,30 +27,22 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 
 /**
  * Stateless Bearer-JWT security. Tokens are HS256 signed with JWT_SECRET; the resource-server
- * filter verifies them and maps the {@code roles} claim to ROLE_* authorities.
+ * filter verifies them and maps the {@code scope} claim to SCOPE_* authorities.
  */
 @Configuration
 public class SecurityConfig {
 
-	public static final String ROLES_CLAIM = "roles";
-
 	@Bean
 	SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-		var authorities = new JwtGrantedAuthoritiesConverter();
-		authorities.setAuthoritiesClaimName(ROLES_CLAIM);
-		authorities.setAuthorityPrefix("ROLE_");
-		var jwtAuth = new JwtAuthenticationConverter();
-		jwtAuth.setJwtGrantedAuthoritiesConverter(authorities);
-
 		return http
 				.csrf(csrf -> csrf.disable())
 				.cors(cors -> {})
 				.sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-				.oauth2ResourceServer(rs -> rs.jwt(jwt -> jwt.jwtAuthenticationConverter(jwtAuth)))
+				.oauth2ResourceServer(rs -> rs.jwt(jwt -> {}))
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.GET, "/api/health").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/admin/login").permitAll()
-						.requestMatchers("/api/admin/**").hasRole("ADMIN")
+						.requestMatchers("/api/admin/**").hasAuthority("SCOPE_ADMIN")
 						.anyRequest().authenticated())
 				.build();
 	}
@@ -75,11 +65,7 @@ public class SecurityConfig {
 
 	@Bean
 	SecretKeySpec jwtKey(@Value("${jwt.secret}") String secret) {
-		var bytes = secret.getBytes(StandardCharsets.UTF_8);
-		if (bytes.length < 32) {
-			throw new IllegalStateException("JWT_SECRET must be at least 32 bytes");
-		}
-		return new SecretKeySpec(bytes, "HmacSHA256");
+		return new SecretKeySpec(secret.getBytes(StandardCharsets.UTF_8), "HmacSHA256");
 	}
 
 	@Bean

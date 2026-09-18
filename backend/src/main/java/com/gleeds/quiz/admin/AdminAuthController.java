@@ -2,10 +2,10 @@ package com.gleeds.quiz.admin;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
@@ -21,8 +21,6 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.gleeds.quiz.config.SecurityConfig;
-
 @RestController
 @RequestMapping("/api/admin")
 public class AdminAuthController {
@@ -30,12 +28,12 @@ public class AdminAuthController {
 	/** "A session that lasts the day." */
 	static final Duration TOKEN_TTL = Duration.ofHours(24);
 
-	private final AdminUserRepository admins;
+	private final JdbcTemplate jdbc;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtEncoder jwtEncoder;
 
-	AdminAuthController(AdminUserRepository admins, PasswordEncoder passwordEncoder, JwtEncoder jwtEncoder) {
-		this.admins = admins;
+	AdminAuthController(JdbcTemplate jdbc, PasswordEncoder passwordEncoder, JwtEncoder jwtEncoder) {
+		this.jdbc = jdbc;
 		this.passwordEncoder = passwordEncoder;
 		this.jwtEncoder = jwtEncoder;
 	}
@@ -43,16 +41,20 @@ public class AdminAuthController {
 	record LoginRequest(String email, String password) {
 	}
 
+	record Admin(String email, String passwordHash) {
+	}
+
 	@PostMapping("/login")
 	Map<String, String> login(@RequestBody LoginRequest req) {
-		var admin = admins.findByEmailIgnoreCase(req.email() == null ? "" : req.email())
-				.filter(a -> passwordEncoder.matches(req.password() == null ? "" : req.password(), a.getPasswordHash()))
+		var admin = jdbc.query("SELECT email, password_hash FROM admin_user WHERE lower(email) = lower(?)",
+				(rs, i) -> new Admin(rs.getString(1), rs.getString(2)), req.email()).stream().findFirst()
+				.filter(a -> passwordEncoder.matches(req.password() == null ? "" : req.password(), a.passwordHash()))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Bad credentials"));
 
 		var now = Instant.now();
 		var claims = JwtClaimsSet.builder()
-				.subject(admin.getEmail())
-				.claim(SecurityConfig.ROLES_CLAIM, List.of("ADMIN"))
+				.subject(admin.email())
+				.claim("scope", "ADMIN")   // Spring's default converter maps this to SCOPE_ADMIN
 				.issuedAt(now)
 				.expiresAt(now.plus(TOKEN_TTL))
 				.build();

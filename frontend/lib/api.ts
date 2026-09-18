@@ -1,18 +1,8 @@
-import { useSyncExternalStore } from "react";
-
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const TOKEN_KEY = "adminToken";
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 export const clearToken = () => localStorage.removeItem(TOKEN_KEY);
-
-const subscribeStorage = (cb: () => void) => {
-  window.addEventListener("storage", cb);
-  return () => window.removeEventListener("storage", cb);
-};
-
-/** Current admin token; null on the server and when logged out. */
-export const useToken = () => useSyncExternalStore(subscribeStorage, getToken, () => null);
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -29,7 +19,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
   if (!res.ok) throw new ApiError(res.status, await res.text().catch(() => res.statusText));
-  return res.status === 204 ? (undefined as T) : res.json();
+  return res.json();
 }
 
 export async function login(email: string, password: string) {

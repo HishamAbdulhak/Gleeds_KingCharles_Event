@@ -3,18 +3,14 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
-import { clearToken, getToken, useToken } from "@/lib/api";
+import { clearToken, getToken } from "@/lib/api";
 
 export default function AdminHome() {
   const router = useRouter();
-  const token = useToken();
 
-  // Read localStorage directly: during hydration `token` is still the server snapshot (null).
   useEffect(() => {
     if (!getToken()) router.replace("/admin/login");
   }, [router]);
-
-  if (!token) return null;
 
   return (
     <main className="flex flex-1 flex-col gap-6 p-8">
