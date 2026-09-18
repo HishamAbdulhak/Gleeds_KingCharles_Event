@@ -16,7 +16,7 @@ docker compose up -d                      # Postgres 16 on :5432 (quiz/quiz)
 ```
 
 ```bash
-cd backend && ./mvnw spring-boot:run      # API on :8080, Flyway applies the schema
+cd backend && JWT_SECRET=change-me-to-32-plus-random-bytes ADMIN_EMAIL=admin@example.com ADMIN_PASSWORD=change-me ./mvnw spring-boot:run   # API on :8080, Flyway applies the schema and seeds the admin
 ```
 
 ```bash
@@ -35,8 +35,9 @@ cd backend && ./mvnw test
 |---|---|---|
 | `DB_URL` | backend | `jdbc:postgresql://localhost:5432/quiz` |
 | `DB_USER` / `DB_PASSWORD` | backend | `quiz` / `quiz` |
-| `JWT_SECRET` | backend | required, ≥ 32 bytes (wired in #2) |
-| `CORS_ORIGIN` | backend | `http://localhost:3000` (wired in #2) |
+| `JWT_SECRET` | backend | required, ≥ 32 bytes; signs the 24 h admin JWT |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | backend | required; seeded (bcrypt) by the V2 migration on first start |
+| `CORS_ORIGIN` | backend | `http://localhost:3000` |
 | `NEXT_PUBLIC_API_URL` | frontend | `http://localhost:8080` |
 
 Copy `frontend/.env.example` to `frontend/.env.local`. `.env*` files are gitignored.
