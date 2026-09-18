@@ -21,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.gleeds.quiz.config.SecurityConfig;
+
 @RestController
 @RequestMapping("/api/admin")
 public class AdminAuthController {
@@ -54,7 +56,7 @@ public class AdminAuthController {
 		var now = Instant.now();
 		var claims = JwtClaimsSet.builder()
 				.subject(admin.email())
-				.claim("scope", "ADMIN")   // Spring's default converter maps this to SCOPE_ADMIN
+				.claim("scope", SecurityConfig.ADMIN_SCOPE)
 				.issuedAt(now)
 				.expiresAt(now.plus(TOKEN_TTL))
 				.build();

@@ -32,6 +32,10 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 @Configuration
 public class SecurityConfig {
 
+	/** Value of the JWT {@code scope} claim; Spring's default converter exposes it as {@link #ADMIN_AUTHORITY}. */
+	public static final String ADMIN_SCOPE = "ADMIN";
+	public static final String ADMIN_AUTHORITY = "SCOPE_" + ADMIN_SCOPE;
+
 	@Bean
 	SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
 		return http
@@ -42,7 +46,7 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						.requestMatchers(HttpMethod.GET, "/api/health").permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/admin/login").permitAll()
-						.requestMatchers("/api/admin/**").hasAuthority("SCOPE_ADMIN")
+						.requestMatchers("/api/admin/**").hasAuthority(ADMIN_AUTHORITY)
 						.anyRequest().authenticated())
 				.build();
 	}
