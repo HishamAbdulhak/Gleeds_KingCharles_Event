@@ -9,3 +9,16 @@ spring:
     hibernate:
       ddl-auto: validate   # Flyway owns the schema
     open-in-view: false
+  flyway:
+    placeholders:   # V2__seed_admin.sql
+      admin_email: ${admin.email}
+      admin_password: ${admin.password}
+
+# No defaults on purpose: the app refuses to start without them.
+jwt:
+  secret: ${JWT_SECRET}   # >= 32 bytes, HMAC-SHA256
+admin:
+  email: ${ADMIN_EMAIL}
+  password: ${ADMIN_PASSWORD}
+cors:
+  origin: ${CORS_ORIGIN:http://localhost:3000}
