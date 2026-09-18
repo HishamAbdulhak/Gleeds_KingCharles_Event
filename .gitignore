@@ -31,3 +31,4 @@ frontend/next-env.d.ts
 .agents/
 .claude/skills/
 skills-lock.json
+.scratch/pr-*-body.md

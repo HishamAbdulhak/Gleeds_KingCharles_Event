@@ -7,6 +7,16 @@
       "runtimeArgs": ["run", "dev"],
       "cwd": "frontend",
       "port": 3000
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "./mvnw",
+      "runtimeArgs": [
+        "spring-boot:run",
+        "-Dspring-boot.run.jvmArguments=-Djwt.secret=dev-secret-dev-secret-dev-secret-dev-secret -Dadmin.email=admin@example.com -Dadmin.password=change-me"
+      ],
+      "cwd": "backend",
+      "port": 8080
     }
   ]
 }
