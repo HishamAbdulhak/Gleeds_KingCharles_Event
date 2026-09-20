@@ -8,7 +8,11 @@ import { getToken, noSubscribe } from "@/lib/api";
 export default function AuthedLayout({ children }: { children: ReactNode }) {
   const router = useRouter();
   // false on the server render, the real answer on the client; gates rendering only
-  const hasToken = useSyncExternalStore(noSubscribe, () => getToken() !== null, () => false);
+  const hasToken = useSyncExternalStore(
+    noSubscribe,
+    () => getToken() !== null,
+    () => false,
+  );
 
   // reads localStorage itself: hasToken is still the server's false in the first effect after hydration
   useEffect(() => {

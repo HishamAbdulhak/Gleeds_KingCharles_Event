@@ -16,7 +16,11 @@ export default function PlayGame() {
   const [online, setOnline] = useState(false);
   const socket = useRef<ReturnType<typeof connectToGame>>(null);
   // undefined on the server render, null when this phone never started this Game
-  const seat = useSyncExternalStore(noSubscribe, () => stored.get<string>(`seat:${gameId}`), () => undefined);
+  const seat = useSyncExternalStore(
+    noSubscribe,
+    () => stored.get<string>(`seat:${gameId}`),
+    () => undefined,
+  );
 
   useEffect(() => {
     if (!seat) return;

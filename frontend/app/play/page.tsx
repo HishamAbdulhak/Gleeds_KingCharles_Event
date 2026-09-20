@@ -16,7 +16,11 @@ export default function Play() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const lead = useSyncExternalStore(noSubscribe, () => stored.get<Lead>("lead"), () => null);
+  const lead = useSyncExternalStore(
+    noSubscribe,
+    () => stored.get<Lead>("lead"),
+    () => null,
+  );
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,11 +47,25 @@ export default function Play() {
         <h1 className="text-3xl font-bold text-gold-500">Play</h1>
         <label className="flex flex-col gap-1 text-sm">
           Name
-          <input name="name" required maxLength={80} autoComplete="name" defaultValue={lead?.name} className={inputClass} />
+          <input
+            name="name"
+            required
+            maxLength={80}
+            autoComplete="name"
+            defaultValue={lead?.name}
+            className={inputClass}
+          />
         </label>
         <label className="flex flex-col gap-1 text-sm">
           Email
-          <input name="email" type="email" required autoComplete="email" defaultValue={lead?.email} className={inputClass} />
+          <input
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            defaultValue={lead?.email}
+            className={inputClass}
+          />
         </label>
         <label className="flex items-start gap-3 text-sm">
           <input name="consent" type="checkbox" required className="mt-1 size-5 accent-gold-500" />
