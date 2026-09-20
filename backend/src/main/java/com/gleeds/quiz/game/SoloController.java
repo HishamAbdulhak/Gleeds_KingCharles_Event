@@ -3,6 +3,7 @@ package com.gleeds.quiz.game;
 import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -31,21 +32,21 @@ public class SoloController {
 	private final GameRepository games;
 	private final PlayerRepository players;
 	private final QuestionRepository questions;
-	private final SettingsRepository settings;
+	private final JdbcTemplate jdbc;
 
-	SoloController(GameRepository games, PlayerRepository players, QuestionRepository questions,
-			SettingsRepository settings) {
+	SoloController(GameRepository games, PlayerRepository players, QuestionRepository questions, JdbcTemplate jdbc) {
 		this.games = games;
 		this.players = players;
 		this.questions = questions;
-		this.settings = settings;
+		this.jdbc = jdbc;
 	}
 
 	@PostMapping("/api/solo")
 	@ResponseStatus(HttpStatus.CREATED)
 	@Transactional
 	Started start(@Valid @RequestBody StartRequest req) {
-		int perGame = settings.get().getQuestionsPerGame();
+		// the single settings row (V1__init.sql inserts it; it can never be deleted)
+		int perGame = jdbc.queryForObject("SELECT questions_per_game FROM settings", Integer.class);
 		var draw = questions.drawActive(perGame);
 		if (draw.size() < perGame) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT,

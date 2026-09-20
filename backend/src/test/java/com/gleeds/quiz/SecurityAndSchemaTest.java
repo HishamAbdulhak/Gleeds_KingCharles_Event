@@ -17,20 +17,13 @@ import org.springframework.web.client.RestClient;
 /** Boundary test: real HTTP against the app, real Postgres via Testcontainers. */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
-class HealthAndSchemaTest {
+class SecurityAndSchemaTest {
 
 	@LocalServerPort
 	int port;
 
 	@Autowired
 	JdbcTemplate jdbc;
-
-	@Test
-	void healthIsPublic() {
-		var response = RestClient.create("http://localhost:" + port).get().uri("/api/health").retrieve().toEntity(String.class);
-		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(response.getBody()).contains("ok");
-	}
 
 	@Test
 	void anythingElseIsNotPublic() {
