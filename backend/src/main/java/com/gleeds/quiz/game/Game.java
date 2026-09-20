@@ -43,6 +43,7 @@ public class Game {
 
 	private int currentQuestionIndex = -1;
 	private Instant questionStartedAt;
+	private Instant endedAt;
 
 	/** The Question Set: {@code game_question} rows, {@code position} as list index. */
 	@ManyToMany
@@ -73,13 +74,31 @@ public class Game {
 		return status;
 	}
 
+	public int getCurrentQuestionIndex() {
+		return currentQuestionIndex;
+	}
+
+	public Instant getQuestionStartedAt() {
+		return questionStartedAt;
+	}
+
 	public Question currentQuestion() {
 		return questions.get(currentQuestionIndex);
 	}
 
-	public void startQuestion(int index, Instant at) {
+	/** Moves to the next question of the Question Set; false when there is none left. */
+	public boolean startNextQuestion(Instant at) {
+		if (currentQuestionIndex + 1 >= questions.size()) {
+			return false;
+		}
 		status = Status.QUESTION;
-		currentQuestionIndex = index;
+		currentQuestionIndex++;
 		questionStartedAt = at;
+		return true;
+	}
+
+	public void finish(Instant at) {
+		status = Status.FINISHED;
+		endedAt = at;
 	}
 }
