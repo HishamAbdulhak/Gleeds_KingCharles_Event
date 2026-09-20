@@ -4,7 +4,7 @@ Kahoot-style real-time quiz (Spring Boot + STOMP backend, Next.js frontend, Post
 
 ## Stack skills
 
-Local only (gitignored), installed with `npx skills add <pkg> -y`: `github/awesome-copilot@java-springboot`, `giuseppe-trisciuoglio/developer-kit@spring-boot-security-jwt`, `giuseppe-trisciuoglio/developer-kit@spring-boot-test-patterns`, `giuseppe-trisciuoglio/developer-kit@spring-boot-rest-api-standards`, `wshobson/agents@postgresql-table-design`, `vercel-labs/agent-skills@vercel-react-best-practices`. Use them for conventions. Where they suggest `@WebMvcTest` / `@MockBean` slice tests, the spec wins: tests go at the HTTP+STOMP boundary against Testcontainers Postgres (see `.scratch/quiz-app/spec.md` → Testing Decisions), plus pure unit tests for the scoring function only.
+Local only (gitignored), installed with `npx skills add <pkg> -y`: `github/awesome-copilot@java-springboot`, `giuseppe-trisciuoglio/developer-kit@spring-boot-security-jwt`, `giuseppe-trisciuoglio/developer-kit@spring-boot-test-patterns`, `giuseppe-trisciuoglio/developer-kit@spring-boot-rest-api-standards`, `giuseppe-trisciuoglio/developer-kit@spring-data-jpa`, `claude-dev-suite/claude-dev-suite@spring-websocket`, `wshobson/agents@postgresql-table-design`, `vercel-labs/agent-skills@vercel-react-best-practices`. Use them for conventions. Where they suggest `@WebMvcTest` / `@MockBean` slice tests, the spec wins: tests go at the HTTP+STOMP boundary against Testcontainers Postgres (see `.scratch/quiz-app/spec.md` → Testing Decisions), plus pure unit tests for the scoring function only.
 
 ## Agent skills
 

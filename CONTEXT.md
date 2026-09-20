@@ -69,5 +69,9 @@ The same email playing another Game. Allowed; only the best Score counts on the 
 The fixed-size random draw from the Question Bank that one Game plays. Every Game in the day has the same size.
 _Avoid_: Quiz, round, pack
 
+**Seat**:
+A Player's place in one Game, held by the session token the phone keeps for the tab's life; a refresh or a second join with the same email reconnects to the same Seat rather than creating a second Player.
+_Avoid_: Session, slot
+
 **Lead**:
 The name and email captured when a Player joins. What Gleeds actually keeps.

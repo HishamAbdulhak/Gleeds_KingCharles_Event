@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const TOKEN_KEY = "adminToken";
 const LOGIN_PATH = "/api/admin/login";
 const LOGIN_PAGE = "/admin/login";
@@ -20,7 +20,8 @@ type ErrorBody = { message?: string; errors?: { field: string; defaultMessage: s
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
-  const token = getToken();
+  // admin routes only: a stale token on a public route would 401 and log the visitor "out" of nothing
+  const token = path.startsWith("/api/admin/") ? getToken() : null;
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
