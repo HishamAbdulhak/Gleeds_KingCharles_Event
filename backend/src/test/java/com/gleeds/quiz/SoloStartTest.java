@@ -228,6 +228,21 @@ class SoloStartTest {
 	}
 
 	@Test
+	void adminReadyDoesNotStartTheGame() throws Exception {
+		var token = client.post().uri("/api/admin/login").body(Map.of("email", adminEmail, "password", adminPassword))
+				.retrieve().body(Map.class).get("token");
+		var started = startSolo();
+		var admin = connect(Map.of("Authorization", "Bearer " + token), new ErrorFrames());
+
+		var events = subscribeAndReady(admin, started.get("gameId"));
+
+		assertThat(events.poll(1, TimeUnit.SECONDS)).isNull();
+		assertThat(jdbc.queryForObject("SELECT status FROM game WHERE id = ?", String.class,
+				UUID.fromString(started.get("gameId")))).isEqualTo("LOBBY");
+		admin.disconnect();
+	}
+
+	@Test
 	void bogusSessionTokenIsRefused() {
 		assertThatThrownBy(() -> connectAsPlayer(UUID.randomUUID().toString(), new ErrorFrames()))
 				.isInstanceOf(ExecutionException.class);

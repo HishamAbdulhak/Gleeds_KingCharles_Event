@@ -8,7 +8,6 @@ import com.gleeds.quiz.question.Question;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
-import jakarta.persistence.FetchType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -46,7 +45,7 @@ public class Game {
 	private Instant questionStartedAt;
 
 	/** The Question Set: {@code game_question} rows, {@code position} as list index. */
-	@ManyToMany(fetch = FetchType.EAGER)   // always needed with the Game; loaded outside a transaction by GameEngine
+	@ManyToMany
 	@JoinTable(name = "game_question", joinColumns = @JoinColumn(name = "game_id"), inverseJoinColumns = @JoinColumn(name = "question_id"))
 	@OrderColumn(name = "position")
 	private List<Question> questions;

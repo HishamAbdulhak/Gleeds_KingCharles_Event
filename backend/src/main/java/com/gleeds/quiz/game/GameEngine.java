@@ -8,6 +8,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 /**
  * Live Game state, keyed by Game id. The database is the record; this holds only what a database can't: the monotonic
@@ -31,6 +34,7 @@ public class GameEngine {
 	 * A Solo Player is subscribed and ready: publish the first question. Idempotent — a second ready (page refresh)
 	 * is ignored; reconnect sync is a later ticket.
 	 */
+	@Transactional
 	public void startSolo(UUID gameId) {
 		var game = games.findById(gameId).orElseThrow();
 		if (game.getMode() != Game.Mode.SOLO || game.getStatus() != Game.Status.LOBBY) {
@@ -39,15 +43,22 @@ public class GameEngine {
 		startQuestion(game, 0);
 	}
 
-	/** Saves before publishing, so a client never sees a question the database doesn't. */
 	private void startQuestion(Game game, int index) {
 		var startedAt = Instant.now();
 		questionStartNanos.put(game.getId(), System.nanoTime());
 		game.startQuestion(index, startedAt);
-		games.save(game);
 		var q = game.currentQuestion().toDto();
-		messaging.convertAndSend("/topic/game/" + game.getId(), new GameEvent("QUESTION_START",
-				new GameEvent.QuestionStart(index, q.text(), List.of(q.optionA(), q.optionB(), q.optionC(), q.optionD()),
-						q.timeLimitSec(), startedAt)));
+		publish(game.getId(), new GameEvent("QUESTION_START", new GameEvent.QuestionStart(index, q.text(),
+				List.of(q.optionA(), q.optionB(), q.optionC(), q.optionD()), q.timeLimitSec(), startedAt)));
+	}
+
+	/** After commit, so a client never sees a question the database doesn't. */
+	private void publish(UUID gameId, GameEvent event) {
+		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+			@Override
+			public void afterCommit() {
+				messaging.convertAndSend("/topic/game/" + gameId, event);
+			}
+		});
 	}
 }
