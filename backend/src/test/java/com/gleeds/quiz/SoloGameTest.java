@@ -173,7 +173,6 @@ class SoloGameTest {
 
 		var over = seat.onTopic("GAME_OVER");
 		assertThat(over).containsEntry("score", score);
-		assertThat(((Number) over.get("totalResponseMs")).longValue()).isBetween(0L, 3L * TIME_LIMIT_SEC * 1000);
 
 		assertThat(jdbc.queryForMap("SELECT status, score FROM game g JOIN player p ON p.game_id = g.id WHERE g.id = ?", seat.gameId()))
 				.containsEntry("status", "FINISHED").containsEntry("score", score);

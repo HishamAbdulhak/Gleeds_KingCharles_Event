@@ -19,7 +19,7 @@ public record GameEvent(String type, Object payload) {
 	public record Result(boolean correct, int points, int streak, int score, int correctOption) {
 	}
 
-	/** Game topic, Solo: the Player's final Score and total response time (rank is ticket 07). */
-	public record GameOver(int score, long totalResponseMs) {
+	/** Game topic, Solo: the Player's final Score (rank is ticket 07). */
+	public record GameOver(int score) {
 	}
 }

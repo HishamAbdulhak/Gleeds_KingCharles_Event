@@ -66,6 +66,6 @@ test("the next QUESTION_START replaces the result without a tap", () => {
 
 test("GAME_OVER ends the Game with the final Score", () => {
   const result = reducePlayer(locked, { type: "RESULT", payload: won });
-  const over = { score: 1500, totalResponseMs: 12345 };
+  const over = { score: 1500 };
   assert.deepEqual(reducePlayer(result, { type: "GAME_OVER", payload: over }), { phase: "over", gameOver: over });
 });

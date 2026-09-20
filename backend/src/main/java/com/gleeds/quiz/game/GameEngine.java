@@ -38,7 +38,6 @@ public class GameEngine {
 	/** The open question of one live Game. All fields guarded by the instance's monitor. */
 	private static final class Live {
 		final UUID gameId;
-		final long createdNanos = System.nanoTime();
 		int index = -1;
 		long startNanos;
 		long deadlineNanos;
@@ -85,9 +84,6 @@ public class GameEngine {
 		this.answers = answers;
 		this.messaging = messaging;
 		this.tx = new TransactionTemplate(transactions);
-		// a Game leaves the map when it finishes; this sweeps any that got stuck (a timer that threw) after a few hours
-		scheduler.scheduleAtFixedRate(() -> live.values()
-				.removeIf(state -> System.nanoTime() - state.createdNanos > TimeUnit.HOURS.toNanos(3)), 1, 1, TimeUnit.HOURS);
 	}
 
 	/**
@@ -209,8 +205,7 @@ public class GameEngine {
 	private void finish(Game game) {
 		game.finish(Instant.now());
 		var player = players.findByGameId(game.getId()).get(0);   // Solo: exactly one; Battle's Podium is ticket 08
-		var event = new GameEvent("GAME_OVER",
-				new GameEvent.GameOver(player.getScore(), answers.totalResponseMs(game.getId(), player.getId())));
+		var event = new GameEvent("GAME_OVER", new GameEvent.GameOver(player.getScore()));
 		afterCommit(() -> {
 			live.remove(game.getId());
 			messaging.convertAndSend("/topic/game/" + game.getId(), event);

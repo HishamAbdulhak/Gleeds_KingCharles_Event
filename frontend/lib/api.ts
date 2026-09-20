@@ -4,6 +4,8 @@ const LOGIN_PATH = "/api/admin/login";
 const LOGIN_PAGE = "/admin/login";
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
+/** For useSyncExternalStore over browser storage that never changes underneath a mounted page. */
+export const noSubscribe = () => () => {};
 
 /** Drops the admin token and hard-navigates to the login page (no page state is worth keeping). */
 export function logout() {

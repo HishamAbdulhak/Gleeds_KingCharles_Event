@@ -17,8 +17,7 @@ export function AnswerGrid({ options, selected, correctOption, onSelect }: Props
   return (
     <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
       {options.map((option, i) => {
-        const revealed = correctOption !== undefined;
-        const dim = revealed ? i !== correctOption : selected !== null && i !== selected;
+        const dim = correctOption !== undefined ? i !== correctOption : selected !== null && i !== selected;
         return (
           <button
             key={i}

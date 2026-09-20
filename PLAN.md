@@ -1,6 +1,6 @@
 # King Charles Quiz — Project Plan
 
-> **Superseded in part by `.scratch/quiz-app/spec.md`** (2026-09-17): Battle is a 2–4 Player multi-question Mode, not a 1v1 finale; Solo Mode and the Day Leaderboard were added; the `battle` table is dropped. Directory layout and step order below still apply; where schema or STOMP sections conflict, the spec wins.
+> **Superseded in part by `.scratch/quiz-app/spec.md`** (2026-09-17): Battle is a 2–4 Player multi-question Mode, not a 1v1 finale; Solo Mode and the Day Leaderboard were added; the `battle` table is dropped. The schema, STOMP contract and Battle resolution sections that conflicted have been removed — the spec is the reference for those. Directory layout, scoring and step order below still apply.
 
 ## Context
 Greenfield build (directory is empty). Kahoot-style real-time quiz for a Gleeds event, themed "King Charles & UK–Saudi relations". Three surfaces: mobile Player, big-screen Host, JWT-protected Admin. Doubles as lead capture (name + email on join).
@@ -73,134 +73,7 @@ charles-quiz/
 ```
 
 ---
-
-## 2. PostgreSQL schema (`V1__init.sql`)
-
-```sql
-CREATE TABLE admin_user (
-  id            BIGSERIAL PRIMARY KEY,
-  email         TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,                 -- bcrypt
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE question (
-  id             BIGSERIAL PRIMARY KEY,
-  text           TEXT NOT NULL,
-  option_a       TEXT NOT NULL,
-  option_b       TEXT NOT NULL,
-  option_c       TEXT NOT NULL,
-  option_d       TEXT NOT NULL,
-  correct_option SMALLINT NOT NULL CHECK (correct_option BETWEEN 0 AND 3),
-  time_limit_sec INT NOT NULL DEFAULT 20 CHECK (time_limit_sec BETWEEN 5 AND 120),
-  category       TEXT,                         -- 'ROYAL' | 'UK_SAUDI' | free text
-  image_url      TEXT,
-  active         BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
-CREATE TABLE game (
-  id                     UUID PRIMARY KEY,
-  pin                    CHAR(6) NOT NULL UNIQUE,
-  status                 TEXT NOT NULL DEFAULT 'LOBBY'
-                         CHECK (status IN ('LOBBY','QUESTION','REVEAL','LEADERBOARD','BATTLE','FINISHED')),
-  current_question_index INT NOT NULL DEFAULT -1,
-  question_started_at    TIMESTAMPTZ,
-  created_by             BIGINT NOT NULL REFERENCES admin_user(id),
-  created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
-  ended_at               TIMESTAMPTZ
-);
-
--- snapshot of question order per game (questions can be edited later without breaking history)
-CREATE TABLE game_question (
-  game_id     UUID   NOT NULL REFERENCES game(id) ON DELETE CASCADE,
-  question_id BIGINT NOT NULL REFERENCES question(id),
-  position    INT    NOT NULL,
-  PRIMARY KEY (game_id, position)
-);
-
-CREATE TABLE player (
-  id            UUID PRIMARY KEY,
-  game_id       UUID NOT NULL REFERENCES game(id) ON DELETE CASCADE,
-  name          TEXT NOT NULL,
-  email         TEXT NOT NULL,                 -- lead capture
-  session_token UUID NOT NULL UNIQUE,          -- WS auth + reconnect
-  score         INT  NOT NULL DEFAULT 0,
-  streak        INT  NOT NULL DEFAULT 0,
-  joined_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (game_id, email)                      -- one seat per email per game
-);
-CREATE INDEX player_email_idx ON player (lower(email));
-
-CREATE TABLE answer (
-  id              BIGSERIAL PRIMARY KEY,
-  game_id         UUID   NOT NULL REFERENCES game(id) ON DELETE CASCADE,
-  player_id       UUID   NOT NULL REFERENCES player(id) ON DELETE CASCADE,
-  question_id     BIGINT NOT NULL REFERENCES question(id),
-  selected_option SMALLINT NOT NULL CHECK (selected_option BETWEEN 0 AND 3),
-  correct         BOOLEAN NOT NULL,
-  response_ms     INT NOT NULL,                -- server receive time − question_started_at
-  points          INT NOT NULL,
-  submitted_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  UNIQUE (player_id, question_id)              -- DB-enforced single answer
-);
-
-CREATE TABLE battle (
-  id            UUID PRIMARY KEY,
-  game_id       UUID   NOT NULL REFERENCES game(id) ON DELETE CASCADE,
-  question_id   BIGINT NOT NULL REFERENCES question(id),
-  player_a_id   UUID   NOT NULL REFERENCES player(id),
-  player_b_id   UUID   NOT NULL REFERENCES player(id),
-  started_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-  winner_id     UUID REFERENCES player(id),    -- NULL until resolved
-  winner_ns     BIGINT,                        -- System.nanoTime() delta, for the reveal screen
-  resolved_at   TIMESTAMPTZ,
-  CHECK (player_a_id <> player_b_id)
-);
-```
-
-Lead export = `SELECT DISTINCT ON (lower(email)) name, email, MAX(score), MIN(joined_at) FROM player ...` → CSV.
-
----
-
-## 3. WebSocket / STOMP architecture
-
-**Endpoint:** `/ws` (raw WebSocket; no SockJS). Prefixes: app `/app`, broker `/topic` + `/queue`, user prefix `/user`. Spring simple broker.
-
-**Auth on CONNECT** (`WsAuthInterceptor`): header `Authorization: Bearer <admin JWT>` → role ADMIN, or `X-Player-Token: <session_token>` → principal = playerId. Interceptor rejects SUBSCRIBE to `/topic/game/{id}/host` unless ADMIN, and to `/topic/game/{id}` unless the principal belongs to that game.
-
-**Host commands are plain REST** (JWT bearer, idempotent, easy to retry) — only the latency-sensitive player answer goes over STOMP:
-
-| REST (admin) | Effect |
-|---|---|
-| `POST /api/games` `{questionIds[]}` | create game, returns `{id, pin}` |
-| `POST /api/games/{id}/start` | LOBBY → QUESTION(0) |
-| `POST /api/games/{id}/next` | REVEAL/LEADERBOARD → next QUESTION, or FINISHED |
-| `POST /api/games/{id}/reveal` | force early end of current question |
-| `POST /api/games/{id}/battle` `{playerAId, playerBId, questionId}` | BATTLE |
-| `POST /api/games/{id}/end` | FINISHED |
-| `POST /api/games/{pin}/join` `{name,email}` (public) | returns `{gameId, playerId, sessionToken}` |
-
-**Client → Server (`/app/...`)**
-
-| Destination | Body | Who |
-|---|---|---|
-| `/app/game/{gameId}/answer` | `{questionIndex, option}` | player |
-| `/app/game/{gameId}/battle/{battleId}/answer` | `{option}` | player (only the two combatants accepted) |
-
-**Server → Client** — every message is `{type, payload}`:
-
-| Destination | Types |
-|---|---|
-| `/topic/game/{gameId}` (everyone) | `LOBBY_UPDATE {players[]}`, `QUESTION_START {index, text, options[4], timeLimitSec, startedAt}` (no correct option), `ANSWER_COUNT {answered, total}`, `REVEAL {correctOption, distribution[4]}`, `LEADERBOARD {top[]}`, `BATTLE_START {battleId, playerA, playerB, question}`, `BATTLE_RESULT {winnerId, winnerMs}`, `GAME_OVER {podium[]}` |
-| `/topic/game/{gameId}/host` (admin only) | `HOST_STATE` — full player list with per-question answer status |
-| `/user/queue/player` (per player) | `ANSWER_ACK`, `RESULT {correct, points, streak, score, rank}`, `BATTLE_INVITE {battleId}` |
-
-Timer is server-authoritative: `GameEngine` schedules auto-REVEAL at `startedAt + timeLimitSec` via `ScheduledExecutorService`; clients only *render* the countdown from `startedAt`.
-
----
-
-## 4. Scoring & race-condition design
+## 2. Scoring & answer timing
 
 **Answer timing:** `response_ms = nanoTime-at-receipt − nanoTime-at-question-start` measured on the server. Client timestamps are ignored. Answers after the deadline or for a non-current question are dropped with an ack `{accepted:false}`.
 
@@ -214,16 +87,10 @@ points = round(base * mult)
 
 **Duplicate answers:** in-memory `ConcurrentHashMap<playerId, Answer>` `putIfAbsent` per question, backed by `UNIQUE (player_id, question_id)`.
 
-**Battle resolution** (`BattleService`): both answers arrive on separate WS threads. Winner = first *correct* answer by server receipt order, decided by one atomic statement:
-```sql
-UPDATE battle SET winner_id = :p, winner_ns = :ns, resolved_at = now()
-WHERE id = :b AND winner_id IS NULL
-```
-Returns 1 → this player won; 0 → already resolved. Postgres row lock serialises the two writers; no application lock needed. Wrong answers never issue the UPDATE. If both are wrong by the timeout, `BATTLE_RESULT {winnerId:null}`. Winner gets a flat 1000 (× no streak).
 
 ---
 
-## 5. Chronological implementation order
+## 3. Chronological implementation order
 
 Each step ends in something runnable.
 
@@ -240,7 +107,7 @@ Each step ends in something runnable.
 
 ---
 
-## 6. Verification
+## 4. Verification
 - `docker compose up -d && ./mvnw spring-boot:run` — Flyway applies V1 cleanly.
 - `./mvnw test` — scoring, battle race, CSV import tests green.
 - Manual E2E: admin logs in → imports CSV → creates game → host page shows PIN → two phones join → play 3 questions → host triggers a battle → podium → leads CSV contains both emails.
