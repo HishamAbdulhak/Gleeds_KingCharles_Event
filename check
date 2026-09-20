@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The one check: backend boundary tests on Testcontainers Postgres, then frontend types and lint. CI runs this too.
+# The one check: backend boundary tests on Testcontainers Postgres, then frontend types, lint, format and unit tests. CI runs this too.
 set -u
 cd "$(dirname "$0")"
 status=0
@@ -16,7 +16,7 @@ for f in backend/target/surefire-reports/TEST-*.xml; do
 		"$(grep -o 'tests="[0-9]*" errors="[0-9]*" skipped="[0-9]*" failures="[0-9]*"' "$f")"
 done
 
-(cd frontend && npx next typegen >/dev/null && npx tsc --noEmit -p . && npm run -s lint) && echo "frontend: tsc + eslint ok" || status=1
+(cd frontend && npx next typegen >/dev/null && npx tsc --noEmit -p . && npm run -s lint && npx prettier --check . && npm test -s) && echo "frontend: tsc + eslint + prettier + tests ok" || status=1
 
 [ $status -eq 0 ] && echo "PASS" || echo "FAIL"
 exit $status

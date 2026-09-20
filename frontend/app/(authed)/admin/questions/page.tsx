@@ -34,7 +34,10 @@ export default function QuestionBank() {
   const dialog = useRef<HTMLDialogElement>(null);
 
   const reload = useCallback(
-    () => api<Question[]>("/api/admin/questions").then(setQuestions).catch((e: Error) => setError(e.message)),
+    () =>
+      api<Question[]>("/api/admin/questions")
+        .then(setQuestions)
+        .catch((e: Error) => setError(e.message)),
     [],
   );
 
@@ -97,7 +100,9 @@ export default function QuestionBank() {
     const form = e.currentTarget;
     setImportResult(null);
     const ok = await run(
-      api<ImportResult>("/api/admin/questions/import", { method: "POST", body: new FormData(form) }).then(setImportResult),
+      api<ImportResult>("/api/admin/questions/import", { method: "POST", body: new FormData(form) }).then(
+        setImportResult,
+      ),
     );
     if (ok) form.reset();
   }

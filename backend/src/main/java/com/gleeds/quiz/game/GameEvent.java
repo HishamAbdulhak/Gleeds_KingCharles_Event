@@ -6,8 +6,9 @@ import java.util.List;
 /** Every server → client STOMP message. Mirrored by {@code frontend/lib/game.ts}. */
 public record GameEvent(String type, Object payload) {
 
-	/** A question as the Player sees it: no correct option. */
-	public record QuestionStart(int index, String text, List<String> options, int timeLimitSec, Instant startedAt) {
+	/** A question as the Player sees it: no correct option. {@code total} is the Question Set size, for "3 / 10". */
+	public record QuestionStart(int index, int total, String text, List<String> options, int timeLimitSec,
+			Instant startedAt) {
 	}
 
 	/** Personal queue: was the Answer taken? {@code reason} only when refused. */
@@ -18,7 +19,7 @@ public record GameEvent(String type, Object payload) {
 	public record Result(boolean correct, int points, int streak, int score, int correctOption) {
 	}
 
-	/** Game topic, Solo: the Player's final Score and total response time (rank is ticket 07). */
-	public record GameOver(int score, long totalResponseMs) {
+	/** Game topic, Solo: the Player's final Score (rank is ticket 07). */
+	public record GameOver(int score) {
 	}
 }

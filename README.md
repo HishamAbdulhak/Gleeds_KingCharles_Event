@@ -23,7 +23,7 @@ cd backend && JWT_SECRET=change-me-to-32-plus-random-bytes ADMIN_EMAIL=admin@exa
 cd frontend && npm install && npm run dev # UI on :3000
 ```
 
-Checks — what CI runs (backend tests need Docker for Testcontainers):
+Checks — what CI runs (backend tests need Docker for Testcontainers; frontend unit tests run on Node's own runner, Node ≥ 22.6):
 
 ```bash
 ./check

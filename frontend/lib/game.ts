@@ -4,6 +4,7 @@ import { api, API_URL } from "@/lib/api";
 /** Server → client STOMP messages, mirroring backend GameEvent. Later tickets add members to the union. */
 export type QuestionStart = {
   index: number;
+  total: number;
   text: string;
   options: [string, string, string, string];
   timeLimitSec: number;
@@ -16,8 +17,8 @@ export type AnswerAck = { accepted: boolean; reason: string | null };
 /** Personal queue: what the Answer (or timeout) earned and the running Score. */
 export type Result = { correct: boolean; points: number; streak: number; score: number; correctOption: number };
 
-/** Game topic, Solo: final Score and total response time. */
-export type GameOver = { score: number; totalResponseMs: number };
+/** Game topic, Solo: final Score. */
+export type GameOver = { score: number };
 
 export type GameEvent =
   | { type: "QUESTION_START"; payload: QuestionStart }
@@ -33,45 +34,63 @@ export async function startSolo(name: string, email: string, consent: boolean) {
 }
 
 /**
- * The Player's session token for one Game, kept for the tab's life so a refresh reconnects. sessionStorage can
- * throw (private browsing, disabled) — a lost seat is reported by the game page.
+ * Per-tab storage: the Seat (session token per Game, so a refresh reconnects) and the Lead (so "Play again" prefills).
+ * sessionStorage can throw (private browsing, disabled); a lost Seat is reported by the game page.
  */
-export function saveSeat(gameId: string, sessionToken: string) {
-  try {
-    sessionStorage.setItem(`seat:${gameId}`, sessionToken);
-  } catch {}
-}
-export function loadSeat(gameId: string) {
-  try {
-    return sessionStorage.getItem(`seat:${gameId}`);
-  } catch {
-    return null;
-  }
-}
+export const stored = {
+  set(key: string, value: string) {
+    try {
+      sessionStorage.setItem(key, value);
+    } catch {}
+  },
+  get(key: string) {
+    try {
+      return sessionStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  },
+};
 
 /**
- * Connects with the session token, subscribes to the Game topic, then says ready (docs/adr/0001). Returns the
- * disconnect function. `onError` fires for a refused CONNECT/SUBSCRIBE (the server's ERROR frame) or a dropped socket.
+ * Connects with the session token, subscribes to the Game topic and the personal queue, then says ready
+ * (docs/adr/0001; a no-op on a Game already running, so a reopened page just waits for the next message). Returns
+ * `answer` to send an Answer and `disconnect`. `onError` fires once for a refused CONNECT/SUBSCRIBE (the server's
+ * ERROR frame), which ends the connection; a dropped socket instead reports `onOnline(false)` and reconnects by itself.
  */
 export function connectToGame(
   gameId: string,
   sessionToken: string,
-  onEvent: (event: GameEvent) => void,
-  onError: (message: string) => void,
+  opts: {
+    onEvent: (event: GameEvent) => void;
+    onError: (message: string) => void;
+    onOnline: (online: boolean) => void;
+  },
 ) {
   const client = new Client({
     brokerURL: `${API_URL.replace(/^http/, "ws")}/ws`,
     connectHeaders: { "X-Session-Token": sessionToken },
+    reconnectDelay: 2000,
     onConnect: () => {
-      client.subscribe(`/topic/game/${gameId}`, (frame) => onEvent(JSON.parse(frame.body) as GameEvent));
+      opts.onOnline(true);
+      const deliver = (frame: { body: string }) => opts.onEvent(JSON.parse(frame.body) as GameEvent);
+      client.subscribe(`/topic/game/${gameId}`, deliver);
+      client.subscribe("/user/queue/player", deliver);
       client.publish({ destination: `/app/game/${gameId}/ready` });
     },
-    onStompError: (frame) => onError(frame.headers.message ?? "Refused by the server"),
-    onWebSocketClose: () => onError("Connection lost"),
+    onStompError: (frame) => {
+      opts.onError(frame.headers.message ?? "Refused by the server");
+      void client.deactivate(); // the server closes the session after ERROR; don't reconnect with the same bad token
+    },
+    onWebSocketClose: () => opts.onOnline(false),
   });
   client.activate();
-  return () => {
-    client.onWebSocketClose = () => {}; // our own deactivate() closes the socket too
-    void client.deactivate();
+  return {
+    answer: (questionIndex: number, option: number) =>
+      client.publish({ destination: `/app/game/${gameId}/answer`, body: JSON.stringify({ questionIndex, option }) }),
+    disconnect: () => {
+      client.onWebSocketClose = () => {}; // our own deactivate() closes the socket too
+      void client.deactivate();
+    },
   };
 }
