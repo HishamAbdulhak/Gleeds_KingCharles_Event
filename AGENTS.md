@@ -1,6 +1,6 @@
 # King Charles Quiz
 
-Kahoot-style real-time quiz (Spring Boot + STOMP backend, Next.js frontend, Postgres). See `PLAN.md` for architecture, schema, and build order. `./check` runs everything CI runs.
+Kahoot-style real-time quiz (Spring Boot + STOMP backend, Next.js frontend, Postgres). See `PLAN.md` for architecture, schema, and build order; `README.md` → Run it for the dev servers and env vars. `./check` runs everything CI runs.
 
 ## Stack skills
 
