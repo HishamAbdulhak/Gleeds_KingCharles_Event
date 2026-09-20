@@ -11,16 +11,23 @@ const noSubscribe = () => () => {};
 const OPTION_COLOURS = ["bg-red-600", "bg-blue-600", "bg-yellow-500", "bg-saudi"];
 const OPTION_SHAPES = ["▲", "◆", "●", "■"];
 
-/** Whole seconds left on the current question, from the server's startedAt + timeLimitSec, ticking on the phone. */
+/**
+ * Whole seconds left on the current question, from the server's startedAt + timeLimitSec, ticking on the phone.
+ * Re-renders only when the digit changes: each tick is scheduled for the next whole-second boundary.
+ */
 function useCountdown(question: QuestionStart | null) {
   const [secondsLeft, setSecondsLeft] = useState(0);
   useEffect(() => {
     if (!question) return;
     const deadline = Date.parse(question.startedAt) + question.timeLimitSec * 1000;
-    const tick = () => setSecondsLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = () => {
+      const msLeft = deadline - Date.now();
+      setSecondsLeft(Math.max(0, Math.ceil(msLeft / 1000)));
+      if (msLeft > 0) timer = setTimeout(tick, (msLeft % 1000) + 1);
+    };
     tick();
-    const id = setInterval(tick, 200);
-    return () => clearInterval(id);
+    return () => clearTimeout(timer);
   }, [question]);
   return secondsLeft;
 }

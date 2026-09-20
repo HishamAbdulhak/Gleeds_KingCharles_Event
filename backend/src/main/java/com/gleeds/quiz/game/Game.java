@@ -9,6 +9,8 @@ import com.gleeds.quiz.question.Question;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
@@ -30,7 +32,8 @@ public class Game {
 	}
 
 	@Id
-	private UUID id = UUID.randomUUID();
+	@GeneratedValue(strategy = GenerationType.UUID)   // assigned on persist, so save() inserts without a lookup
+	private UUID id;
 
 	@Enumerated(EnumType.STRING)
 	private Mode mode;

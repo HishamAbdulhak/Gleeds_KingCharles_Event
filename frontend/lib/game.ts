@@ -21,10 +21,23 @@ export async function startSolo(name: string, email: string, consent: boolean) {
   });
 }
 
-/** The Player's seat in one Game, kept for the tab's life so a refresh reconnects (ids only; the name lives server-side). */
-export const saveSeat = (gameId: string, seat: Seat) => sessionStorage.setItem(`seat:${gameId}`, JSON.stringify(seat));
+/**
+ * The Player's seat in one Game, kept for the tab's life so a refresh reconnects (ids only; the name lives
+ * server-side). sessionStorage can throw (private browsing, disabled) — a lost seat is reported by the game page.
+ */
+export function saveSeat(gameId: string, seat: Seat) {
+  try {
+    sessionStorage.setItem(`seat:${gameId}`, JSON.stringify(seat));
+  } catch {}
+}
 /** Raw JSON (a stable snapshot for useSyncExternalStore); parse with {@link parseSeat}. */
-export const loadSeat = (gameId: string) => sessionStorage.getItem(`seat:${gameId}`);
+export function loadSeat(gameId: string) {
+  try {
+    return sessionStorage.getItem(`seat:${gameId}`);
+  } catch {
+    return null;
+  }
+}
 export const parseSeat = (raw: string) => JSON.parse(raw) as Seat;
 
 /**
