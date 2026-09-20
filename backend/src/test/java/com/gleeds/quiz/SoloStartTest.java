@@ -3,16 +3,13 @@ package com.gleeds.quiz;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.lang.reflect.Type;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -25,14 +22,7 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.messaging.converter.JacksonJsonMessageConverter;
-import org.springframework.messaging.simp.stomp.StompFrameHandler;
-import org.springframework.messaging.simp.stomp.StompHeaders;
 import org.springframework.messaging.simp.stomp.StompSession;
-import org.springframework.messaging.simp.stomp.StompSessionHandlerAdapter;
-import org.springframework.web.socket.WebSocketHttpHeaders;
-import org.springframework.web.socket.client.standard.StandardWebSocketClient;
-import org.springframework.web.socket.messaging.WebSocketStompClient;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
@@ -126,49 +116,9 @@ class SoloStartTest {
 
 	// --- STOMP: the first question ---
 
-	/** Records the server's ERROR frame, which is how a refused CONNECT / SUBSCRIBE / SEND shows up client-side. */
-	static class ErrorFrames extends StompSessionHandlerAdapter {
-		final CompletableFuture<String> error = new CompletableFuture<>();
-
-		/** Only ERROR frames reach the session handler's handleFrame; their {@code message} header says why. */
-		@Override
-		public void handleFrame(StompHeaders headers, Object payload) {
-			error.complete(String.valueOf(headers.getFirst("message")));
-		}
-	}
-
-	StompSession connect(Map<String, String> connectHeaders, ErrorFrames handler) throws Exception {
-		var stomp = new WebSocketStompClient(new StandardWebSocketClient());
-		stomp.setMessageConverter(new JacksonJsonMessageConverter());
-		var headers = new StompHeaders();
-		connectHeaders.forEach(headers::add);
-		return stomp.connectAsync("ws://localhost:" + port + "/ws", (WebSocketHttpHeaders) null, headers, handler).get(5, TimeUnit.SECONDS);
-	}
-
-	StompSession connectAsPlayer(String sessionToken, ErrorFrames handler) throws Exception {
-		return connect(Map.of("X-Session-Token", sessionToken), handler);
-	}
-
-	@SuppressWarnings("unchecked")
-	BlockingQueue<Map<String, Object>> subscribe(StompSession session, String gameId) {
-		var events = new LinkedBlockingQueue<Map<String, Object>>();
-		session.subscribe("/topic/game/" + gameId, new StompFrameHandler() {
-			@Override
-			public Type getPayloadType(StompHeaders headers) {
-				return Map.class;
-			}
-
-			@Override
-			public void handleFrame(StompHeaders headers, Object payload) {
-				events.add((Map<String, Object>) payload);
-			}
-		});
-		return events;
-	}
-
 	/** Subscribes to the Game topic, then says ready. Mirrors the frontend; ordering is guaranteed server-side. */
 	BlockingQueue<Map<String, Object>> subscribeAndReady(StompSession session, String gameId) {
-		var events = subscribe(session, gameId);
+		var events = Stomp.subscribe(session, "/topic/game/" + gameId);
 		session.send("/app/game/" + gameId + "/ready", Map.of());
 		return events;
 	}
@@ -177,7 +127,7 @@ class SoloStartTest {
 	@SuppressWarnings("unchecked")
 	void readyPlayerReceivesTheFirstQuestionWithoutTheCorrectOption() throws Exception {
 		var started = startSolo();
-		var session = connectAsPlayer(started.get("sessionToken"), new ErrorFrames());
+		var session = Stomp.connectAsPlayer(port, started.get("sessionToken"), new Stomp.ErrorFrames());
 
 		var events = subscribeAndReady(session, started.get("gameId"));
 		var event = events.poll(5, TimeUnit.SECONDS);
@@ -201,8 +151,8 @@ class SoloStartTest {
 	void playerCannotStartAnotherGameViaAnUppercaseId() throws Exception {
 		var mine = startSolo();
 		var theirs = startSolo();
-		var errors = new ErrorFrames();
-		var session = connectAsPlayer(mine.get("sessionToken"), errors);
+		var errors = new Stomp.ErrorFrames();
+		var session = Stomp.connectAsPlayer(port, mine.get("sessionToken"), errors);
 
 		session.send("/app/game/" + theirs.get("gameId").toUpperCase() + "/ready", Map.of());
 
@@ -216,10 +166,10 @@ class SoloStartTest {
 		var token = client.post().uri("/api/admin/login").body(Map.of("email", adminEmail, "password", adminPassword))
 				.retrieve().body(Map.class).get("token");
 		var started = startSolo();
-		var admin = connect(Map.of("Authorization", "Bearer " + token), new ErrorFrames());
-		var seenByAdmin = subscribe(admin, started.get("gameId"));
+		var admin = Stomp.connect(port, Map.of("Authorization", "Bearer " + token), new Stomp.ErrorFrames());
+		var seenByAdmin = Stomp.subscribe(admin, "/topic/game/" + started.get("gameId"));
 
-		var player = connectAsPlayer(started.get("sessionToken"), new ErrorFrames());
+		var player = Stomp.connectAsPlayer(port, started.get("sessionToken"), new Stomp.ErrorFrames());
 		subscribeAndReady(player, started.get("gameId"));
 
 		assertThat(seenByAdmin.poll(5, TimeUnit.SECONDS)).isNotNull().containsEntry("type", "QUESTION_START");
@@ -232,7 +182,7 @@ class SoloStartTest {
 		var token = client.post().uri("/api/admin/login").body(Map.of("email", adminEmail, "password", adminPassword))
 				.retrieve().body(Map.class).get("token");
 		var started = startSolo();
-		var admin = connect(Map.of("Authorization", "Bearer " + token), new ErrorFrames());
+		var admin = Stomp.connect(port, Map.of("Authorization", "Bearer " + token), new Stomp.ErrorFrames());
 
 		var events = subscribeAndReady(admin, started.get("gameId"));
 
@@ -244,7 +194,7 @@ class SoloStartTest {
 
 	@Test
 	void bogusSessionTokenIsRefused() {
-		assertThatThrownBy(() -> connectAsPlayer(UUID.randomUUID().toString(), new ErrorFrames()))
+		assertThatThrownBy(() -> Stomp.connectAsPlayer(port, UUID.randomUUID().toString(), new Stomp.ErrorFrames()))
 				.isInstanceOf(ExecutionException.class);
 	}
 
@@ -254,7 +204,7 @@ class SoloStartTest {
 		var started = startSolo();
 		jdbc.execute("ALTER TABLE player RENAME TO player_gone");
 		try {
-			assertThatThrownBy(() -> connectAsPlayer(started.get("sessionToken"), new ErrorFrames()))
+			assertThatThrownBy(() -> Stomp.connectAsPlayer(port, started.get("sessionToken"), new Stomp.ErrorFrames()))
 					.isInstanceOf(ExecutionException.class);
 		} finally {
 			jdbc.execute("ALTER TABLE player_gone RENAME TO player");
@@ -263,15 +213,15 @@ class SoloStartTest {
 
 	@Test
 	void connectWithoutCredentialsIsRefused() {
-		assertThatThrownBy(() -> connect(Map.of(), new ErrorFrames())).isInstanceOf(ExecutionException.class);
+		assertThatThrownBy(() -> Stomp.connect(port, Map.of(), new Stomp.ErrorFrames())).isInstanceOf(ExecutionException.class);
 	}
 
 	@Test
 	void playerCannotSubscribeToAnotherGamesTopic() throws Exception {
 		var mine = startSolo();
 		var theirs = startSolo();
-		var handler = new ErrorFrames();
-		var session = connectAsPlayer(mine.get("sessionToken"), handler);
+		var handler = new Stomp.ErrorFrames();
+		var session = Stomp.connectAsPlayer(port, mine.get("sessionToken"), handler);
 
 		var events = subscribeAndReady(session, theirs.get("gameId"));
 

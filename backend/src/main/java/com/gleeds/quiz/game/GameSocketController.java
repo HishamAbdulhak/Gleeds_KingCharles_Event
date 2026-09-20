@@ -30,4 +30,15 @@ public class GameSocketController {
 			engine.startSolo(gameId);
 		}
 	}
+
+	record AnswerRequest(int questionIndex, int option) {
+	}
+
+	/** The Player's Answer. Accepted or refused on {@code /user/queue/player}; the engine decides which. */
+	@MessageMapping("/game/{gameId}/answer")
+	public void answer(@DestinationVariable UUID gameId, AnswerRequest req, Principal principal) {
+		if (principal instanceof PlayerPrincipal p) {
+			engine.answer(gameId, p.playerId(), req.questionIndex(), req.option());
+		}
+	}
 }
