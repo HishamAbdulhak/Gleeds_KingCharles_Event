@@ -232,7 +232,7 @@ public class GameEngine {
 	private void publishQuestion(Game game, Live state) {
 		int index = game.getCurrentQuestionIndex();
 		var q = game.currentQuestion().toDto();
-		var event = new GameEvent("QUESTION_START", new GameEvent.QuestionStart(index, q.text(),
+		var event = new GameEvent("QUESTION_START", new GameEvent.QuestionStart(index, game.questionCount(), q.text(),
 				List.of(q.optionA(), q.optionB(), q.optionC(), q.optionD()), q.timeLimitSec(), game.getQuestionStartedAt()));
 		afterCommit(() -> {
 			// the clock starts when the question leaves the server, not when the row was written

@@ -82,6 +82,10 @@ public class Game {
 		return questionStartedAt;
 	}
 
+	public int questionCount() {
+		return questions.size();
+	}
+
 	public Question currentQuestion() {
 		return questions.get(currentQuestionIndex);
 	}

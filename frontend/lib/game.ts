@@ -4,6 +4,7 @@ import { api, API_URL } from "@/lib/api";
 /** Server → client STOMP messages, mirroring backend GameEvent. Later tickets add members to the union. */
 export type QuestionStart = {
   index: number;
+  total: number;
   text: string;
   options: [string, string, string, string];
   timeLimitSec: number;
@@ -49,29 +50,64 @@ export function loadSeat(gameId: string) {
   }
 }
 
+export type Lead = { name: string; email: string };
+
+/** The Lead this phone joined with, so "Play again" prefills the form. Same storage caveat as the Seat. */
+export function saveLead(lead: Lead) {
+  try {
+    sessionStorage.setItem("lead", JSON.stringify(lead));
+  } catch {}
+}
+let leadCache: { raw: string | null; lead: Lead | null } = { raw: null, lead: null };
+/** Memoised on the stored string so useSyncExternalStore sees a stable snapshot. */
+export function loadLead(): Lead | null {
+  let raw: string | null = null;
+  try {
+    raw = sessionStorage.getItem("lead");
+  } catch {}
+  if (raw !== leadCache.raw) leadCache = { raw, lead: raw ? JSON.parse(raw) : null };
+  return leadCache.lead;
+}
+
 /**
- * Connects with the session token, subscribes to the Game topic, then says ready (docs/adr/0001). Returns the
- * disconnect function. `onError` fires for a refused CONNECT/SUBSCRIBE (the server's ERROR frame) or a dropped socket.
+ * Connects with the session token, subscribes to the Game topic and the personal queue, then says ready
+ * (docs/adr/0001; a no-op on a Game already running, so a reopened page just waits for the next message). Returns
+ * `answer` to send an Answer and `disconnect`. `onError` fires once for a refused CONNECT/SUBSCRIBE (the server's
+ * ERROR frame), which ends the connection; a dropped socket instead reports `onOnline(false)` and reconnects by itself.
  */
 export function connectToGame(
   gameId: string,
   sessionToken: string,
-  onEvent: (event: GameEvent) => void,
-  onError: (message: string) => void,
+  {
+    onEvent,
+    onError,
+    onOnline,
+  }: { onEvent: (event: GameEvent) => void; onError: (message: string) => void; onOnline: (online: boolean) => void },
 ) {
   const client = new Client({
     brokerURL: `${API_URL.replace(/^http/, "ws")}/ws`,
     connectHeaders: { "X-Session-Token": sessionToken },
+    reconnectDelay: 2000,
     onConnect: () => {
-      client.subscribe(`/topic/game/${gameId}`, (frame) => onEvent(JSON.parse(frame.body) as GameEvent));
+      onOnline(true);
+      const deliver = (frame: { body: string }) => onEvent(JSON.parse(frame.body) as GameEvent);
+      client.subscribe(`/topic/game/${gameId}`, deliver);
+      client.subscribe("/user/queue/player", deliver);
       client.publish({ destination: `/app/game/${gameId}/ready` });
     },
-    onStompError: (frame) => onError(frame.headers.message ?? "Refused by the server"),
-    onWebSocketClose: () => onError("Connection lost"),
+    onStompError: (frame) => {
+      onError(frame.headers.message ?? "Refused by the server");
+      void client.deactivate(); // the server closes the session after ERROR; don't reconnect with the same bad token
+    },
+    onWebSocketClose: () => onOnline(false),
   });
   client.activate();
-  return () => {
-    client.onWebSocketClose = () => {}; // our own deactivate() closes the socket too
-    void client.deactivate();
+  return {
+    answer: (questionIndex: number, option: number) =>
+      client.publish({ destination: `/app/game/${gameId}/answer`, body: JSON.stringify({ questionIndex, option }) }),
+    disconnect: () => {
+      client.onWebSocketClose = () => {}; // our own deactivate() closes the socket too
+      void client.deactivate();
+    },
   };
 }

@@ -5,6 +5,7 @@ Read at review. The stack skills (`.agents/skills/<name>/SKILL.md`) are the base
 ## Spec overrides the skills
 
 - Tests sit at the HTTP + STOMP boundary on Testcontainers Postgres (`spec.md` → Testing Decisions); the scoring function is the one pure unit test. `./check` greps out slice tests and mock beans.
+- Frontend (added with #6, beyond the spec's "tsc/lint only"): pure state logic — the player reducer — gets a unit test on Node's own runner (`npm test`, no framework); components are covered by tsc, lint and a manual phone-viewport check.
 - `GameEngine` holds live state in memory (spec → Architecture). "Services are stateless" does not apply to it.
 - `WsAuthInterceptor` refuses by sending a STOMP ERROR frame, not by throwing (`docs/adr/0001`).
 - Raw WebSocket with the simple broker: no SockJS, heartbeats or external broker.
