@@ -1,9 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
-import { api, getToken } from "@/lib/api";
+import { api } from "@/lib/api";
 
 type Question = {
   id: number;
@@ -28,7 +27,6 @@ const buttonClass = "rounded bg-gold-500 px-3 py-1 font-semibold text-royal-900 
 const linkButtonClass = "text-gold-300 underline";
 
 export default function QuestionBank() {
-  const router = useRouter();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [editing, setEditing] = useState<Partial<Question> | null>(null); // null = dialog closed, {} = new
   const [importResult, setImportResult] = useState<ImportResult | null>(null);
@@ -41,12 +39,8 @@ export default function QuestionBank() {
   );
 
   useEffect(() => {
-    if (!getToken()) {
-      router.replace("/admin/login");
-      return;
-    }
     reload();
-  }, [router, reload]);
+  }, [reload]);
 
   useEffect(() => {
     if (editing) dialog.current?.showModal();
