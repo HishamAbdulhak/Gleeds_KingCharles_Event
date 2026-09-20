@@ -1,4 +1,4 @@
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 const TOKEN_KEY = "adminToken";
 const LOGIN_PATH = "/api/admin/login";
 const LOGIN_PAGE = "/admin/login";
