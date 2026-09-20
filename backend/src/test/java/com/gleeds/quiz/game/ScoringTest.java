@@ -45,9 +45,4 @@ class ScoringTest {
 	void multiplierCapsAt1Point5() {
 		assertThat(Scoring.score(true, 0, LIMIT_MS, 9).points()).isEqualTo(1500);
 	}
-
-	@Test
-	void timeoutCountsAsWrongAndResetsStreak() {
-		assertThat(Scoring.timeout()).isEqualTo(new Scoring.Scored(0, 0));
-	}
 }

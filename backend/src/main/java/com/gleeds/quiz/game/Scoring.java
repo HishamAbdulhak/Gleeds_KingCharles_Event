@@ -23,9 +23,4 @@ public final class Scoring {
 		double multiplier = 1 + 0.1 * Math.min(newStreak - 1, 5);                        // 1.0× first correct → 1.5× cap
 		return new Scored((int) Math.round(base * multiplier), newStreak);
 	}
-
-	/** A question the Player let run out: wrong, no Points, Streak gone. */
-	public static Scored timeout() {
-		return new Scored(0, 0);
-	}
 }

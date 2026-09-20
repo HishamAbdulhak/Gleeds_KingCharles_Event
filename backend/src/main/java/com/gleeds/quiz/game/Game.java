@@ -78,18 +78,23 @@ public class Game {
 		return currentQuestionIndex;
 	}
 
+	public Instant getQuestionStartedAt() {
+		return questionStartedAt;
+	}
+
 	public Question currentQuestion() {
 		return questions.get(currentQuestionIndex);
 	}
 
-	public int questionCount() {
-		return questions.size();
-	}
-
-	public void startQuestion(int index, Instant at) {
+	/** Moves to the next question of the Question Set; false when there is none left. */
+	public boolean startNextQuestion(Instant at) {
+		if (currentQuestionIndex + 1 >= questions.size()) {
+			return false;
+		}
 		status = Status.QUESTION;
-		currentQuestionIndex = index;
+		currentQuestionIndex++;
 		questionStartedAt = at;
+		return true;
 	}
 
 	public void finish(Instant at) {

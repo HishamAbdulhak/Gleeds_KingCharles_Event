@@ -21,7 +21,6 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-import jakarta.annotation.PreDestroy;
 
 /**
  * Live Game state, keyed by Game id. The database is the record; this holds only what a database can't: the monotonic
@@ -68,8 +67,9 @@ public class GameEngine {
 	}
 
 	private final Map<UUID, Live> live = new ConcurrentHashMap<>();
-	/** One thread for every timer: nothing here is slow enough to need more, and no thread ever busy-waits. */
-	private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+	/** One daemon thread for every timer: nothing here is slow enough to need more, and no thread ever busy-waits. */
+	private final ScheduledExecutorService scheduler = Executors
+			.newSingleThreadScheduledExecutor(Thread.ofPlatform().daemon().factory());
 
 	private final GameRepository games;
 	private final PlayerRepository players;
@@ -90,11 +90,6 @@ public class GameEngine {
 				.removeIf(state -> System.nanoTime() - state.createdNanos > TimeUnit.HOURS.toNanos(3)), 1, 1, TimeUnit.HOURS);
 	}
 
-	@PreDestroy
-	void shutdown() {
-		scheduler.shutdownNow();
-	}
-
 	/**
 	 * A Solo Player is subscribed and ready: publish the first question. Idempotent — a second ready (page refresh)
 	 * is ignored; reconnect sync is a later ticket.
@@ -105,7 +100,8 @@ public class GameEngine {
 			if (game.getMode() != Game.Mode.SOLO || game.getStatus() != Game.Status.LOBBY) {
 				return;
 			}
-			startQuestion(game, 0, live.computeIfAbsent(gameId, Live::new));
+			game.startNextQuestion(Instant.now());
+			publishQuestion(game, live.computeIfAbsent(gameId, Live::new));
 		});
 	}
 
@@ -157,18 +153,13 @@ public class GameEngine {
 			return;
 		}
 		// ponytail: Solo is the only Mode yet, so the one Answer ends the question; Battle (ticket 08) waits for all
-		endQuestion(state);
+		if (close(state)) {
+			schedule(NEXT_QUESTION_DELAY_MS, () -> next(state));
+		}
 	}
 
 	private void refuse(UUID playerId, String reason) {
 		toPlayer(playerId, new GameEvent("ANSWER_ACK", new GameEvent.AnswerAck(false, reason)));
-	}
-
-	/** Ends the open question and paces to the next one; a no-op if the question was already over. */
-	private void endQuestion(Live state) {
-		if (close(state)) {
-			schedule(NEXT_QUESTION_DELAY_MS, () -> next(state));
-		}
 	}
 
 	/** Ends the open question exactly once: later Answers are refused. False if it was already over. */
@@ -186,20 +177,16 @@ public class GameEngine {
 	/** The deadline passed: every Player without an Answer gets a wrong-by-timeout RESULT and loses their Streak. */
 	private void timeout(Live state) {
 		if (!close(state)) {
-			return;
-		}
-		Set<UUID> answered;
-		synchronized (state) {
-			answered = Set.copyOf(state.answered);
+			return;   // an Answer got there first
 		}
 		tx.executeWithoutResult(status -> {
 			var game = games.findById(state.gameId).orElseThrow();
 			int correctOption = game.currentQuestion().toDto().correctOption();
 			for (var player : players.findByGameId(state.gameId)) {
-				if (answered.contains(player.getId())) {
+				if (state.answered.contains(player.getId())) {   // closed above on this thread: nobody adds any more
 					continue;
 				}
-				player.apply(Scoring.timeout());
+				player.apply(new Scoring.Scored(0, 0));
 				afterCommit(() -> toPlayer(player.getId(),
 						new GameEvent("RESULT", new GameEvent.Result(false, 0, 0, player.getScore(), correctOption))));
 			}
@@ -211,9 +198,8 @@ public class GameEngine {
 	private void next(Live state) {
 		tx.executeWithoutResult(status -> {
 			var game = games.findById(state.gameId).orElseThrow();
-			int index = game.getCurrentQuestionIndex() + 1;
-			if (index < game.questionCount()) {
-				startQuestion(game, index, state);
+			if (game.startNextQuestion(Instant.now())) {
+				publishQuestion(game, state);
 			} else {
 				finish(game);
 			}
@@ -242,12 +228,12 @@ public class GameEngine {
 		}, delayMs, TimeUnit.MILLISECONDS);
 	}
 
-	private void startQuestion(Game game, int index, Live state) {
-		var startedAt = Instant.now();
-		game.startQuestion(index, startedAt);
+	/** QUESTION_START for the Game's current question, and the clock and timer that go with it. */
+	private void publishQuestion(Game game, Live state) {
+		int index = game.getCurrentQuestionIndex();
 		var q = game.currentQuestion().toDto();
 		var event = new GameEvent("QUESTION_START", new GameEvent.QuestionStart(index, q.text(),
-				List.of(q.optionA(), q.optionB(), q.optionC(), q.optionD()), q.timeLimitSec(), startedAt));
+				List.of(q.optionA(), q.optionB(), q.optionC(), q.optionD()), q.timeLimitSec(), game.getQuestionStartedAt()));
 		afterCommit(() -> {
 			// the clock starts when the question leaves the server, not when the row was written
 			synchronized (state) {
