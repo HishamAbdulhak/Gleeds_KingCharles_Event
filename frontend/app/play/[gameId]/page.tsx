@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import { connectToGame, GameEvent, loadSeat, parseSeat, QuestionStart } from "@/lib/game";
+import { connectToGame, GameEvent, loadSeat, QuestionStart } from "@/lib/game";
 
 const noSubscribe = () => () => {};
 
@@ -11,23 +11,16 @@ const noSubscribe = () => () => {};
 const OPTION_COLOURS = ["bg-red-600", "bg-blue-600", "bg-yellow-500", "bg-saudi"];
 const OPTION_SHAPES = ["▲", "◆", "●", "■"];
 
-/**
- * Whole seconds left on the current question, from the server's startedAt + timeLimitSec, ticking on the phone.
- * Re-renders only when the digit changes: each tick is scheduled for the next whole-second boundary.
- */
+/** Whole seconds left on the current question, from the server's startedAt + timeLimitSec, ticking on the phone. */
 function useCountdown(question: QuestionStart | null) {
   const [secondsLeft, setSecondsLeft] = useState(0);
   useEffect(() => {
     if (!question) return;
     const deadline = Date.parse(question.startedAt) + question.timeLimitSec * 1000;
-    let timer: ReturnType<typeof setTimeout>;
-    const tick = () => {
-      const msLeft = deadline - Date.now();
-      setSecondsLeft(Math.max(0, Math.ceil(msLeft / 1000)));
-      if (msLeft > 0) timer = setTimeout(tick, (msLeft % 1000) + 1);
-    };
+    const tick = () => setSecondsLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
     tick();
-    return () => clearTimeout(timer);
+    const timer = setInterval(tick, 250); // setState with the same digit is a no-op render
+    return () => clearInterval(timer);
   }, [question]);
   return secondsLeft;
 }
@@ -46,7 +39,7 @@ export default function PlayGame() {
       if (event.type === "QUESTION_START") setQuestion(event.payload);
     };
     // first error wins: a refused CONNECT is followed by the socket closing
-    return connectToGame(gameId, parseSeat(seat).sessionToken, onEvent, (m) => setError((e) => e ?? m));
+    return connectToGame(gameId, seat, onEvent, (m) => setError((e) => e ?? m));
   }, [gameId, seat]);
 
   if (error || seat === null) {

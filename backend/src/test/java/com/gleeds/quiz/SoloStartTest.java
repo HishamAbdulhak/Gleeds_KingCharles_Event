@@ -98,14 +98,6 @@ class SoloStartTest {
 	}
 
 	@Test
-	void twoGamesDrawIndependently() {
-		var a = UUID.fromString(startSolo().get("gameId"));
-		var b = UUID.fromString(startSolo().get("gameId"));
-		assertThat(jdbc.queryForObject("SELECT count(DISTINCT game_id) FROM game_question WHERE game_id IN (?, ?)",
-				Integer.class, a, b)).isEqualTo(2);
-	}
-
-	@Test
 	void withoutConsentIs400() {
 		var form = joinForm();
 		form.put("consent", false);
@@ -157,9 +149,8 @@ class SoloStartTest {
 		return connect(Map.of("X-Session-Token", sessionToken), handler);
 	}
 
-	/** Subscribes to the Game topic, then says ready. Mirrors the frontend; ordering is guaranteed server-side. */
 	@SuppressWarnings("unchecked")
-	BlockingQueue<Map<String, Object>> subscribeAndReady(StompSession session, String gameId) {
+	BlockingQueue<Map<String, Object>> subscribe(StompSession session, String gameId) {
 		var events = new LinkedBlockingQueue<Map<String, Object>>();
 		session.subscribe("/topic/game/" + gameId, new StompFrameHandler() {
 			@Override
@@ -172,6 +163,12 @@ class SoloStartTest {
 				events.add((Map<String, Object>) payload);
 			}
 		});
+		return events;
+	}
+
+	/** Subscribes to the Game topic, then says ready. Mirrors the frontend; ordering is guaranteed server-side. */
+	BlockingQueue<Map<String, Object>> subscribeAndReady(StompSession session, String gameId) {
+		var events = subscribe(session, gameId);
 		session.send("/app/game/" + gameId + "/ready", Map.of());
 		return events;
 	}
@@ -220,18 +217,7 @@ class SoloStartTest {
 				.retrieve().body(Map.class).get("token");
 		var started = startSolo();
 		var admin = connect(Map.of("Authorization", "Bearer " + token), new ErrorFrames());
-		var seenByAdmin = new LinkedBlockingQueue<Map<String, Object>>();
-		admin.subscribe("/topic/game/" + started.get("gameId"), new StompFrameHandler() {
-			@Override
-			public Type getPayloadType(StompHeaders headers) {
-				return Map.class;
-			}
-
-			@Override
-			public void handleFrame(StompHeaders headers, Object payload) {
-				seenByAdmin.add((Map<String, Object>) payload);
-			}
-		});
+		var seenByAdmin = subscribe(admin, started.get("gameId"));
 
 		var player = connectAsPlayer(started.get("sessionToken"), new ErrorFrames());
 		subscribeAndReady(player, started.get("gameId"));

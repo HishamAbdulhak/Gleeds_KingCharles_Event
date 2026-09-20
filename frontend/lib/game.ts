@@ -12,25 +12,22 @@ export type QuestionStart = {
 
 export type GameEvent = { type: "QUESTION_START"; payload: QuestionStart };
 
-export type Seat = { playerId: string; sessionToken: string };
-
 export async function startSolo(name: string, email: string, consent: boolean) {
-  return api<Seat & { gameId: string }>("/api/solo", {
+  return api<{ gameId: string; playerId: string; sessionToken: string }>("/api/solo", {
     method: "POST",
     body: JSON.stringify({ name, email, consent }),
   });
 }
 
 /**
- * The Player's seat in one Game, kept for the tab's life so a refresh reconnects (ids only; the name lives
- * server-side). sessionStorage can throw (private browsing, disabled) — a lost seat is reported by the game page.
+ * The Player's session token for one Game, kept for the tab's life so a refresh reconnects. sessionStorage can
+ * throw (private browsing, disabled) — a lost seat is reported by the game page.
  */
-export function saveSeat(gameId: string, seat: Seat) {
+export function saveSeat(gameId: string, sessionToken: string) {
   try {
-    sessionStorage.setItem(`seat:${gameId}`, JSON.stringify(seat));
+    sessionStorage.setItem(`seat:${gameId}`, sessionToken);
   } catch {}
 }
-/** Raw JSON (a stable snapshot for useSyncExternalStore); parse with {@link parseSeat}. */
 export function loadSeat(gameId: string) {
   try {
     return sessionStorage.getItem(`seat:${gameId}`);
@@ -38,7 +35,6 @@ export function loadSeat(gameId: string) {
     return null;
   }
 }
-export const parseSeat = (raw: string) => JSON.parse(raw) as Seat;
 
 /**
  * Connects with the session token, subscribes to the Game topic, then says ready (docs/adr/0001). Returns the
@@ -50,7 +46,6 @@ export function connectToGame(
   onEvent: (event: GameEvent) => void,
   onError: (message: string) => void,
 ) {
-  let closing = false; // our own deactivate() also fires onWebSocketClose
   const client = new Client({
     brokerURL: `${API_URL.replace(/^http/, "ws")}/ws`,
     connectHeaders: { "X-Session-Token": sessionToken },
@@ -59,13 +54,11 @@ export function connectToGame(
       client.publish({ destination: `/app/game/${gameId}/ready` });
     },
     onStompError: (frame) => onError(frame.headers.message ?? "Refused by the server"),
-    onWebSocketClose: () => {
-      if (!closing) onError("Connection lost");
-    },
+    onWebSocketClose: () => onError("Connection lost"),
   });
   client.activate();
   return () => {
-    closing = true;
+    client.onWebSocketClose = () => {}; // our own deactivate() closes the socket too
     void client.deactivate();
   };
 }

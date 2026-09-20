@@ -24,9 +24,6 @@ public class Player {
 	private Instant consentedAt = Instant.now();
 	/** STOMP CONNECT credential and reconnect key. */
 	private UUID sessionToken = UUID.randomUUID();
-	private int score;
-	private int streak;
-	private Instant joinedAt = Instant.now();
 
 	protected Player() {
 	}

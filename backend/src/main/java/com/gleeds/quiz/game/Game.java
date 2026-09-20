@@ -8,6 +8,7 @@ import com.gleeds.quiz.question.Question;
 
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -38,18 +39,14 @@ public class Game {
 	@Enumerated(EnumType.STRING)
 	private Mode mode;
 
-	private String pin;
-
 	@Enumerated(EnumType.STRING)
 	private Status status = Status.LOBBY;
 
 	private int currentQuestionIndex = -1;
 	private Instant questionStartedAt;
-	private Instant createdAt = Instant.now();
-	private Instant endedAt;
 
 	/** The Question Set: {@code game_question} rows, {@code position} as list index. */
-	@ManyToMany
+	@ManyToMany(fetch = FetchType.EAGER)   // always needed with the Game; loaded outside a transaction by GameEngine
 	@JoinTable(name = "game_question", joinColumns = @JoinColumn(name = "game_id"), inverseJoinColumns = @JoinColumn(name = "question_id"))
 	@OrderColumn(name = "position")
 	private List<Question> questions;
@@ -75,18 +72,6 @@ public class Game {
 
 	public Status getStatus() {
 		return status;
-	}
-
-	public int getCurrentQuestionIndex() {
-		return currentQuestionIndex;
-	}
-
-	public Instant getQuestionStartedAt() {
-		return questionStartedAt;
-	}
-
-	public List<Question> getQuestions() {
-		return questions;
 	}
 
 	public Question currentQuestion() {

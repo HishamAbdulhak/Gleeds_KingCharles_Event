@@ -117,7 +117,6 @@ public class WsAuthInterceptor implements ChannelInterceptor {
 		return null;
 	}
 
-	/** Compares as UUIDs, not strings: {@code @DestinationVariable UUID} accepts forms the id's canonical text doesn't. */
 	private boolean authorised(StompHeaderAccessor accessor) {
 		var destination = accessor.getDestination();
 		var match = destination == null ? null : GAME_DESTINATION.matcher(destination);
@@ -128,10 +127,7 @@ public class WsAuthInterceptor implements ChannelInterceptor {
 		if (principal instanceof Admin) {
 			return true;
 		}
-		try {
-			return principal instanceof PlayerPrincipal p && p.gameId().equals(UUID.fromString(match.group(1)));
-		} catch (IllegalArgumentException e) {
-			return false;   // not a Game id at all
-		}
+		// text compare: a non-canonical spelling of the Player's own Game id is refused too, which is the safe direction
+		return principal instanceof PlayerPrincipal p && p.gameId().toString().equals(match.group(1));
 	}
 }

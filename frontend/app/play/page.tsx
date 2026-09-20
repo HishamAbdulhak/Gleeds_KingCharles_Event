@@ -19,12 +19,12 @@ export default function Play() {
     setError(null);
     const form = new FormData(e.currentTarget);
     try {
-      const { gameId, playerId, sessionToken } = await startSolo(
+      const { gameId, sessionToken } = await startSolo(
         String(form.get("name")).trim(),
         String(form.get("email")).trim(),
         form.get("consent") === "on",
       );
-      saveSeat(gameId, { playerId, sessionToken });
+      saveSeat(gameId, sessionToken);
       router.replace(`/play/${gameId}`);
     } catch (err) {
       setError((err as Error).message || "Could not reach the server.");

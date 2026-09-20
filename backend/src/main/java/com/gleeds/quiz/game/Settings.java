@@ -1,7 +1,5 @@
 package com.gleeds.quiz.game;
 
-import java.time.Instant;
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -15,16 +13,11 @@ public class Settings {
 	private Boolean id = true;
 
 	private int questionsPerGame;
-	private Instant leaderboardSince;
 
 	protected Settings() {
 	}
 
 	public int getQuestionsPerGame() {
 		return questionsPerGame;
-	}
-
-	public Instant getLeaderboardSince() {
-		return leaderboardSince;
 	}
 }
