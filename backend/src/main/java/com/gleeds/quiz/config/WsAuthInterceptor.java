@@ -4,6 +4,8 @@ import java.security.Principal;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.messaging.Message;
@@ -34,6 +36,8 @@ import com.gleeds.quiz.game.PlayerRepository;
 public class WsAuthInterceptor implements ChannelInterceptor {
 
 	public static final String SESSION_TOKEN_HEADER = "X-Session-Token";
+
+	private static final Logger log = LoggerFactory.getLogger(WsAuthInterceptor.class);
 
 	public record Admin(String email) implements Principal {
 		@Override
@@ -70,16 +74,23 @@ public class WsAuthInterceptor implements ChannelInterceptor {
 		if (accessor == null || accessor.getCommand() == null) {
 			return message;
 		}
-		var reason = switch (accessor.getCommand()) {
-			case CONNECT -> {
-				var principal = authenticate(accessor);
-				accessor.setUser(principal);
-				yield principal == null ? "Not authenticated" : null;
-			}
-			case SUBSCRIBE, SEND -> authorised(accessor) ? null
-					: "Not your Game: " + accessor.getCommand() + " " + accessor.getDestination();
-			default -> null;
-		};
+		String reason;
+		try {
+			reason = switch (accessor.getCommand()) {
+				case CONNECT -> {
+					var principal = authenticate(accessor);
+					accessor.setUser(principal);
+					yield principal == null ? "Not authenticated" : null;
+				}
+				case SUBSCRIBE, SEND -> authorised(accessor) ? null
+						: "Not your Game: " + accessor.getCommand() + " " + accessor.getDestination();
+				default -> null;
+			};
+		} catch (RuntimeException e) {
+			// e.g. the database is down during CONNECT: the client must still get an ERROR, not silence (see class doc)
+			log.error("STOMP {} in session {} failed", accessor.getCommand(), accessor.getSessionId(), e);
+			reason = "Server error";
+		}
 		if (reason == null) {
 			return message;
 		}

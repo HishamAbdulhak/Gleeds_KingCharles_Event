@@ -248,6 +248,19 @@ class SoloStartTest {
 				.isInstanceOf(ExecutionException.class);
 	}
 
+	/** A failing database lookup during CONNECT must still answer with an ERROR frame (ExecutionException), not hang (TimeoutException). */
+	@Test
+	void databaseFailureDuringConnectIsRefusedNotSilent() {
+		var started = startSolo();
+		jdbc.execute("ALTER TABLE player RENAME TO player_gone");
+		try {
+			assertThatThrownBy(() -> connectAsPlayer(started.get("sessionToken"), new ErrorFrames()))
+					.isInstanceOf(ExecutionException.class);
+		} finally {
+			jdbc.execute("ALTER TABLE player_gone RENAME TO player");
+		}
+	}
+
 	@Test
 	void connectWithoutCredentialsIsRefused() {
 		assertThatThrownBy(() -> connect(Map.of(), new ErrorFrames())).isInstanceOf(ExecutionException.class);
