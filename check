@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# The one check: backend boundary tests on Testcontainers Postgres, then frontend types and lint. CI runs this too.
+set -u
+cd "$(dirname "$0")"
+status=0
+
+(cd backend && ./mvnw -q test) || status=1
+for f in backend/target/surefire-reports/TEST-*.xml; do
+	[ -e "$f" ] || { echo "backend: no test reports"; status=1; break; }
+	printf '%-22s %s\n' "$(basename "$f" .xml | sed 's/TEST-com.gleeds.quiz.//')" \
+		"$(grep -o 'tests="[0-9]*" errors="[0-9]*" skipped="[0-9]*" failures="[0-9]*"' "$f")"
+done
+
+(cd frontend && npx tsc --noEmit -p . && npm run -s lint) && echo "frontend: tsc + eslint ok" || status=1
+
+[ $status -eq 0 ] && echo "PASS" || echo "FAIL"
+exit $status
