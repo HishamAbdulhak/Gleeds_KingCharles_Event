@@ -3,8 +3,11 @@
 import { useEffect, useState } from "react";
 import type { QuestionStart } from "@/lib/game";
 
-/** Milliseconds left on the question, from the server's startedAt + timeLimitSec: reopening the page mid-question shows the true remainder. */
-function useMsLeft(question: QuestionStart) {
+/**
+ * Countdown for the open question: a shrinking bar and whole seconds, red for the last five. Ticks from the server's
+ * startedAt + timeLimitSec, so reopening the page mid-question shows the true remainder.
+ */
+export function Timer({ question }: { question: QuestionStart }) {
   const [msLeft, setMsLeft] = useState(0);
   useEffect(() => {
     const deadline = Date.parse(question.startedAt) + question.timeLimitSec * 1000;
@@ -13,12 +16,6 @@ function useMsLeft(question: QuestionStart) {
     const timer = setInterval(tick, 100);
     return () => clearInterval(timer);
   }, [question]);
-  return msLeft;
-}
-
-/** Countdown for the open question: a shrinking bar and whole seconds, red for the last five. */
-export function Timer({ question }: { question: QuestionStart }) {
-  const msLeft = useMsLeft(question);
   const seconds = Math.ceil(msLeft / 1000);
   const urgent = seconds <= 5;
   return (

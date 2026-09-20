@@ -5,10 +5,9 @@ import { useParams } from "next/navigation";
 import { useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { AnswerGrid } from "@/components/AnswerGrid";
 import { Timer } from "@/components/Timer";
-import { connectToGame, loadSeat, Result } from "@/lib/game";
+import { noSubscribe } from "@/lib/api";
+import { connectToGame, Result, stored } from "@/lib/game";
 import { reducePlayer, WAITING } from "@/lib/player";
-
-const noSubscribe = () => () => {};
 
 export default function PlayGame() {
   const { gameId } = useParams<{ gameId: string }>();
@@ -17,7 +16,7 @@ export default function PlayGame() {
   const [online, setOnline] = useState(false);
   const socket = useRef<ReturnType<typeof connectToGame>>(null);
   // undefined on the server render, null when this phone never started this Game
-  const seat = useSyncExternalStore(noSubscribe, () => loadSeat(gameId), () => undefined);
+  const seat = useSyncExternalStore(noSubscribe, () => stored.get<string>(`seat:${gameId}`), () => undefined);
 
   useEffect(() => {
     if (!seat) return;

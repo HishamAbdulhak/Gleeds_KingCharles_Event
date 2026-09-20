@@ -2,9 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ReactNode, useEffect, useSyncExternalStore } from "react";
-import { getToken } from "@/lib/api";
-
-const noSubscribe = () => () => {};
+import { getToken, noSubscribe } from "@/lib/api";
 
 /** Every route in this group needs an admin token; without one it goes to login before anything renders. */
 export default function AuthedLayout({ children }: { children: ReactNode }) {

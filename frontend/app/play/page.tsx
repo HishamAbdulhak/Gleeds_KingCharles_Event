@@ -3,9 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState, useSyncExternalStore } from "react";
-import { loadLead, saveLead, saveSeat, startSolo } from "@/lib/game";
-
-const noSubscribe = () => () => {};
+import { noSubscribe } from "@/lib/api";
+import { Lead, startSolo, stored } from "@/lib/game";
 
 const inputClass = "rounded bg-cream p-3 text-lg text-royal-900";
 
@@ -17,7 +16,7 @@ export default function Play() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const lead = useSyncExternalStore(noSubscribe, loadLead, () => null);
+  const lead = useSyncExternalStore(noSubscribe, () => stored.get<Lead>("lead"), () => null);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -28,8 +27,8 @@ export default function Play() {
     const email = String(form.get("email")).trim();
     try {
       const { gameId, sessionToken } = await startSolo(name, email, form.get("consent") === "on");
-      saveSeat(gameId, sessionToken);
-      saveLead({ name, email });
+      stored.set(`seat:${gameId}`, sessionToken);
+      stored.set("lead", { name, email });
       router.replace(`/play/${gameId}`);
     } catch (err) {
       setError((err as Error).message || "Could not reach the server.");
