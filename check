@@ -11,7 +11,7 @@ for f in backend/target/surefire-reports/TEST-*.xml; do
 		"$(grep -o 'tests="[0-9]*" errors="[0-9]*" skipped="[0-9]*" failures="[0-9]*"' "$f")"
 done
 
-(cd frontend && npx tsc --noEmit -p . && npm run -s lint) && echo "frontend: tsc + eslint ok" || status=1
+(cd frontend && npx next typegen >/dev/null && npx tsc --noEmit -p . && npm run -s lint) && echo "frontend: tsc + eslint ok" || status=1
 
 [ $status -eq 0 ] && echo "PASS" || echo "FAIL"
 exit $status
