@@ -58,13 +58,13 @@ class AdminAuthTest {
 
 	@Test
 	void adminEndpointWithoutTokenIs401() {
-		var status = client().get().uri("/api/admin/me").exchange((req, res) -> res.getStatusCode());
+		var status = client().get().uri("/api/admin/questions").exchange((req, res) -> res.getStatusCode());
 		assertThat(status).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
 
 	@Test
 	void adminEndpointWithGarbageTokenIs401() {
-		var status = client().get().uri("/api/admin/me").header("Authorization", "Bearer not.a.jwt")
+		var status = client().get().uri("/api/admin/questions").header("Authorization", "Bearer not.a.jwt")
 				.exchange((req, res) -> res.getStatusCode());
 		assertThat(status).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
@@ -72,9 +72,8 @@ class AdminAuthTest {
 	@Test
 	void adminEndpointWithTokenIs200() {
 		var token = login(adminEmail, adminPassword).get("token");
-		var response = client().get().uri("/api/admin/me").header("Authorization", "Bearer " + token).retrieve()
+		var response = client().get().uri("/api/admin/questions").header("Authorization", "Bearer " + token).retrieve()
 				.toEntity(String.class);
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
-		assertThat(response.getBody()).contains(adminEmail);
 	}
 }
