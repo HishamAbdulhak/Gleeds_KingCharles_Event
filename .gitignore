@@ -24,11 +24,9 @@ frontend/next-env.d.ts
 *.iml
 .DS_Store
 
-# claude local
-.claude/settings.local.json
-
-# agent skills (local only — see CLAUDE.md "Stack skills" to reinstall)
+# local agent tooling (see AGENTS.md "Stack skills" to reinstall the skills)
 .agents/
-.claude/skills/
+.claude/
+CLAUDE.md
 skills-lock.json
 .scratch/pr-*-body.md
