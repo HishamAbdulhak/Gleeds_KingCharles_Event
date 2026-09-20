@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState, useSyncExternalStore } from "react";
 import { noSubscribe } from "@/lib/api";
-import { Lead, startSolo, stored } from "@/lib/game";
+import { startSolo, stored } from "@/lib/game";
 
 const inputClass = "rounded bg-cream p-3 text-lg text-royal-900";
 
@@ -16,9 +16,14 @@ export default function Play() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const lead = useSyncExternalStore(
+  const storedName = useSyncExternalStore(
     noSubscribe,
-    () => stored.get<Lead>("lead"),
+    () => stored.get("lead:name"),
+    () => null,
+  );
+  const storedEmail = useSyncExternalStore(
+    noSubscribe,
+    () => stored.get("lead:email"),
     () => null,
   );
 
@@ -32,7 +37,8 @@ export default function Play() {
     try {
       const { gameId, sessionToken } = await startSolo(name, email, form.get("consent") === "on");
       stored.set(`seat:${gameId}`, sessionToken);
-      stored.set("lead", { name, email });
+      stored.set("lead:name", name);
+      stored.set("lead:email", email);
       router.replace(`/play/${gameId}`);
     } catch (err) {
       setError((err as Error).message || "Could not reach the server.");
@@ -43,7 +49,11 @@ export default function Play() {
   return (
     <main className="flex flex-1 items-center justify-center p-6">
       {/* key: remount when the stored Lead appears after hydration, so defaultValue takes effect */}
-      <form key={lead ? "prefilled" : "blank"} onSubmit={onSubmit} className="flex w-full max-w-sm flex-col gap-4">
+      <form
+        key={storedName ? "prefilled" : "blank"}
+        onSubmit={onSubmit}
+        className="flex w-full max-w-sm flex-col gap-4"
+      >
         <h1 className="text-3xl font-bold text-gold-500">Play</h1>
         <label className="flex flex-col gap-1 text-sm">
           Name
@@ -52,7 +62,7 @@ export default function Play() {
             required
             maxLength={80}
             autoComplete="name"
-            defaultValue={lead?.name}
+            defaultValue={storedName ?? undefined}
             className={inputClass}
           />
         </label>
@@ -63,7 +73,7 @@ export default function Play() {
             type="email"
             required
             autoComplete="email"
-            defaultValue={lead?.email}
+            defaultValue={storedEmail ?? undefined}
             className={inputClass}
           />
         </label>

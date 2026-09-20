@@ -33,28 +33,21 @@ export async function startSolo(name: string, email: string, consent: boolean) {
   });
 }
 
-export type Lead = { name: string; email: string };
-
 /**
  * Per-tab storage: the Seat (session token per Game, so a refresh reconnects) and the Lead (so "Play again" prefills).
- * sessionStorage can throw (private browsing, disabled); a lost Seat is reported by the game page. `get` is memoised
- * on the stored string so useSyncExternalStore sees a stable snapshot.
+ * sessionStorage can throw (private browsing, disabled); a lost Seat is reported by the game page.
  */
-const cache = new Map<string, unknown>();
 export const stored = {
-  set(key: string, value: unknown) {
+  set(key: string, value: string) {
     try {
-      sessionStorage.setItem(key, JSON.stringify(value));
+      sessionStorage.setItem(key, value);
     } catch {}
   },
-  get<T>(key: string): T | null {
+  get(key: string) {
     try {
-      const raw = sessionStorage.getItem(key);
-      if (raw === null) return null;
-      if (!cache.has(raw)) cache.set(raw, JSON.parse(raw));
-      return cache.get(raw) as T;
+      return sessionStorage.getItem(key);
     } catch {
-      return null; // storage unavailable, or a value this code didn't write
+      return null;
     }
   },
 };
@@ -68,28 +61,28 @@ export const stored = {
 export function connectToGame(
   gameId: string,
   sessionToken: string,
-  {
-    onEvent,
-    onError,
-    onOnline,
-  }: { onEvent: (event: GameEvent) => void; onError: (message: string) => void; onOnline: (online: boolean) => void },
+  opts: {
+    onEvent: (event: GameEvent) => void;
+    onError: (message: string) => void;
+    onOnline: (online: boolean) => void;
+  },
 ) {
   const client = new Client({
     brokerURL: `${API_URL.replace(/^http/, "ws")}/ws`,
     connectHeaders: { "X-Session-Token": sessionToken },
     reconnectDelay: 2000,
     onConnect: () => {
-      onOnline(true);
-      const deliver = (frame: { body: string }) => onEvent(JSON.parse(frame.body) as GameEvent);
+      opts.onOnline(true);
+      const deliver = (frame: { body: string }) => opts.onEvent(JSON.parse(frame.body) as GameEvent);
       client.subscribe(`/topic/game/${gameId}`, deliver);
       client.subscribe("/user/queue/player", deliver);
       client.publish({ destination: `/app/game/${gameId}/ready` });
     },
     onStompError: (frame) => {
-      onError(frame.headers.message ?? "Refused by the server");
+      opts.onError(frame.headers.message ?? "Refused by the server");
       void client.deactivate(); // the server closes the session after ERROR; don't reconnect with the same bad token
     },
-    onWebSocketClose: () => onOnline(false),
+    onWebSocketClose: () => opts.onOnline(false),
   });
   client.activate();
   return {

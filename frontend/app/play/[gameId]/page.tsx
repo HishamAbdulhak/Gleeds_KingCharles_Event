@@ -18,7 +18,7 @@ export default function PlayGame() {
   // undefined on the server render, null when this phone never started this Game
   const seat = useSyncExternalStore(
     noSubscribe,
-    () => stored.get<string>(`seat:${gameId}`),
+    () => stored.get(`seat:${gameId}`),
     () => undefined,
   );
 
