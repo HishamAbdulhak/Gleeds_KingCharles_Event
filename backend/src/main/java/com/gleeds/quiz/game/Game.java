@@ -43,6 +43,7 @@ public class Game {
 
 	private int currentQuestionIndex = -1;
 	private Instant questionStartedAt;
+	private Instant endedAt;
 
 	/** The Question Set: {@code game_question} rows, {@code position} as list index. */
 	@ManyToMany
@@ -73,13 +74,26 @@ public class Game {
 		return status;
 	}
 
+	public int getCurrentQuestionIndex() {
+		return currentQuestionIndex;
+	}
+
 	public Question currentQuestion() {
 		return questions.get(currentQuestionIndex);
+	}
+
+	public int questionCount() {
+		return questions.size();
 	}
 
 	public void startQuestion(int index, Instant at) {
 		status = Status.QUESTION;
 		currentQuestionIndex = index;
 		questionStartedAt = at;
+	}
+
+	public void finish(Instant at) {
+		status = Status.FINISHED;
+		endedAt = at;
 	}
 }

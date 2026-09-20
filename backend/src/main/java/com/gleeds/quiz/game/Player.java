@@ -24,6 +24,8 @@ public class Player {
 	private Instant consentedAt = Instant.now();
 	/** STOMP CONNECT credential and reconnect key. */
 	private UUID sessionToken = UUID.randomUUID();
+	private int score;
+	private int streak;
 
 	protected Player() {
 	}
@@ -44,5 +46,19 @@ public class Player {
 
 	public UUID getSessionToken() {
 		return sessionToken;
+	}
+
+	public int getScore() {
+		return score;
+	}
+
+	public int getStreak() {
+		return streak;
+	}
+
+	/** Banks an Answer's (or a timeout's) Points and carries its Streak forward. */
+	public void apply(Scoring.Scored scored) {
+		score += scored.points();
+		streak = scored.streak();
 	}
 }

@@ -15,7 +15,7 @@ Read at review. The stack skills (`.agents/skills/<name>/SKILL.md`) are the base
 ## Rules that have bitten
 
 - Collections load through `@EntityGraph` or `JOIN FETCH`, never `fetch = EAGER`.
-- Every method that modifies rows is `@Transactional`; STOMP publishes happen in `afterCommit`, so a client never sees a row the database doesn't.
+- Every method that modifies rows is `@Transactional`; STOMP publishes happen in `afterCommit`, so a client never sees a row the database doesn't. `GameEngine` uses a `TransactionTemplate` instead: its timer callbacks are internal calls, which a `@Transactional` proxy never sees.
 - `201 Created` carries a `Location` header only when a `GET` for that resource exists.
 - A domain term used in code is in `CONTEXT.md`; add the glossary entry with the code that introduces it.
 - A branch closes one issue. Repo-wide cleanup gets its own branch so the feature's spec review stays clean.

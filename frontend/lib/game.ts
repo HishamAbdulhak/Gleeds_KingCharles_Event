@@ -10,7 +10,20 @@ export type QuestionStart = {
   startedAt: string; // ISO instant
 };
 
-export type GameEvent = { type: "QUESTION_START"; payload: QuestionStart };
+/** Personal queue (`/user/queue/player`): was the Answer taken? `reason` only when refused. */
+export type AnswerAck = { accepted: boolean; reason: string | null };
+
+/** Personal queue: what the Answer (or timeout) earned and the running Score. */
+export type Result = { correct: boolean; points: number; streak: number; score: number; correctOption: number };
+
+/** Game topic, Solo: final Score and total response time. */
+export type GameOver = { score: number; totalResponseMs: number };
+
+export type GameEvent =
+  | { type: "QUESTION_START"; payload: QuestionStart }
+  | { type: "ANSWER_ACK"; payload: AnswerAck }
+  | { type: "RESULT"; payload: Result }
+  | { type: "GAME_OVER"; payload: GameOver };
 
 export async function startSolo(name: string, email: string, consent: boolean) {
   return api<{ gameId: string; playerId: string; sessionToken: string }>("/api/solo", {

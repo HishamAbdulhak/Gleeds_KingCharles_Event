@@ -36,6 +36,8 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 	public void configureMessageBroker(MessageBrokerRegistry registry) {
 		registry.setApplicationDestinationPrefixes("/app");
 		registry.enableSimpleBroker("/topic", "/queue");
+		// ANSWER_ACK is sent right before RESULT: keep one client's outbound messages in publish order
+		registry.setPreservePublishOrder(true);
 		registry.setUserDestinationPrefix("/user");
 	}
 
