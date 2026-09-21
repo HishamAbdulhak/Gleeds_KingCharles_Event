@@ -73,15 +73,17 @@ public class GameEngine {
 	private final GameRepository games;
 	private final PlayerRepository players;
 	private final AnswerRepository answers;
+	private final DayLeaderboard leaderboard;
 	private final SimpMessagingTemplate messaging;
 	/** Explicit transactions: the timer callbacks are internal calls, which a {@code @Transactional} proxy never sees. */
 	private final TransactionTemplate tx;
 
-	GameEngine(GameRepository games, PlayerRepository players, AnswerRepository answers,
+	GameEngine(GameRepository games, PlayerRepository players, AnswerRepository answers, DayLeaderboard leaderboard,
 			SimpMessagingTemplate messaging, PlatformTransactionManager transactions) {
 		this.games = games;
 		this.players = players;
 		this.answers = answers;
+		this.leaderboard = leaderboard;
 		this.messaging = messaging;
 		this.tx = new TransactionTemplate(transactions);
 	}
@@ -202,13 +204,17 @@ public class GameEngine {
 		});
 	}
 
+	/** Marks the Game FINISHED, tells the Player their Score and rank, and pushes the fresh board to the Host screen. */
 	private void finish(Game game) {
 		game.finish(Instant.now());
 		var player = players.findByGameId(game.getId()).get(0);   // Solo: exactly one; Battle's Podium is ticket 08
-		var event = new GameEvent("GAME_OVER", new GameEvent.GameOver(player.getScore()));
+		var rank = leaderboard.rankOf(player.getEmail()).orElse(null);
+		var over = new GameEvent("GAME_OVER", new GameEvent.GameOver(player.getScore(), rank));
+		var board = new GameEvent("DAY_LEADERBOARD", new GameEvent.Board(leaderboard.top(10)));   // ten rows read from 5 m
 		afterCommit(() -> {
 			live.remove(game.getId());
-			messaging.convertAndSend("/topic/game/" + game.getId(), event);
+			messaging.convertAndSend("/topic/game/" + game.getId(), over);
+			messaging.convertAndSend("/topic/leaderboard", board);
 		});
 	}
 
