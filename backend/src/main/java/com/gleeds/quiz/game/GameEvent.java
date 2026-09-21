@@ -19,7 +19,14 @@ public record GameEvent(String type, Object payload) {
 	public record Result(boolean correct, int points, int streak, int score, int correctOption) {
 	}
 
-	/** Game topic, Solo: the Player's final Score (rank is ticket 07). */
-	public record GameOver(int score) {
+	/**
+	 * Game topic, Solo: the Player's final Score and their rank on the Day Leaderboard; {@code rank} is null only when
+	 * a Reset happened mid-Game, so the Game no longer counts.
+	 */
+	public record GameOver(int score, Integer rank) {
+	}
+
+	/** Leaderboard topic, as DAY_LEADERBOARD: the top of the Day Leaderboard whenever a Game finishes or a Reset happens. */
+	public record Board(List<DayLeaderboard.Entry> top) {
 	}
 }

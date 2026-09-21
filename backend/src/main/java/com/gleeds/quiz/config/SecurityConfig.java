@@ -49,6 +49,7 @@ public class SecurityConfig {
 						// Boot renders exceptions by forwarding to /error; a public endpoint's 400 must not become a 401
 						.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
 						.requestMatchers(HttpMethod.POST, "/api/admin/login", "/api/solo").permitAll()
+						.requestMatchers(HttpMethod.GET, "/api/leaderboard/**").permitAll()
 						.requestMatchers("/ws").permitAll()   // STOMP CONNECT is authenticated by WsAuthInterceptor
 						.requestMatchers("/api/admin/**").hasAuthority(ADMIN_AUTHORITY)
 						.anyRequest().authenticated())
