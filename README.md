@@ -39,5 +39,6 @@ Checks — what CI runs (backend tests need Docker for Testcontainers; frontend 
 | `ADMIN_EMAIL` / `ADMIN_PASSWORD` | backend | required; seeded (bcrypt) by the V2 migration on first start |
 | `CORS_ORIGIN` | backend | `http://localhost:3000` |
 | `NEXT_PUBLIC_API_URL` | frontend | `http://localhost:8080` |
+| `NEXT_PUBLIC_BASE_URL` | frontend | the Host screen's own origin; where the QR code sends phones |
 
 Copy `frontend/.env.example` to `frontend/.env.local`. `.env*` files are gitignored.

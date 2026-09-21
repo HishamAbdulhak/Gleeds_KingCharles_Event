@@ -16,6 +16,9 @@ export default function AdminHome() {
         <Link href="/admin/questions" className="text-gold-300 underline">
           Question Bank
         </Link>
+        <Link href="/host" className="text-gold-300 underline">
+          Host screen
+        </Link>
       </nav>
       <p className="text-cream/80">Settings and Leads will appear here.</p>
     </main>

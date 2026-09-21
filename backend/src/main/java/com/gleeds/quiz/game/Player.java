@@ -44,6 +44,10 @@ public class Player {
 		return gameId;
 	}
 
+	public String getEmail() {
+		return email;
+	}
+
 	public UUID getSessionToken() {
 		return sessionToken;
 	}

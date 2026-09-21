@@ -1,5 +1,7 @@
 import { Client } from "@stomp/stompjs";
-import { api, API_URL } from "@/lib/api";
+import { api, API_URL, getToken, logout } from "@/lib/api";
+
+const WS_URL = `${API_URL.replace(/^http/, "ws")}/ws`;
 
 /** Server → client STOMP messages, mirroring backend GameEvent. Later tickets add members to the union. */
 export type QuestionStart = {
@@ -17,8 +19,17 @@ export type AnswerAck = { accepted: boolean; reason: string | null };
 /** Personal queue: what the Answer (or timeout) earned and the running Score. */
 export type Result = { correct: boolean; points: number; streak: number; score: number; correctOption: number };
 
-/** Game topic, Solo: final Score. */
-export type GameOver = { score: number };
+/** Game topic, Solo: final Score and rank on the Day Leaderboard (null only if a Reset happened mid-Game). */
+export type GameOver = { score: number; rank: number | null };
+
+/** One row of the Day Leaderboard. */
+export type LeaderboardEntry = { rank: number; name: string; score: number };
+
+/**
+ * Leaderboard topic (Admins only): the top of the Day Leaderboard, pushed whenever a Game finishes or a Reset happens.
+ * Its own topic, so not part of the Game topic's union below.
+ */
+export type DayLeaderboard = { type: "DAY_LEADERBOARD"; payload: { top: LeaderboardEntry[] } };
 
 export type GameEvent =
   | { type: "QUESTION_START"; payload: QuestionStart }
@@ -68,7 +79,7 @@ export function connectToGame(
   },
 ) {
   const client = new Client({
-    brokerURL: `${API_URL.replace(/^http/, "ws")}/ws`,
+    brokerURL: WS_URL,
     connectHeaders: { "X-Session-Token": sessionToken },
     reconnectDelay: 2000,
     onConnect: () => {
@@ -93,4 +104,24 @@ export function connectToGame(
       void client.deactivate();
     },
   };
+}
+
+/** The board as the Host screen shows it; the server decides how many rows that is. */
+export const fetchLeaderboard = () => api<LeaderboardEntry[]>("/api/leaderboard");
+
+/**
+ * Host screen: the top of the Day Leaderboard as it changes. Connects with the admin JWT and reconnects by itself;
+ * a refused CONNECT (expired token) logs out like a 401 would. Returns the disconnect.
+ */
+export function watchLeaderboard(onTop: (top: LeaderboardEntry[]) => void) {
+  const client = new Client({
+    brokerURL: WS_URL,
+    connectHeaders: { Authorization: `Bearer ${getToken()}` },
+    reconnectDelay: 2000,
+    onConnect: () =>
+      client.subscribe("/topic/leaderboard", (frame) => onTop((JSON.parse(frame.body) as DayLeaderboard).payload.top)),
+    onStompError: logout,
+  });
+  client.activate();
+  return () => void client.deactivate();
 }

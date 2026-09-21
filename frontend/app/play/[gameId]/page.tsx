@@ -54,7 +54,9 @@ export default function PlayGame() {
           <br />
           <span className="text-6xl font-bold tabular-nums">{state.gameOver.score}</span>
         </p>
-        {/* rank on the Day Leaderboard is ticket 07 */}
+        {state.gameOver.rank !== null && (
+          <p className="text-2xl font-bold text-gold-300">You&apos;re #{state.gameOver.rank} today</p>
+        )}
         <Link href="/play" className="rounded bg-gold-500 px-8 py-4 text-xl font-bold text-royal-900">
           Play again
         </Link>

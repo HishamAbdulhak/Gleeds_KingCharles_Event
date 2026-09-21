@@ -26,7 +26,8 @@ import com.gleeds.quiz.game.PlayerRepository;
  * <ul>
  * <li>CONNECT with {@code Authorization: Bearer <admin JWT>} → {@link Admin}; with {@code X-Session-Token: <player
  * session token>} → {@link PlayerPrincipal}; anything else is refused.</li>
- * <li>SUBSCRIBE to {@code /topic/game/{id}} and SEND to {@code /app/game/{id}/**}: that Game's Players or an Admin.</li>
+ * <li>SUBSCRIBE and SEND: an Admin anywhere; a Player only to their own Game ({@code /topic/game/{id}},
+ * {@code /app/game/{id}/**}) and their personal queue ({@code /user/**}). The leaderboard topic is therefore Admin-only.</li>
  * </ul>
  * A refusal sends the client a STOMP ERROR frame (which closes the session) and drops the offending frame. Not by
  * throwing: with {@code preserveReceiveOrder} Spring's ordering decorator swallows interceptor exceptions, and the
@@ -83,7 +84,7 @@ public class WsAuthInterceptor implements ChannelInterceptor {
 					yield principal == null ? "Not authenticated" : null;
 				}
 				case SUBSCRIBE, SEND -> authorised(accessor) ? null
-						: "Not your Game: " + accessor.getCommand() + " " + accessor.getDestination();
+						: "Not allowed: " + accessor.getCommand() + " " + accessor.getDestination();
 				default -> null;
 			};
 		} catch (RuntimeException e) {
@@ -128,17 +129,24 @@ public class WsAuthInterceptor implements ChannelInterceptor {
 		return null;
 	}
 
+	/**
+	 * Admins may do anything. A Player may reach their own Game's destinations and their personal queue, nothing else:
+	 * an allow-list, because the simple broker honours Ant wildcards, so {@code /topic/*} would otherwise deliver
+	 * every topic, the leaderboard included.
+	 */
 	private boolean authorised(StompHeaderAccessor accessor) {
 		var destination = accessor.getDestination();
-		var match = destination == null ? null : GAME_DESTINATION.matcher(destination);
-		if (match == null || !match.matches()) {
-			return true;   // other destinations (Host topic, leaderboard, personal queues) come with their tickets
-		}
-		var principal = accessor.getUser();
-		if (principal instanceof Admin) {
+		if (accessor.getUser() instanceof Admin) {
 			return true;
 		}
+		if (destination == null || !(accessor.getUser() instanceof PlayerPrincipal player)) {
+			return false;
+		}
+		if (destination.startsWith("/user/")) {
+			return true;
+		}
+		var match = GAME_DESTINATION.matcher(destination);
 		// text compare: a non-canonical spelling of the Player's own Game id is refused too, which is the safe direction
-		return principal instanceof PlayerPrincipal p && p.gameId().toString().equals(match.group(1));
+		return match.matches() && player.gameId().toString().equals(match.group(1));
 	}
 }
