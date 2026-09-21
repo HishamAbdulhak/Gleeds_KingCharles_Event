@@ -18,7 +18,7 @@ Default five labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for
 
 ### Browser check
 
-Driving a Game by hand against the dev servers (seat, one-question Games, admin login): `docs/agents/browser-check.md`.
+Driving a Game by hand against the dev servers (Seat, one-question Games, admin login): `docs/agents/browser-check.md`.
 
 ### Domain docs
 

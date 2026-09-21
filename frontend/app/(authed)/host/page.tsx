@@ -16,7 +16,7 @@ export default function Host() {
     return watchLeaderboard(setTop);
   }, []);
 
-  // client-only page (authed layout), so window exists; the env var wins when phones reach the app by another host
+  // client-only page (authed layout), so window exists
   const playUrl = `${process.env.NEXT_PUBLIC_BASE_URL ?? window.location.origin}/play`;
 
   return (

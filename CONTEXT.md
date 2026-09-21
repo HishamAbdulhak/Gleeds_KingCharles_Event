@@ -55,7 +55,7 @@ The end-of-Game ranking of every Player in that Game.
 _Avoid_: Results, final leaderboard
 
 **Day Leaderboard**:
-The ranking of every Player's best Score across all Games since the last Reset, shown on the Host screen. Solo and Battle Games rank on the same board because every Game has the same number of questions. Ties break on faster total response time. The top Score at the end of the day wins the prize.
+The ranking of every Player's best Score across all Games since the last Reset, shown on the Host screen. Solo and Battle Games rank on the same board because every Game has the same number of questions. Ties break on faster total response time in that best Game (a question never answered counts as its full time limit), then on the earlier Game. A Player's rank is their email's position on the board, so a Replay that scores worse leaves it unchanged. The top Score at the end of the day wins the prize.
 _Avoid_: Global leaderboard, high scores, event leaderboard
 
 **Reset**:

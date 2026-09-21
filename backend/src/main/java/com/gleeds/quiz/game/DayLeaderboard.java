@@ -42,9 +42,10 @@ public class DayLeaderboard {
 		this.jdbc = jdbc;
 	}
 
-	public List<Entry> top(int n) {
-		return jdbc.query(BOARD + "ORDER BY rank LIMIT ?",
-				(rs, i) -> new Entry(rs.getInt("rank"), rs.getString("name"), rs.getInt("score")), n);
+	/** The top ten: what the Host screen shows, legible from 5 m. */
+	public List<Entry> top() {
+		return jdbc.query(BOARD + "ORDER BY rank LIMIT 10",
+				(rs, i) -> new Entry(rs.getInt("rank"), rs.getString("name"), rs.getInt("score")));
 	}
 
 	/** Rank of this email's best Game, or empty when it has no Game since the last Reset. */
