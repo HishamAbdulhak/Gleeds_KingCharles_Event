@@ -16,6 +16,10 @@ GitHub Issues on `HishamAbdulhak/Gleeds_KingCharles_Event` via the `gh` CLI; the
 
 Default five labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`). See `docs/agents/triage-labels.md`.
 
+### Browser check
+
+Driving a Game by hand against the dev servers (seat, one-question Games, admin login): `docs/agents/browser-check.md`.
+
 ### Domain docs
 
 Single-context: `CONTEXT.md` + `docs/adr/` at repo root. See `docs/agents/domain.md`.

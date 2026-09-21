@@ -12,6 +12,7 @@ Read at review. The stack skills (`.agents/skills/<name>/SKILL.md`) are the base
 - Packages are by feature (`game`, `question`, `admin`) with entities beside their controllers; cross-cutting Spring config (security, WebSocket, the STOMP interceptor) lives in `config/` even when it depends on a feature package.
 - Controllers may be `@Transactional` and call repositories directly; a service class needs a second caller.
 - Paths use glossary vocabulary (`/api/solo`), not forced plurals.
+- Ponytail governs review: a value used once stays a literal with a comment; extract on the second use. A race the next event corrects gets no guard.
 
 ## Rules that have bitten
 
@@ -21,3 +22,5 @@ Read at review. The stack skills (`.agents/skills/<name>/SKILL.md`) are the base
 - `201 Created` carries a `Location` header only when a `GET` for that resource exists.
 - A domain term used in code is in `CONTEXT.md`; add the glossary entry with the code that introduces it.
 - A branch closes one issue. Repo-wide cleanup gets its own branch so the feature's spec review stays clean.
+- The simple broker honours Ant wildcards, so `WsAuthInterceptor` allow-lists destinations per principal. A new topic needs a "wrong principal subscribing to `/topic/*` is refused" boundary test, not an interceptor branch.
+- An ordering test seeds every lower-priority sort key to disagree with the key under test, so the test goes red without that key.
