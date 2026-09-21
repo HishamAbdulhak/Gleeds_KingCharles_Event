@@ -20,15 +20,12 @@ public class GameSocketController {
 	}
 
 	/**
-	 * The Player has subscribed to the Game topic and can receive the first question. An explicit message rather than
-	 * a subscribe-event hook: see docs/adr/0001-ready-message-starts-solo.md. Players only: an Admin watching the
-	 * topic must not start the Game before its Player is listening.
+	 * The client has subscribed to the Game topic and can receive what the Game has for it. An explicit message
+	 * rather than a subscribe-event hook: see docs/adr/0001-ready-message-starts-solo.md.
 	 */
 	@MessageMapping("/game/{gameId}/ready")
 	public void ready(@DestinationVariable UUID gameId, Principal principal) {
-		if (principal instanceof PlayerPrincipal) {
-			engine.startSolo(gameId);
-		}
+		engine.ready(gameId, principal instanceof PlayerPrincipal);
 	}
 
 	record AnswerRequest(int questionIndex, int option) {

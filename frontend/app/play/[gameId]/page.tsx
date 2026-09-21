@@ -45,6 +45,20 @@ export default function PlayGame() {
     return <main className="flex flex-1 items-center justify-center p-6 text-lg text-cream/80">Get ready…</main>;
   }
 
+  if (state.phase === "lobby") {
+    return (
+      <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6 text-center">
+        <h1 className="text-3xl font-bold text-gold-500">You&apos;re in!</h1>
+        <p className="text-lg text-cream/80">{online ? "Waiting for the Host to start…" : "Reconnecting…"}</p>
+        <ul className="flex flex-col gap-2 text-2xl font-bold">
+          {state.players.map((p) => (
+            <li key={p.id}>{p.name}</li>
+          ))}
+        </ul>
+      </main>
+    );
+  }
+
   if (state.phase === "over") {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6 text-center">

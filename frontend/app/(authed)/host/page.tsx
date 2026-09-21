@@ -1,23 +1,36 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
-import { fetchLeaderboard, LeaderboardEntry, watchLeaderboard } from "@/lib/game";
+import { publicUrl } from "@/lib/api";
+import { createBattle, fetchLeaderboard, LeaderboardEntry, watchLeaderboard } from "@/lib/game";
 
 /**
  * The Host idle screen (spec stories 24–25): the Day Leaderboard, live, and the QR code that brings walk-ups in.
  * Legible from 5 m: ten rows at most, rank and name in 48 px type.
  */
 export default function Host() {
+  const router = useRouter();
   const [top, setTop] = useState<LeaderboardEntry[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchLeaderboard().then(setTop); // once; the topic keeps it current from here
     return watchLeaderboard(setTop);
   }, []);
 
-  // client-only page (authed layout), so window exists
-  const playUrl = `${process.env.NEXT_PUBLIC_BASE_URL ?? window.location.origin}/play`;
+  async function newBattle() {
+    setError(null);
+    try {
+      const { gameId } = await createBattle();
+      router.push(`/host/${gameId}`);
+    } catch (err) {
+      setError((err as Error).message); // e.g. the Question Bank is too small for a Game
+    }
+  }
+
+  const playUrl = publicUrl("/play"); // client-only page (authed layout), so window exists
 
   return (
     <main className="flex flex-1 gap-16 p-12">
@@ -43,14 +56,18 @@ export default function Host() {
           <QRCodeSVG value={playUrl} size={360} bgColor="var(--color-cream)" fgColor="var(--color-royal-900)" />
         </div>
         <p className="text-2xl text-cream/80">{playUrl}</p>
-        {/* dead until ticket 08 wires the Battle lobby */}
         <button
           type="button"
-          disabled
-          className="mt-6 rounded bg-gold-500 px-10 py-5 text-3xl font-bold text-royal-900 disabled:opacity-40"
+          onClick={newBattle}
+          className="mt-6 rounded bg-gold-500 px-10 py-5 text-3xl font-bold text-royal-900"
         >
           New Battle
         </button>
+        {error && (
+          <p role="alert" className="text-xl text-red-300">
+            {error}
+          </p>
+        )}
       </aside>
     </main>
   );

@@ -6,5 +6,6 @@ Servers: `README.md` → Run it. Admin credentials are whatever `ADMIN_EMAIL` / 
 2. **Admin pages** (`/admin/**`, `/host`): log in at `/admin/login`; the token is `localStorage.adminToken` on the frontend origin.
 3. **A Solo Player**: `curl -s -X POST localhost:8080/api/solo -H 'Content-Type: application/json' -d '{"name":"Zed","email":"zed@example.com","consent":true}'` returns `gameId` + `sessionToken`. In a second tab on `/play`, set `sessionStorage['seat:<gameId>'] = '<sessionToken>'` (the Seat), then open `/play/<gameId>`; the page connects, says ready and shows the first question.
 4. **Live Host updates**: keep `/host` in the first tab while the second plays; the board changes on `GAME_OVER` without a reload.
+5. **A Battle lobby**: on `/host` tap New Battle; the PIN is on `/host/<gameId>`. Join from `/join` in a second tab, or `curl -s -X POST localhost:8080/api/games/<pin>/join -H 'Content-Type: application/json' -d '{"name":"Bob","email":"bob@example.com","consent":true}'`; the Host list and the phone's lobby update as each one lands, and a reload of either re-syncs (`ready` → `LOBBY_UPDATE`). Start enables at 2 and returns 202; the questions are ticket 09.
 
 A refused STOMP CONNECT / SUBSCRIBE reaches the page as the server's ERROR frame: the Player page shows its message; `/host` logs out. Backend logs: `preview_logs` on the backend server id.

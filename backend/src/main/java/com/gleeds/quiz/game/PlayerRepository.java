@@ -10,5 +10,6 @@ public interface PlayerRepository extends JpaRepository<Player, UUID> {
 
 	Optional<Player> findBySessionToken(UUID sessionToken);
 
-	List<Player> findByGameId(UUID gameId);
+	/** A Game's Players in the order they joined, which is the order the lobby shows them. */
+	List<Player> findByGameIdOrderByJoinedAt(UUID gameId);
 }

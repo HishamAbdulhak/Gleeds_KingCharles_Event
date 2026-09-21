@@ -12,4 +12,8 @@ public interface GameRepository extends JpaRepository<Game, UUID> {
 	@Override
 	@EntityGraph(attributePaths = "questions")
 	Optional<Game> findById(UUID id);
+
+	boolean existsByPin(String pin);
+
+	Optional<Game> findByPin(String pin);
 }

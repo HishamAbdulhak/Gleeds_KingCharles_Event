@@ -38,6 +38,9 @@ public class Game {
 	@Enumerated(EnumType.STRING)
 	private Mode mode;
 
+	/** Battle only: what Players type to join (V1__init.sql: unique, six digits). */
+	private String pin;
+
 	@Enumerated(EnumType.STRING)
 	private Status status = Status.LOBBY;
 
@@ -62,12 +65,25 @@ public class Game {
 		return game;
 	}
 
+	/** A Battle: waits in LOBBY for 2–4 Players to join by PIN. */
+	public static Game battle(List<Question> questions, String pin) {
+		var game = new Game();
+		game.mode = Mode.BATTLE;
+		game.pin = pin;
+		game.questions = questions;
+		return game;
+	}
+
 	public UUID getId() {
 		return id;
 	}
 
 	public Mode getMode() {
 		return mode;
+	}
+
+	public String getPin() {
+		return pin;
 	}
 
 	public Status getStatus() {
