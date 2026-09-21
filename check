@@ -7,6 +7,12 @@ status=0
 # mechanical standards (CODING_STANDARDS.md points here): collections never fetch EAGER; tests sit at the boundary, no slices
 grep -rnE 'FetchType\.EAGER|fetch *= *EAGER' backend/src && { echo "backend: EAGER fetch"; status=1; }
 grep -rnE '@(WebMvcTest|DataJpaTest|MockBean|MockitoBean)' backend/src/test && { echo "backend: slice test / mock bean"; status=1; }
+# javac is silent on an unused import: every imported simple name must appear a second time in its file
+for f in $(find backend/src -name '*.java'); do
+	for sym in $(grep -oE '^import (static )?[A-Za-z0-9_.]+;' "$f" | sed -E 's/.*\.([A-Za-z0-9_]+);/\1/'); do
+		[ "$(grep -cw "$sym" "$f")" -gt 1 ] || { echo "$f: unused import $sym"; status=1; }
+	done
+done
 
 rm -rf backend/target/surefire-reports   # a stale report would count a deleted test as passing
 (cd backend && ./mvnw -q test) || status=1
