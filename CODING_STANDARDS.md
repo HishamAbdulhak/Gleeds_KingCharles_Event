@@ -13,6 +13,7 @@ Read at review. The stack skills (`.agents/skills/<name>/SKILL.md`) are the base
 - Controllers may be `@Transactional` and call repositories directly; a service class needs a second caller.
 - Paths use glossary vocabulary (`/api/solo`), not forced plurals.
 - Ponytail governs review: a value used once stays a literal with a comment; extract on the second use. A race the next event corrects gets no guard.
+- A request field with one legal value is ignored, not validated: the client and the tests still send the shape the issue names; the server reads only what it uses.
 
 ## Rules that have bitten
 
