@@ -67,11 +67,7 @@ export default function QuestionBank() {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
     const body = JSON.stringify({
-      text: f.get("text"),
-      optionA: f.get("optionA"),
-      optionB: f.get("optionB"),
-      optionC: f.get("optionC"),
-      optionD: f.get("optionD"),
+      ...Object.fromEntries(f), // text, optionA–D
       correctOption: Number(f.get("correctOption")),
       timeLimitSec: Number(f.get("timeLimitSec")),
       category: f.get("category") || null,

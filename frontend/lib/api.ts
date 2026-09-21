@@ -29,12 +29,9 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
   if (res.status === 401 && path !== LOGIN_PATH) logout();
   if (!res.ok) {
-    const text = await res.text().catch(() => res.statusText);
-    let message = text;
-    try {
-      const body: ErrorBody = JSON.parse(text);
-      message = body.errors?.map((e) => `${e.field}: ${e.defaultMessage}`).join(", ") || body.message || text;
-    } catch {}
+    const body: ErrorBody = await res.json().catch(() => ({})); // a non-JSON body (proxy page) reads as the status text
+    const message =
+      body.errors?.map((e) => `${e.field}: ${e.defaultMessage}`).join(", ") || body.message || res.statusText;
     throw Object.assign(new Error(message), { status: res.status });
   }
   return res.status === 204 ? (undefined as T) : res.json();

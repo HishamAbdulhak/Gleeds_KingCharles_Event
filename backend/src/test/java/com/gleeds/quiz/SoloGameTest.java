@@ -72,12 +72,7 @@ class SoloGameTest {
 
 	@BeforeEach
 	void setUp() {
-		jdbc.execute("TRUNCATE game, question CASCADE");
-		jdbc.update("UPDATE settings SET questions_per_game = ?", QUESTIONS_PER_GAME);
-		for (int i = 1; i <= QUESTIONS_PER_GAME; i++) {
-			jdbc.update("INSERT INTO question (text, option_a, option_b, option_c, option_d, correct_option, time_limit_sec) "
-					+ "VALUES (?, 'a', 'b', 'c', 'd', ?, ?)", "Q" + i, CORRECT, TIME_LIMIT_SEC);
-		}
+		Fixtures.questionBank(jdbc, QUESTIONS_PER_GAME, CORRECT, TIME_LIMIT_SEC);
 	}
 
 	/** POST /api/solo, connect, subscribe to topic + personal queue, say ready, consume the first QUESTION_START. */
@@ -86,10 +81,9 @@ class SoloGameTest {
 		var started = RestClient.create("http://localhost:" + port).post().uri("/api/solo")
 				.body(Map.of("name", "Ada", "email", "ada@example.com", "consent", true)).retrieve().body(Map.class);
 		var gameId = UUID.fromString((String) started.get("gameId"));
-		session = Stomp.connectAsPlayer(port, (String) started.get("sessionToken"), new Stomp.ErrorFrames());
-		var topic = Stomp.subscribe(session, "/topic/game/" + gameId);
+		session = Stomp.connectAsPlayer(port, (String) started.get("sessionToken"));
 		var queue = Stomp.subscribe(session, "/user/queue/player");
-		session.send("/app/game/" + gameId + "/ready", Map.of());
+		var topic = Stomp.ready(session, gameId.toString());
 		var seat = new Seat(gameId, UUID.fromString((String) started.get("playerId")), session, topic, queue);
 		assertThat(seat.onTopic("QUESTION_START")).containsEntry("index", 0).containsEntry("total", QUESTIONS_PER_GAME);
 		return seat;
