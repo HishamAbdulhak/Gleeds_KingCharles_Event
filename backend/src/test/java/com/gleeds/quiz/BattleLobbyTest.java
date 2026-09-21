@@ -12,7 +12,6 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -38,26 +37,14 @@ class BattleLobbyTest {
 	@Autowired
 	JdbcTemplate jdbc;
 
-	@Value("${admin.email}")
-	String adminEmail;
-
-	@Value("${admin.password}")
-	String adminPassword;
-
 	RestClient client;
 	String adminToken;
 
 	@BeforeEach
 	void setUp() {
-		jdbc.execute("TRUNCATE game, question CASCADE");
-		jdbc.update("UPDATE settings SET questions_per_game = ?", QUESTIONS_PER_GAME);
-		for (int i = 1; i <= QUESTIONS_PER_GAME; i++) {
-			jdbc.update("INSERT INTO question (text, option_a, option_b, option_c, option_d, correct_option, time_limit_sec) "
-					+ "VALUES (?, 'a', 'b', 'c', 'd', 1, 15)", "Q" + i);
-		}
+		Fixtures.questionBank(jdbc, QUESTIONS_PER_GAME, 1, 15);
 		client = RestClient.create("http://localhost:" + port);
-		adminToken = (String) client.post().uri("/api/admin/login")
-				.body(Map.of("email", adminEmail, "password", adminPassword)).retrieve().body(Map.class).get("token");
+		adminToken = Fixtures.adminToken(port);
 	}
 
 	static Map<String, Object> joinForm(String name, String email) {
@@ -77,8 +64,7 @@ class BattleLobbyTest {
 
 	/** The Host screen's view of the Game topic: every LOBBY_UPDATE, in order. */
 	BlockingQueue<Map<String, Object>> watchAsAdmin(String gameId) throws Exception {
-		var admin = Stomp.connect(port, Map.of("Authorization", "Bearer " + adminToken), new Stomp.ErrorFrames());
-		return Stomp.subscribe(admin, "/topic/game/" + gameId);
+		return Stomp.subscribe(Stomp.connectAsAdmin(port), "/topic/game/" + gameId);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -246,10 +232,9 @@ class BattleLobbyTest {
 		var bob = join(created.get("pin"), "Bob", "bob@example.com");
 		// join order is joined_at, not insertion order: make the two disagree, so the sort key is what passes this
 		jdbc.update("UPDATE player SET joined_at = joined_at - interval '1 minute' WHERE id = ?", UUID.fromString(bob.get("playerId")));
-		var session = Stomp.connectAsPlayer(port, bob.get("sessionToken"), new Stomp.ErrorFrames());
-		var topic = Stomp.subscribe(session, "/topic/game/" + created.get("gameId"));
+		var session = Stomp.connectAsPlayer(port, bob.get("sessionToken"));
 
-		session.send("/app/game/" + created.get("gameId") + "/ready", Map.of());
+		var topic = Stomp.ready(session, created.get("gameId"));
 
 		var event = topic.poll(5, TimeUnit.SECONDS);
 		assertThat(lobbyNames(event)).containsExactly("Bob", "Ada");
@@ -263,10 +248,9 @@ class BattleLobbyTest {
 	void aRefreshedHostSaysReadyAndGetsTheLobby() throws Exception {
 		var created = createBattle();
 		join(created.get("pin"), "Ada", "ada@example.com");
-		var admin = Stomp.connect(port, Map.of("Authorization", "Bearer " + adminToken), new Stomp.ErrorFrames());
-		var topic = Stomp.subscribe(admin, "/topic/game/" + created.get("gameId"));
+		var admin = Stomp.connectAsAdmin(port);
 
-		admin.send("/app/game/" + created.get("gameId") + "/ready", Map.of());
+		var topic = Stomp.ready(admin, created.get("gameId"));
 
 		assertThat(lobbyNames(topic.poll(5, TimeUnit.SECONDS))).containsExactly("Ada");
 		admin.disconnect();

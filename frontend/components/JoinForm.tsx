@@ -28,16 +28,12 @@ export function JoinForm({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const storedName = useSyncExternalStore(
+  const lead = useSyncExternalStore(
     noSubscribe,
-    () => stored.get("lead:name"),
+    () => stored.get("lead"),
     () => null,
   );
-  const storedEmail = useSyncExternalStore(
-    noSubscribe,
-    () => stored.get("lead:email"),
-    () => null,
-  );
+  const { name: storedName, email: storedEmail }: Partial<JoinRequest> = lead ? JSON.parse(lead) : {};
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -49,8 +45,7 @@ export function JoinForm({
     try {
       const { gameId, sessionToken } = await join({ name, email, consent: form.get("consent") === "on" }, form);
       stored.set(`seat:${gameId}`, sessionToken);
-      stored.set("lead:name", name);
-      stored.set("lead:email", email);
+      stored.set("lead", JSON.stringify({ name, email }));
       router.replace(`/play/${gameId}`);
     } catch (err) {
       setError((err as Error).message || "Could not reach the server.");
@@ -75,7 +70,7 @@ export function JoinForm({
             required
             maxLength={80}
             autoComplete="name"
-            defaultValue={storedName ?? undefined}
+            defaultValue={storedName}
             className={inputClass}
           />
         </label>
@@ -86,7 +81,7 @@ export function JoinForm({
             type="email"
             required
             autoComplete="email"
-            defaultValue={storedEmail ?? undefined}
+            defaultValue={storedEmail}
             className={inputClass}
           />
         </label>
