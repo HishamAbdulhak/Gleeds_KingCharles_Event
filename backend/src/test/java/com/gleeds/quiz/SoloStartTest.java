@@ -8,21 +8,18 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestClient;
 
@@ -39,22 +36,11 @@ class SoloStartTest {
 	@Autowired
 	JdbcTemplate jdbc;
 
-	@Value("${admin.email}")
-	String adminEmail;
-
-	@Value("${admin.password}")
-	String adminPassword;
-
 	RestClient client;
 
 	@BeforeEach
 	void setUp() {
-		jdbc.execute("TRUNCATE game, question CASCADE");
-		jdbc.update("UPDATE settings SET questions_per_game = ?", QUESTIONS_PER_GAME);
-		for (int i = 1; i <= QUESTIONS_PER_GAME; i++) {
-			jdbc.update("INSERT INTO question (text, option_a, option_b, option_c, option_d, correct_option, time_limit_sec) "
-					+ "VALUES (?, 'a', 'b', 'c', 'd', 1, 15)", "Q" + i);
-		}
+		Fixtures.questionBank(jdbc, QUESTIONS_PER_GAME, 1, 15);
 		client = RestClient.create("http://localhost:" + port);
 	}
 
@@ -116,20 +102,13 @@ class SoloStartTest {
 
 	// --- STOMP: the first question ---
 
-	/** Subscribes to the Game topic, then says ready. Mirrors the frontend; ordering is guaranteed server-side. */
-	BlockingQueue<Map<String, Object>> subscribeAndReady(StompSession session, String gameId) {
-		var events = Stomp.subscribe(session, "/topic/game/" + gameId);
-		session.send("/app/game/" + gameId + "/ready", Map.of());
-		return events;
-	}
-
 	@Test
 	@SuppressWarnings("unchecked")
 	void readyPlayerReceivesTheFirstQuestionWithoutTheCorrectOption() throws Exception {
 		var started = startSolo();
-		var session = Stomp.connectAsPlayer(port, started.get("sessionToken"), new Stomp.ErrorFrames());
+		var session = Stomp.connectAsPlayer(port, started.get("sessionToken"));
 
-		var events = subscribeAndReady(session, started.get("gameId"));
+		var events = Stomp.ready(session, started.get("gameId"));
 		var event = events.poll(5, TimeUnit.SECONDS);
 
 		assertThat(event).isNotNull().containsEntry("type", "QUESTION_START");
@@ -163,14 +142,12 @@ class SoloStartTest {
 
 	@Test
 	void adminJwtCanWatchAnyGame() throws Exception {
-		var token = client.post().uri("/api/admin/login").body(Map.of("email", adminEmail, "password", adminPassword))
-				.retrieve().body(Map.class).get("token");
 		var started = startSolo();
-		var admin = Stomp.connect(port, Map.of("Authorization", "Bearer " + token), new Stomp.ErrorFrames());
+		var admin = Stomp.connectAsAdmin(port);
 		var seenByAdmin = Stomp.subscribe(admin, "/topic/game/" + started.get("gameId"));
 
-		var player = Stomp.connectAsPlayer(port, started.get("sessionToken"), new Stomp.ErrorFrames());
-		subscribeAndReady(player, started.get("gameId"));
+		var player = Stomp.connectAsPlayer(port, started.get("sessionToken"));
+		Stomp.ready(player, started.get("gameId"));
 
 		assertThat(seenByAdmin.poll(5, TimeUnit.SECONDS)).isNotNull().containsEntry("type", "QUESTION_START");
 		admin.disconnect();
@@ -179,12 +156,10 @@ class SoloStartTest {
 
 	@Test
 	void adminReadyDoesNotStartTheGame() throws Exception {
-		var token = client.post().uri("/api/admin/login").body(Map.of("email", adminEmail, "password", adminPassword))
-				.retrieve().body(Map.class).get("token");
 		var started = startSolo();
-		var admin = Stomp.connect(port, Map.of("Authorization", "Bearer " + token), new Stomp.ErrorFrames());
+		var admin = Stomp.connectAsAdmin(port);
 
-		var events = subscribeAndReady(admin, started.get("gameId"));
+		var events = Stomp.ready(admin, started.get("gameId"));
 
 		assertThat(events.poll(1, TimeUnit.SECONDS)).isNull();
 		assertThat(jdbc.queryForObject("SELECT status FROM game WHERE id = ?", String.class,
@@ -194,8 +169,7 @@ class SoloStartTest {
 
 	@Test
 	void bogusSessionTokenIsRefused() {
-		assertThatThrownBy(() -> Stomp.connectAsPlayer(port, UUID.randomUUID().toString(), new Stomp.ErrorFrames()))
-				.isInstanceOf(ExecutionException.class);
+		assertThatThrownBy(() -> Stomp.connectAsPlayer(port, UUID.randomUUID().toString())).isInstanceOf(ExecutionException.class);
 	}
 
 	/** A failing database lookup during CONNECT must still answer with an ERROR frame (ExecutionException), not hang (TimeoutException). */
@@ -204,8 +178,7 @@ class SoloStartTest {
 		var started = startSolo();
 		jdbc.execute("ALTER TABLE player RENAME TO player_gone");
 		try {
-			assertThatThrownBy(() -> Stomp.connectAsPlayer(port, started.get("sessionToken"), new Stomp.ErrorFrames()))
-					.isInstanceOf(ExecutionException.class);
+			assertThatThrownBy(() -> Stomp.connectAsPlayer(port, started.get("sessionToken"))).isInstanceOf(ExecutionException.class);
 		} finally {
 			jdbc.execute("ALTER TABLE player_gone RENAME TO player");
 		}
@@ -213,7 +186,7 @@ class SoloStartTest {
 
 	@Test
 	void connectWithoutCredentialsIsRefused() {
-		assertThatThrownBy(() -> Stomp.connect(port, Map.of(), new Stomp.ErrorFrames())).isInstanceOf(ExecutionException.class);
+		assertThatThrownBy(() -> Stomp.connect(port, Map.of())).isInstanceOf(ExecutionException.class);
 	}
 
 	@Test
@@ -223,7 +196,7 @@ class SoloStartTest {
 		var handler = new Stomp.ErrorFrames();
 		var session = Stomp.connectAsPlayer(port, mine.get("sessionToken"), handler);
 
-		var events = subscribeAndReady(session, theirs.get("gameId"));
+		var events = Stomp.ready(session, theirs.get("gameId"));
 
 		assertThat(handler.error.get(5, TimeUnit.SECONDS)).isNotNull();
 		assertThat(events).isEmpty();

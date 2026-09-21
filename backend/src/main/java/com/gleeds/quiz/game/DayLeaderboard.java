@@ -4,14 +4,16 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Service;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * The Day Leaderboard (spec → Day Leaderboard): every email's best Score over the Games created since the last Reset,
  * any Mode, any status. Ties break on the lower total response time in that best Game (an unanswered question counts
- * as its full time limit), then the earlier Game.
+ * as its full time limit), then the earlier Game. Also the public read of it: the Host idle screen's first paint
+ * (updates arrive on the topic).
  */
-@Service
+@RestController
 public class DayLeaderboard {
 
 	/** One row of the board. {@code rank} is 1-based and unique: the tie-break is total. */
@@ -43,6 +45,7 @@ public class DayLeaderboard {
 	}
 
 	/** The top ten: what the Host screen shows, legible from 5 m. */
+	@GetMapping("/api/leaderboard")
 	public List<Entry> top() {
 		return jdbc.query(BOARD + "ORDER BY rank LIMIT 10",
 				(rs, i) -> new Entry(rs.getInt("rank"), rs.getString("name"), rs.getInt("score")));

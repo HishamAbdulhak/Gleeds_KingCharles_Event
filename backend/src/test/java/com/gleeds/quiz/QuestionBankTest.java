@@ -16,7 +16,6 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -41,25 +40,16 @@ class QuestionBankTest {
 	@LocalServerPort
 	int port;
 
-	@Value("${admin.email}")
-	String adminEmail;
-
-	@Value("${admin.password}")
-	String adminPassword;
-
 	@Autowired
 	JdbcTemplate jdbc;
 
 	RestClient admin;
 
 	@BeforeEach
-	@SuppressWarnings("unchecked")
 	void setUp() {
 		jdbc.execute("TRUNCATE game, question CASCADE");
-		var token = RestClient.create("http://localhost:" + port).post().uri("/api/admin/login")
-				.body(Map.of("email", adminEmail, "password", adminPassword)).retrieve().body(Map.class).get("token");
 		admin = RestClient.builder().baseUrl("http://localhost:" + port)
-				.defaultHeader("Authorization", "Bearer " + token).build();
+				.defaultHeader("Authorization", "Bearer " + Fixtures.adminToken(port)).build();
 	}
 
 	static Map<String, Object> question(String text) {

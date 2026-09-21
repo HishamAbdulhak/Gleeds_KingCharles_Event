@@ -12,14 +12,12 @@ import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.web.client.RestClient;
 
 /**
@@ -123,27 +121,14 @@ class DayLeaderboardTest {
 
 	// --- STOMP: the board is pushed when a Game finishes ---
 
-	@Value("${admin.email}")
-	String adminEmail;
-
-	@Value("${admin.password}")
-	String adminPassword;
-
-	StompSession adminSession() throws Exception {
-		var token = client.post().uri("/api/admin/login").body(Map.of("email", adminEmail, "password", adminPassword))
-				.retrieve().body(Map.class).get("token");
-		return Stomp.connect(port, Map.of("Authorization", "Bearer " + token), new Stomp.ErrorFrames());
-	}
-
 	/** Plays a one-question Solo Game for {@code email} to the end and returns its GAME_OVER payload. */
 	@SuppressWarnings("unchecked")
 	Map<String, Object> playSolo(String name, String email) throws Exception {
 		var started = client.post().uri("/api/solo").body(Map.of("name", name, "email", email, "consent", true))
 				.retrieve().body(Map.class);
 		var gameId = (String) started.get("gameId");
-		var session = Stomp.connectAsPlayer(port, (String) started.get("sessionToken"), new Stomp.ErrorFrames());
-		var topic = Stomp.subscribe(session, "/topic/game/" + gameId);
-		session.send("/app/game/" + gameId + "/ready", Map.of());
+		var session = Stomp.connectAsPlayer(port, (String) started.get("sessionToken"));
+		var topic = Stomp.ready(session, gameId);
 		assertThat(topic.poll(5, TimeUnit.SECONDS)).isNotNull().containsEntry("type", "QUESTION_START");
 		session.send("/app/game/" + gameId + "/answer", Map.of("questionIndex", 0, "option", 1));
 		var over = topic.poll(10, TimeUnit.SECONDS);
@@ -158,7 +143,7 @@ class DayLeaderboardTest {
 	void adminReceivesTheBoardWhenAGameFinishesAndTheGameOverCarriesTheRank() throws Exception {
 		jdbc.update("UPDATE settings SET questions_per_game = 1");
 		player(game(Instant.now().minusSeconds(60)), "Bob", "bob@example.com", 100);
-		var admin = adminSession();
+		var admin = Stomp.connectAsAdmin(port);
 		var pushed = Stomp.subscribe(admin, "/topic/leaderboard");
 
 		var over = playSolo("Ada", "ada@example.com");

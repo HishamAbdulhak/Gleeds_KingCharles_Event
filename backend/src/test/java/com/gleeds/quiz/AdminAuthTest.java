@@ -5,7 +5,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
@@ -21,12 +20,6 @@ class AdminAuthTest {
 	@LocalServerPort
 	int port;
 
-	@Value("${admin.email}")
-	String adminEmail;
-
-	@Value("${admin.password}")
-	String adminPassword;
-
 	RestClient client() {
 		return RestClient.create("http://localhost:" + port);
 	}
@@ -39,19 +32,19 @@ class AdminAuthTest {
 
 	@Test
 	void loginReturnsToken() {
-		var body = login(adminEmail, adminPassword);
+		var body = login(Fixtures.ADMIN_EMAIL, Fixtures.ADMIN_PASSWORD);
 		assertThat(body.get("token")).isNotBlank();
 	}
 
 	@Test
 	void loginIsCaseInsensitiveOnEmail() {
-		assertThat(login(adminEmail.toUpperCase(), adminPassword).get("token")).isNotBlank();
+		assertThat(login(Fixtures.ADMIN_EMAIL.toUpperCase(), Fixtures.ADMIN_PASSWORD).get("token")).isNotBlank();
 	}
 
 	@Test
 	void wrongPasswordIs401() {
 		var status = client().post().uri("/api/admin/login")
-				.body(Map.of("email", adminEmail, "password", "nope"))
+				.body(Map.of("email", Fixtures.ADMIN_EMAIL, "password", "nope"))
 				.exchange((req, res) -> res.getStatusCode());
 		assertThat(status).isEqualTo(HttpStatus.UNAUTHORIZED);
 	}
@@ -71,7 +64,7 @@ class AdminAuthTest {
 
 	@Test
 	void adminEndpointWithTokenIs200() {
-		var token = login(adminEmail, adminPassword).get("token");
+		var token = Fixtures.adminToken(port);
 		var response = client().get().uri("/api/admin/questions").header("Authorization", "Bearer " + token).retrieve()
 				.toEntity(String.class);
 		assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
