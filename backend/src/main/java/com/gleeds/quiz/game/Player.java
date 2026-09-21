@@ -26,6 +26,7 @@ public class Player {
 	private UUID sessionToken = UUID.randomUUID();
 	private int score;
 	private int streak;
+	private Instant joinedAt = Instant.now();
 
 	protected Player() {
 	}
@@ -42,6 +43,10 @@ public class Player {
 
 	public UUID getGameId() {
 		return gameId;
+	}
+
+	public String getName() {
+		return name;
 	}
 
 	public String getEmail() {

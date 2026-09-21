@@ -6,6 +6,15 @@ const LOGIN_PAGE = "/admin/login";
 export const getToken = () => localStorage.getItem(TOKEN_KEY);
 /** For useSyncExternalStore over browser storage that never changes underneath a mounted page. */
 export const noSubscribe = () => () => {};
+/** A URL on this site as a phone should reach it: the Host screen's public origin, not localhost. Client only. */
+export const publicUrl = (path: string) => `${process.env.NEXT_PUBLIC_BASE_URL ?? window.location.origin}${path}`;
+
+/**
+ * Admin and Host-command paths carry the admin JWT (spec → Admin API → Security). Public routes never do: a stale
+ * token there would 401 and log the visitor "out" of nothing.
+ */
+const needsAdmin = (path: string) =>
+  path.startsWith("/api/admin/") || (path.startsWith("/api/games") && !path.endsWith("/join"));
 
 /** Drops the admin token and hard-navigates to the login page (no page state is worth keeping). */
 export function logout() {
@@ -22,8 +31,7 @@ type ErrorBody = { message?: string; errors?: { field: string; defaultMessage: s
 export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   if (init.body && !(init.body instanceof FormData)) headers.set("Content-Type", "application/json");
-  // admin routes only: a stale token on a public route would 401 and log the visitor "out" of nothing
-  const token = path.startsWith("/api/admin/") ? getToken() : null;
+  const token = needsAdmin(path) ? getToken() : null;
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const res = await fetch(`${API_URL}${path}`, { ...init, headers });
@@ -37,7 +45,8 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
     } catch {}
     throw Object.assign(new Error(message), { status: res.status });
   }
-  return res.status === 204 ? (undefined as T) : res.json();
+  const text = await res.text(); // 202 / 204 carry no body
+  return (text ? JSON.parse(text) : undefined) as T;
 }
 
 export async function login(email: string, password: string) {

@@ -91,18 +91,31 @@ public class GameEngine {
 	}
 
 	/**
-	 * A Solo Player is subscribed and ready: publish the first question. Idempotent — a second ready (page refresh)
-	 * is ignored; reconnect sync is a later ticket.
+	 * A client is subscribed to the Game topic (docs/adr/0001). A Solo Game starts on its Player's ready: the first
+	 * question goes out; a second ready (page refresh) is ignored. A Battle in LOBBY answers anyone's ready — the
+	 * Player who just joined, a refreshed Host — with the lobby. Past LOBBY nothing happens yet: SYNC is a later ticket.
 	 */
-	public void startSolo(UUID gameId) {
+	public void ready(UUID gameId, boolean fromPlayer) {
 		tx.executeWithoutResult(status -> {
 			var game = games.findById(gameId).orElseThrow();
-			if (game.getMode() != Game.Mode.SOLO || game.getStatus() != Game.Status.LOBBY) {
+			if (game.getStatus() != Game.Status.LOBBY) {
 				return;
 			}
-			game.startNextQuestion(Instant.now());
-			publishQuestion(game, live.computeIfAbsent(gameId, Live::new));
+			if (game.getMode() == Game.Mode.BATTLE) {
+				publishLobby(game);
+			} else if (fromPlayer) {   // an Admin watching a Solo topic must not start it before its Player is listening
+				game.startNextQuestion(Instant.now());
+				publishQuestion(game, live.computeIfAbsent(gameId, Live::new));
+			}
 		});
+	}
+
+	/** LOBBY_UPDATE with the Game's Players, on the Game topic once the caller's transaction commits. */
+	public void publishLobby(Game game) {
+		var lobby = players.findByGameIdOrderByJoinedAt(game.getId()).stream()
+				.map(p -> new GameEvent.LobbyPlayer(p.getId(), p.getName())).toList();
+		var event = new GameEvent("LOBBY_UPDATE", new GameEvent.LobbyUpdate(game.getPin(), lobby));
+		afterCommit(() -> messaging.convertAndSend("/topic/game/" + game.getId(), event));
 	}
 
 	/**
@@ -183,7 +196,7 @@ public class GameEngine {
 		tx.executeWithoutResult(status -> {
 			var game = games.findById(state.gameId).orElseThrow();
 			int correctOption = game.currentQuestion().toDto().correctOption();
-			for (var player : players.findByGameId(state.gameId)) {
+			for (var player : players.findByGameIdOrderByJoinedAt(state.gameId)) {
 				if (state.answered.contains(player.getId())) {   // closed above on this thread: nobody adds any more
 					continue;
 				}
@@ -210,7 +223,7 @@ public class GameEngine {
 	/** Marks the Game FINISHED, tells the Player their Score and rank, and pushes the fresh board to the Host screen. */
 	private void finish(Game game) {
 		game.finish(Instant.now());
-		var player = players.findByGameId(game.getId()).get(0);   // Solo: exactly one; Battle's Podium is ticket 08
+		var player = players.findByGameIdOrderByJoinedAt(game.getId()).get(0);   // Solo: exactly one; Battle's Podium is ticket 08
 		var rank = leaderboard.rankOf(player.getEmail()).orElse(null);
 		var over = new GameEvent("GAME_OVER", new GameEvent.GameOver(player.getScore(), rank));
 		var board = new GameEvent("DAY_LEADERBOARD", new GameEvent.Board(leaderboard.top()));

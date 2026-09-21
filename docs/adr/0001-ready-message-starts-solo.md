@@ -19,3 +19,4 @@ The client subscribes, then sends `/app/game/{id}/ready`. The engine starts the 
 - `SessionSubscribeEvent` was rejected: it fires after the frame is *dispatched*, not after the broker registers the subscription, so a question published from the listener can beat the subscription and be lost.
 - With ordered receive, exceptions thrown by a channel interceptor are swallowed by Spring's `OrderedMessageChannelDecorator`. `WsAuthInterceptor` therefore refuses a CONNECT / SUBSCRIBE / SEND by sending the ERROR frame itself and dropping the message.
 - Reconnect (a later ticket) reuses the same message: `ready` on a Game already past LOBBY will answer with `SYNC` on the personal queue instead of restarting.
+- Battle (#8) reuses it too: `ready` on a Battle in LOBBY, from a Player or the Host, answers with `LOBBY_UPDATE` on the Game topic — the lobby a just-joined phone or a refreshed Host screen would otherwise wait for the next join to see.

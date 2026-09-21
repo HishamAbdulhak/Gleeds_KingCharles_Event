@@ -4,7 +4,11 @@ import { api, API_URL, getToken, logout } from "@/lib/api";
 /** Shared by every STOMP client: the broker URL and a reconnect that keeps trying while the socket is down. */
 const STOMP = { brokerURL: `${API_URL.replace(/^http/, "ws")}/ws`, reconnectDelay: 2000 };
 
-/** Server → client STOMP messages, mirroring backend GameEvent. Later tickets add members to the union. */
+// Server → client STOMP messages, mirroring backend GameEvent. Later tickets add members to the union.
+
+/** Game topic, Battle in LOBBY: who has joined, in join order, and the PIN the Host shows. Sent on every join and every `ready`. */
+export type LobbyUpdate = { pin: string; players: { id: string; name: string }[] };
+
 export type QuestionStart = {
   index: number;
   total: number;
@@ -30,17 +34,31 @@ export type LeaderboardEntry = { rank: number; name: string; score: number };
 export type Board = { top: LeaderboardEntry[] };
 
 export type GameEvent =
+  | { type: "LOBBY_UPDATE"; payload: LobbyUpdate }
   | { type: "QUESTION_START"; payload: QuestionStart }
   | { type: "ANSWER_ACK"; payload: AnswerAck }
   | { type: "RESULT"; payload: Result }
   | { type: "GAME_OVER"; payload: GameOver };
 
-export async function startSolo(name: string, email: string, consent: boolean) {
-  return api<{ gameId: string; playerId: string; sessionToken: string }>("/api/solo", {
-    method: "POST",
-    body: JSON.stringify({ name, email, consent }),
-  });
-}
+/** What a Player gives to join any Game: the Lead and consent (backend JoinRequest). */
+export type JoinRequest = { name: string; email: string; consent: boolean };
+
+/** A Player's Seat in one Game: the ids and the session token the phone keeps. */
+export type Seat = { gameId: string; playerId: string; sessionToken: string };
+
+export const startSolo = (req: JoinRequest) => api<Seat>("/api/solo", { method: "POST", body: JSON.stringify(req) });
+
+/** 404 for an unknown PIN; 409 with message `LOBBY_FULL` / `GAME_STARTED`; the same email gets its existing Seat back. */
+export const joinBattle = (pin: string, req: JoinRequest) =>
+  api<Seat>(`/api/games/${pin}/join`, { method: "POST", body: JSON.stringify(req) });
+
+// --- Host commands (admin JWT) ---
+
+export const createBattle = () =>
+  api<{ gameId: string; pin: string }>("/api/games", { method: "POST", body: JSON.stringify({ mode: "BATTLE" }) });
+
+/** 409 below 2 Players. */
+export const startBattle = (gameId: string) => api<void>(`/api/games/${gameId}/start`, { method: "POST" });
 
 /**
  * Per-tab storage: the Seat (session token per Game, so a refresh reconnects) and the Lead (so "Play again" prefills).
@@ -107,19 +125,31 @@ export function connectToGame(
 export const fetchLeaderboard = () => api<LeaderboardEntry[]>("/api/leaderboard");
 
 /**
- * Host screen: the top of the Day Leaderboard as it changes. Connects with the admin JWT and reconnects by itself;
- * a refused CONNECT (expired token) logs out like a 401 would. Returns the disconnect.
+ * The Host screen's connection. Admin JWT; reconnects by itself, running `onConnect` again; a refused CONNECT (expired
+ * token) logs out like a 401 would. Returns the disconnect.
  */
-export function watchLeaderboard(onTop: (top: LeaderboardEntry[]) => void) {
+function connectAsAdmin(onConnect: (client: Client) => void) {
   const client = new Client({
     ...STOMP,
     connectHeaders: { Authorization: `Bearer ${getToken()}` },
-    onConnect: () =>
-      client.subscribe("/topic/leaderboard", (frame) =>
-        onTop((JSON.parse(frame.body) as { payload: Board }).payload.top),
-      ),
+    onConnect: () => onConnect(client),
     onStompError: logout,
   });
   client.activate();
   return () => void client.deactivate();
 }
+
+/** Host idle screen: the top of the Day Leaderboard as it changes. */
+export const watchLeaderboard = (onTop: (top: LeaderboardEntry[]) => void) =>
+  connectAsAdmin((client) =>
+    client.subscribe("/topic/leaderboard", (frame) =>
+      onTop((JSON.parse(frame.body) as { payload: Board }).payload.top),
+    ),
+  );
+
+/** Host screen of one Battle: the Game topic. Says ready after subscribing, so the lobby arrives even after a refresh. */
+export const watchGame = (gameId: string, onEvent: (event: GameEvent) => void) =>
+  connectAsAdmin((client) => {
+    client.subscribe(`/topic/game/${gameId}`, (frame) => onEvent(JSON.parse(frame.body) as GameEvent));
+    client.publish({ destination: `/app/game/${gameId}/ready` });
+  });

@@ -1,8 +1,10 @@
-import type { GameEvent, GameOver, QuestionStart, Result } from "./game.ts";
+import type { GameEvent, GameOver, LobbyUpdate, QuestionStart, Result } from "./game.ts";
 
 /** What the Player's screen shows, driven by Game events and the Player's own tap. */
 export type PlayerState =
   | { phase: "waiting" }
+  /** Battle: "You're in" with the names in the lobby, until the Host starts */
+  | { phase: "lobby"; players: LobbyUpdate["players"] }
   | { phase: "question"; question: QuestionStart; notice?: string }
   | { phase: "locked"; question: QuestionStart; selected: number }
   /** question is null when the page was reopened mid-question and the timeout RESULT arrived first */
@@ -15,6 +17,8 @@ export const WAITING: PlayerState = { phase: "waiting" };
 
 export function reducePlayer(state: PlayerState, action: PlayerAction): PlayerState {
   switch (action.type) {
+    case "LOBBY_UPDATE":
+      return { phase: "lobby", players: action.payload.players };
     case "QUESTION_START":
       return { phase: "question", question: action.payload };
     case "SELECT":

@@ -34,6 +34,10 @@ A Gleeds staff login that manages the Question Bank and runs Battles.
 The 6-digit code Players enter to join a Battle lobby.
 _Avoid_: Room code, game code
 
+**Lobby**:
+A Battle's waiting state, from "New Battle" until the Host starts it: Players join by PIN and appear on the big screen as they arrive. Start unlocks at 2 Players; the door closes at 4.
+_Avoid_: Waiting room, room
+
 **Question Bank**:
 All questions an Admin has entered or imported, from which Games draw.
 

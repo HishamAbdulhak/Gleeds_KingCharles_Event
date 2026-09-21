@@ -47,10 +47,11 @@ public class SecurityConfig {
 				.authorizeHttpRequests(auth -> auth
 						// Boot renders exceptions by forwarding to /error; a public endpoint's 400 must not become a 401
 						.dispatcherTypeMatchers(DispatcherType.ERROR).permitAll()
-						.requestMatchers(HttpMethod.POST, "/api/admin/login", "/api/solo").permitAll()
+						.requestMatchers(HttpMethod.POST, "/api/admin/login", "/api/solo", "/api/games/*/join").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/leaderboard/**").permitAll()
 						.requestMatchers("/ws").permitAll()   // STOMP CONNECT is authenticated by WsAuthInterceptor
-						.requestMatchers("/api/admin/**").hasAuthority("SCOPE_" + ADMIN_SCOPE)
+						// admin and Host-command paths (spec → Admin API → Security)
+						.requestMatchers("/api/admin/**", "/api/games/**").hasAuthority("SCOPE_" + ADMIN_SCOPE)
 						.anyRequest().authenticated())
 				.build();
 	}

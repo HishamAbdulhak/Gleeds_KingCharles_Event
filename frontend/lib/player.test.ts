@@ -69,3 +69,21 @@ test("GAME_OVER ends the Game with the final Score", () => {
   const over = { score: 1500, rank: 3 };
   assert.deepEqual(reducePlayer(result, { type: "GAME_OVER", payload: over }), { phase: "over", gameOver: over });
 });
+
+const roster = {
+  pin: "123456",
+  players: [
+    { id: "p1", name: "Ada" },
+    { id: "p2", name: "Bob" },
+  ],
+};
+
+test("LOBBY_UPDATE shows who is in the lobby", () => {
+  const state = reducePlayer(WAITING, { type: "LOBBY_UPDATE", payload: roster });
+  assert.deepEqual(state, { phase: "lobby", players: roster.players });
+});
+
+test("the first QUESTION_START replaces the lobby", () => {
+  const lobby = reducePlayer(WAITING, { type: "LOBBY_UPDATE", payload: roster });
+  assert.deepEqual(reducePlayer(lobby, { type: "QUESTION_START", payload: q1 }), { phase: "question", question: q1 });
+});
