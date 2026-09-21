@@ -42,8 +42,29 @@ final class Stomp {
 				.get(5, TimeUnit.SECONDS);
 	}
 
+	/** For tests that never read the ERROR frame: a refused CONNECT still fails the {@code get} above. */
+	static StompSession connect(int port, Map<String, String> connectHeaders) throws Exception {
+		return connect(port, connectHeaders, new ErrorFrames());
+	}
+
 	static StompSession connectAsPlayer(int port, String sessionToken, ErrorFrames handler) throws Exception {
 		return connect(port, Map.of("X-Session-Token", sessionToken), handler);
+	}
+
+	static StompSession connectAsPlayer(int port, String sessionToken) throws Exception {
+		return connectAsPlayer(port, sessionToken, new ErrorFrames());
+	}
+
+	/** The Host screen's connection: the admin JWT. */
+	static StompSession connectAsAdmin(int port) throws Exception {
+		return connect(port, Map.of("Authorization", "Bearer " + Fixtures.adminToken(port)));
+	}
+
+	/** Subscribes to the Game topic, then says ready (docs/adr/0001). Mirrors the frontend; ordering is guaranteed server-side. */
+	static BlockingQueue<Map<String, Object>> ready(StompSession session, String gameId) {
+		var events = subscribe(session, "/topic/game/" + gameId);
+		session.send("/app/game/" + gameId + "/ready", Map.of());
+		return events;
 	}
 
 	/** Every {@code {type, payload}} event arriving on {@code destination}, in order. */
