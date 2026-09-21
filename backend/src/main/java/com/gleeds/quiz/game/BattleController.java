@@ -14,7 +14,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotNull;
 
 /** A Battle's lobby (spec → Game flow → Battle): an Admin creates it with a PIN; Players join by that PIN. */
 @RestController
@@ -23,9 +22,6 @@ public class BattleController {
 	/** Spec stories 28–29: no Battle with one person; a lobby stays readable on the big screen. */
 	static final int MIN_PLAYERS = 2;
 	static final int MAX_PLAYERS = 4;
-
-	record CreateRequest(@NotNull Game.Mode mode) {
-	}
 
 	record Created(UUID gameId, String pin) {
 	}
@@ -45,10 +41,7 @@ public class BattleController {
 	@PostMapping("/api/games")
 	@ResponseStatus(HttpStatus.CREATED)
 	@Transactional
-	Created create(@Valid @RequestBody CreateRequest req) {
-		if (req.mode() != Game.Mode.BATTLE) {
-			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Solo Games start at POST /api/solo");
-		}
+	Created create() {   // any body is ignored: only Battles are created here (Solo starts at POST /api/solo)
 		var draw = bank.draw();
 		String pin;
 		do {   // ponytail: a check-then-insert race is one in a million per concurrent create; the unique index is the backstop

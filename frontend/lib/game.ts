@@ -54,8 +54,7 @@ export const joinBattle = (pin: string, req: JoinRequest) =>
 
 // --- Host commands (admin JWT) ---
 
-export const createBattle = () =>
-  api<{ gameId: string; pin: string }>("/api/games", { method: "POST", body: JSON.stringify({ mode: "BATTLE" }) });
+export const createBattle = () => api<{ gameId: string; pin: string }>("/api/games", { method: "POST" });
 
 /** 409 below 2 Players. */
 export const startBattle = (gameId: string) => api<void>(`/api/games/${gameId}/start`, { method: "POST" });

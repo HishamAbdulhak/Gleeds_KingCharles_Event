@@ -3,7 +3,6 @@ package com.gleeds.quiz;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -62,7 +61,7 @@ class BattleLobbyTest {
 	}
 
 	static Map<String, Object> joinForm(String name, String email) {
-		return new HashMap<>(Map.of("name", name, "email", email, "consent", true));
+		return Map.of("name", name, "email", email, "consent", true);
 	}
 
 	@SuppressWarnings("unchecked")
@@ -149,10 +148,9 @@ class BattleLobbyTest {
 
 	/** Four Players in the lobby: the cap (spec story 29). Returns Ada's Seat, the first. */
 	Map<String, String> fillLobby(Map<String, String> created) {
-		Map<String, String> first = null;
-		for (var name : List.of("Ada", "Bob", "Cy", "Di")) {
-			var seat = join(created.get("pin"), name, name.toLowerCase() + "@example.com");
-			first = first == null ? seat : first;
+		var first = join(created.get("pin"), "Ada", "ada@example.com");
+		for (var name : List.of("Bob", "Cy", "Di")) {
+			join(created.get("pin"), name, name.toLowerCase() + "@example.com");
 		}
 		return first;
 	}
