@@ -40,19 +40,16 @@ public class AdminAuthController {
 	record LoginRequest(String email, String password) {
 	}
 
-	record Admin(String email, String passwordHash) {
-	}
-
 	@PostMapping("/login")
 	Map<String, String> login(@RequestBody LoginRequest req) {
-		var admin = jdbc.query("SELECT email, password_hash FROM admin_user WHERE lower(email) = lower(?)",
-				(rs, i) -> new Admin(rs.getString(1), rs.getString(2)), req.email()).stream().findFirst()
-				.filter(a -> passwordEncoder.matches(req.password() == null ? "" : req.password(), a.passwordHash()))
+		jdbc.query("SELECT password_hash FROM admin_user WHERE lower(email) = lower(?)", (rs, i) -> rs.getString(1),
+				req.email()).stream().findFirst()
+				.filter(hash -> passwordEncoder.matches(req.password() == null ? "" : req.password(), hash))
 				.orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Bad credentials"));
 
 		var now = Instant.now();
 		var claims = JwtClaimsSet.builder()
-				.subject(admin.email())
+				.subject(req.email().toLowerCase())
 				.claim("scope", SecurityConfig.ADMIN_SCOPE)
 				.issuedAt(now)
 				.expiresAt(now.plus(TOKEN_TTL))

@@ -14,6 +14,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
@@ -72,17 +73,18 @@ public class GameEngine {
 
 	private final GameRepository games;
 	private final PlayerRepository players;
-	private final AnswerRepository answers;
+	/** Answers are write-only here (the board reads them in SQL), so a plain insert beats an entity. */
+	private final JdbcTemplate jdbc;
 	private final DayLeaderboard leaderboard;
 	private final SimpMessagingTemplate messaging;
 	/** Explicit transactions: the timer callbacks are internal calls, which a {@code @Transactional} proxy never sees. */
 	private final TransactionTemplate tx;
 
-	GameEngine(GameRepository games, PlayerRepository players, AnswerRepository answers, DayLeaderboard leaderboard,
+	GameEngine(GameRepository games, PlayerRepository players, JdbcTemplate jdbc, DayLeaderboard leaderboard,
 			SimpMessagingTemplate messaging, PlatformTransactionManager transactions) {
 		this.games = games;
 		this.players = players;
-		this.answers = answers;
+		this.jdbc = jdbc;
 		this.leaderboard = leaderboard;
 		this.messaging = messaging;
 		this.tx = new TransactionTemplate(transactions);
@@ -134,7 +136,8 @@ public class GameEngine {
 				boolean correct = q.correctOption() == option;
 				var scored = Scoring.score(correct, responseMs, q.timeLimitSec() * 1000L, player.getStreak());
 				player.apply(scored);
-				answers.save(new Answer(gameId, playerId, q.id(), option, correct, (int) responseMs, scored.points()));
+				jdbc.update("INSERT INTO answer (game_id, player_id, question_id, selected_option, correct, response_ms, points) "
+						+ "VALUES (?, ?, ?, ?, ?, ?, ?)", gameId, playerId, q.id(), option, correct, responseMs, scored.points());
 				afterCommit(() -> {
 					toPlayer(playerId, new GameEvent("ANSWER_ACK", new GameEvent.AnswerAck(true, null)));
 					toPlayer(playerId, new GameEvent("RESULT", new GameEvent.Result(correct, scored.points(),
@@ -210,7 +213,7 @@ public class GameEngine {
 		var player = players.findByGameId(game.getId()).get(0);   // Solo: exactly one; Battle's Podium is ticket 08
 		var rank = leaderboard.rankOf(player.getEmail()).orElse(null);
 		var over = new GameEvent("GAME_OVER", new GameEvent.GameOver(player.getScore(), rank));
-		var board = new GameEvent("DAY_LEADERBOARD", new GameEvent.Board(leaderboard.top(10)));   // ten rows read from 5 m
+		var board = new GameEvent("DAY_LEADERBOARD", new GameEvent.Board(leaderboard.top()));
 		afterCommit(() -> {
 			live.remove(game.getId());
 			messaging.convertAndSend("/topic/game/" + game.getId(), over);

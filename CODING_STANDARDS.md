@@ -22,5 +22,5 @@ Read at review. The stack skills (`.agents/skills/<name>/SKILL.md`) are the base
 - `201 Created` carries a `Location` header only when a `GET` for that resource exists.
 - A domain term used in code is in `CONTEXT.md`; add the glossary entry with the code that introduces it.
 - A branch closes one issue. Repo-wide cleanup gets its own branch so the feature's spec review stays clean.
-- The simple broker honours Ant wildcards, so `WsAuthInterceptor` allow-lists destinations per principal. A new topic needs a "wrong principal subscribing to `/topic/*` is refused" boundary test, not an interceptor branch.
+- The simple broker honours Ant wildcards, so `WsAuthInterceptor` allow-lists destinations per principal. A new topic ships with one boundary test: the wrong principal subscribing to `/topic/*` gets the ERROR frame.
 - An ordering test seeds every lower-priority sort key to disagree with the key under test, so the test goes red without that key.

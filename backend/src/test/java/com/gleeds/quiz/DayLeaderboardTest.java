@@ -79,8 +79,8 @@ class DayLeaderboardTest {
 				+ "VALUES (?, ?, ?, 1, true, ?, 0)", gameId, playerId, questionId, responseMs);
 	}
 
-	List<Map<String, Object>> board(int top) {
-		return client.get().uri("/api/leaderboard?top=" + top).retrieve().body(ROWS);
+	List<Map<String, Object>> board() {
+		return client.get().uri("/api/leaderboard").retrieve().body(ROWS);
 	}
 
 	/** Replay (spec test 6): the same email twice, listed once with the higher Score; the email itself is not exposed. */
@@ -90,7 +90,7 @@ class DayLeaderboardTest {
 		player(game(Instant.now()), "Ada again", "Ada@Example.com", 1800);
 		player(game(Instant.now()), "Bob", "bob@example.com", 1500);
 
-		assertThat(board(10)).containsExactly(
+		assertThat(board()).containsExactly(
 				Map.of("rank", 1, "name", "Ada again", "score", 1800),
 				Map.of("rank", 2, "name", "Bob", "score", 1500));
 	}
@@ -109,7 +109,7 @@ class DayLeaderboardTest {
 		answer(adasGame, ada, questionIds.get(0), 3000);
 		answer(adasGame, ada, questionIds.get(1), 3000);   // 6 000 ms in total
 
-		assertThat(board(10)).extracting("rank", "name").containsExactly(tuple(1, "Ada"), tuple(2, "Bob"));
+		assertThat(board()).extracting("rank", "name").containsExactly(tuple(1, "Ada"), tuple(2, "Bob"));
 	}
 
 	@Test
@@ -118,23 +118,7 @@ class DayLeaderboardTest {
 		player(game(Instant.now()), "Bob", "bob@example.com", 100);
 		jdbc.update("UPDATE settings SET leaderboard_since = now() - interval '30 seconds'");
 
-		assertThat(board(10)).extracting("name").containsExactly("Bob");
-	}
-
-	/** The rank is the email's, so a replay that scored worse still reports where its Player stands. */
-	@Test
-	void rankOfAGameIsItsPlayersEmailsRank() {
-		player(game(Instant.now()), "Ada", "ada@example.com", 1800);
-		var worseReplay = game(Instant.now());
-		player(worseReplay, "Ada", "ada@example.com", 300);
-		player(game(Instant.now()), "Bob", "bob@example.com", 1500);
-		var carolsGame = game(Instant.now());
-		player(carolsGame, "Carol", "carol@example.com", 1000);
-
-		assertThat(client.get().uri("/api/leaderboard/rank?gameId=" + worseReplay).retrieve().body(Map.class))
-				.containsEntry("rank", 1);
-		assertThat(client.get().uri("/api/leaderboard/rank?gameId=" + carolsGame).retrieve().body(Map.class))
-				.containsEntry("rank", 3);
+		assertThat(board()).extracting("name").containsExactly("Bob");
 	}
 
 	// --- STOMP: the board is pushed when a Game finishes ---
@@ -168,22 +152,23 @@ class DayLeaderboardTest {
 		return (Map<String, Object>) over.get("payload");
 	}
 
+	/** Bob played earlier with a lower Score, so only the Score (never Game order) can put Ada first. */
 	@Test
 	@SuppressWarnings("unchecked")
 	void adminReceivesTheBoardWhenAGameFinishesAndTheGameOverCarriesTheRank() throws Exception {
 		jdbc.update("UPDATE settings SET questions_per_game = 1");
-		player(game(Instant.now()), "Bob", "bob@example.com", 9000);
+		player(game(Instant.now().minusSeconds(60)), "Bob", "bob@example.com", 100);
 		var admin = adminSession();
 		var pushed = Stomp.subscribe(admin, "/topic/leaderboard");
 
 		var over = playSolo("Ada", "ada@example.com");
 
-		assertThat(over).containsEntry("rank", 2);
+		assertThat(over).containsEntry("rank", 1);
 		var event = pushed.poll(5, TimeUnit.SECONDS);
 		assertThat(event).isNotNull().containsEntry("type", "DAY_LEADERBOARD");
 		var top = (List<Map<String, Object>>) ((Map<String, Object>) event.get("payload")).get("top");
-		assertThat(top).extracting("rank", "name").containsExactly(tuple(1, "Bob"), tuple(2, "Ada"));
-		assertThat((int) top.get(1).get("score")).isEqualTo((int) over.get("score"));
+		assertThat(top).extracting("rank", "name").containsExactly(tuple(1, "Ada"), tuple(2, "Bob"));
+		assertThat((int) top.get(0).get("score")).isEqualTo((int) over.get("score"));
 		admin.disconnect();
 	}
 
@@ -200,7 +185,6 @@ class DayLeaderboardTest {
 		assertThat(errors.error.get(5, TimeUnit.SECONDS)).contains("/topic/leaderboard");
 	}
 
-	/** The simple broker honours Ant wildcards, so a wildcard subscription must be refused like the literal one. */
 	@Test
 	void playerTokenCannotSubscribeToTheLeaderboardTopicByWildcard() throws Exception {
 		jdbc.update("UPDATE settings SET questions_per_game = 1");

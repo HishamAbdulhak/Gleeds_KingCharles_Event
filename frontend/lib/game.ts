@@ -1,7 +1,8 @@
 import { Client } from "@stomp/stompjs";
 import { api, API_URL, getToken, logout } from "@/lib/api";
 
-const WS_URL = `${API_URL.replace(/^http/, "ws")}/ws`;
+/** Shared by every STOMP client: the broker URL and a reconnect that keeps trying while the socket is down. */
+const STOMP = { brokerURL: `${API_URL.replace(/^http/, "ws")}/ws`, reconnectDelay: 2000 };
 
 /** Server → client STOMP messages, mirroring backend GameEvent. Later tickets add members to the union. */
 export type QuestionStart = {
@@ -25,11 +26,8 @@ export type GameOver = { score: number; rank: number | null };
 /** One row of the Day Leaderboard. */
 export type LeaderboardEntry = { rank: number; name: string; score: number };
 
-/**
- * Leaderboard topic (Admins only): the top of the Day Leaderboard, pushed whenever a Game finishes or a Reset happens.
- * Its own topic, so not part of the Game topic's union below.
- */
-export type DayLeaderboard = { type: "DAY_LEADERBOARD"; payload: { top: LeaderboardEntry[] } };
+/** Leaderboard topic (Admins only), as DAY_LEADERBOARD: the top of the Day Leaderboard whenever a Game finishes or a Reset happens. */
+export type Board = { top: LeaderboardEntry[] };
 
 export type GameEvent =
   | { type: "QUESTION_START"; payload: QuestionStart }
@@ -79,9 +77,8 @@ export function connectToGame(
   },
 ) {
   const client = new Client({
-    brokerURL: WS_URL,
+    ...STOMP,
     connectHeaders: { "X-Session-Token": sessionToken },
-    reconnectDelay: 2000,
     onConnect: () => {
       opts.onOnline(true);
       const deliver = (frame: { body: string }) => opts.onEvent(JSON.parse(frame.body) as GameEvent);
@@ -115,11 +112,12 @@ export const fetchLeaderboard = () => api<LeaderboardEntry[]>("/api/leaderboard"
  */
 export function watchLeaderboard(onTop: (top: LeaderboardEntry[]) => void) {
   const client = new Client({
-    brokerURL: WS_URL,
+    ...STOMP,
     connectHeaders: { Authorization: `Bearer ${getToken()}` },
-    reconnectDelay: 2000,
     onConnect: () =>
-      client.subscribe("/topic/leaderboard", (frame) => onTop((JSON.parse(frame.body) as DayLeaderboard).payload.top)),
+      client.subscribe("/topic/leaderboard", (frame) =>
+        onTop((JSON.parse(frame.body) as { payload: Board }).payload.top),
+      ),
     onStompError: logout,
   });
   client.activate();

@@ -34,9 +34,8 @@ import com.nimbusds.jose.jwk.source.ImmutableSecret;
 @Configuration
 public class SecurityConfig {
 
-	/** Value of the JWT {@code scope} claim; Spring's default converter exposes it as {@link #ADMIN_AUTHORITY}. */
+	/** Value of the JWT {@code scope} claim; Spring's default converter exposes it as the {@code SCOPE_ADMIN} authority. */
 	public static final String ADMIN_SCOPE = "ADMIN";
-	public static final String ADMIN_AUTHORITY = "SCOPE_" + ADMIN_SCOPE;
 
 	@Bean
 	SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -51,7 +50,7 @@ public class SecurityConfig {
 						.requestMatchers(HttpMethod.POST, "/api/admin/login", "/api/solo").permitAll()
 						.requestMatchers(HttpMethod.GET, "/api/leaderboard/**").permitAll()
 						.requestMatchers("/ws").permitAll()   // STOMP CONNECT is authenticated by WsAuthInterceptor
-						.requestMatchers("/api/admin/**").hasAuthority(ADMIN_AUTHORITY)
+						.requestMatchers("/api/admin/**").hasAuthority("SCOPE_" + ADMIN_SCOPE)
 						.anyRequest().authenticated())
 				.build();
 	}
