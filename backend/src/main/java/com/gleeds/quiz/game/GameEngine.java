@@ -359,7 +359,7 @@ public class GameEngine {
 					best.get(player.getId()).map(DayLeaderboard.Entry::rank).orElse(null), null);
 		}
 		var over = new GameEvent("GAME_OVER", ending);
-		var board = new GameEvent("DAY_LEADERBOARD", new GameEvent.Board(leaderboard.top()));
+		var top = leaderboard.top();
 		afterCommit(() -> {
 			live.remove(game.getId());
 			messaging.convertAndSend(topic(game.getId()), over);
@@ -367,7 +367,7 @@ public class GameEngine {
 				var score = best.get(player.getId()).map(DayLeaderboard.Entry::score).orElse(null);
 				toPlayer(player.getId(), new GameEvent("BEST_SCORE", new GameEvent.BestScore(player.getName(), score)));
 			}
-			messaging.convertAndSend("/topic/leaderboard", board);
+			leaderboard.push(top);
 		});
 	}
 
@@ -431,7 +431,7 @@ public class GameEngine {
 	}
 
 	/** STOMP publishes happen after commit, so a client never sees a row the database doesn't. */
-	private static void afterCommit(Runnable action) {
+	static void afterCommit(Runnable action) {
 		TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
 			@Override
 			public void afterCommit() {

@@ -17,12 +17,14 @@ import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.client.RestClient;
 
 /**
- * Boundary test for the Day Leaderboard (#7): the public read, and its ranking rules. Finished Games are seeded as
- * rows (playing them over STOMP is SoloGameTest's job); the assertions are on what the HTTP client sees.
+ * Boundary test for the Day Leaderboard (#7) and its Reset (#10): the public read, and its ranking rules. Finished
+ * Games are seeded as rows (playing them over STOMP is SoloGameTest's job); the assertions are on what the HTTP client
+ * sees.
  */
 @Import(TestcontainersConfiguration.class)
 @SpringBootTest(webEnvironment = WebEnvironment.RANDOM_PORT)
@@ -173,6 +175,45 @@ class DayLeaderboardTest {
 		assertThat(top).extracting("rank", "name").containsExactly(tuple(1, "Ada"), tuple(2, "Bob"));
 		assertThat((int) top.get(0).get("score")).isEqualTo((int) over.get("score"));
 		admin.disconnect();
+	}
+
+	/**
+	 * Spec test 7 and stories 43–44. Ada's Game doubles as the barrier: its board proves the Admin's SUBSCRIBE landed
+	 * before the Reset is sent on another connection.
+	 */
+	@Test
+	void resetEmptiesTheBoardAndPushesItEmptyButKeepsEveryGame() throws Exception {
+		jdbc.update("UPDATE settings SET questions_per_game = 1");
+		var bobsGame = game(Instant.now().minusSeconds(60));
+		player(bobsGame, "Bob", "bob@example.com", 100);
+		var admin = Stomp.connectAsAdmin(port);
+		var pushed = Stomp.subscribe(admin, "/topic/leaderboard");
+		playSolo("Ada", "ada@example.com");
+		assertThat((List<?>) Stomp.next(pushed, "DAY_LEADERBOARD").get("top")).hasSize(2);
+
+		var reset = client.post().uri("/api/admin/reset").header("Authorization", "Bearer " + Fixtures.adminToken(port))
+				.retrieve().toBodilessEntity();
+
+		assertThat(reset.getStatusCode()).isEqualTo(HttpStatus.NO_CONTENT);
+		assertThat(board()).isEmpty();
+		assertThat(Stomp.next(pushed, "DAY_LEADERBOARD")).isEqualTo(Map.of("top", List.of()));
+
+		playSolo("Cleo", "cleo@example.com");
+
+		assertThat(board()).extracting("rank", "name").containsExactly(tuple(1, "Cleo"));
+		assertThat(jdbc.queryForList("SELECT p.name FROM player p JOIN game g ON g.id = p.game_id ORDER BY g.created_at",
+				String.class)).containsExactly("Bob", "Ada", "Cleo");
+		admin.disconnect();
+	}
+
+	@Test
+	void resetWithoutATokenIs401AndLeavesTheBoard() {
+		player(game(Instant.now()), "Ada", "ada@example.com", 1200);
+
+		var status = client.post().uri("/api/admin/reset").exchange((req, res) -> res.getStatusCode());
+
+		assertThat(status).isEqualTo(HttpStatus.UNAUTHORIZED);
+		assertThat(board()).extracting("name").containsExactly("Ada");
 	}
 
 	@Test
