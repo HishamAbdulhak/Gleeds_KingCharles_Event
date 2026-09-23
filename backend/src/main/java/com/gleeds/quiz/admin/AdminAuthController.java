@@ -24,9 +24,6 @@ import com.gleeds.quiz.config.SecurityConfig;
 @RequestMapping("/api/admin")
 public class AdminAuthController {
 
-	/** "A session that lasts the day." */
-	static final Duration TOKEN_TTL = Duration.ofHours(24);
-
 	private final JdbcTemplate jdbc;
 	private final PasswordEncoder passwordEncoder;
 	private final JwtEncoder jwtEncoder;
@@ -52,7 +49,7 @@ public class AdminAuthController {
 				.subject(req.email().toLowerCase())
 				.claim("scope", SecurityConfig.ADMIN_SCOPE)
 				.issuedAt(now)
-				.expiresAt(now.plus(TOKEN_TTL))
+				.expiresAt(now.plus(Duration.ofHours(24)))   // "a session that lasts the day"
 				.build();
 		var token = jwtEncoder.encode(JwtEncoderParameters.from(JwsHeader.with(MacAlgorithm.HS256).build(), claims));
 		return Map.of("token", token.getTokenValue());

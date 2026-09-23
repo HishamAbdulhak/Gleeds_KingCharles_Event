@@ -71,7 +71,6 @@ export default function QuestionBank() {
       correctOption: Number(f.get("correctOption")),
       timeLimitSec: Number(f.get("timeLimitSec")),
       category: f.get("category") || null,
-      active: editing?.active ?? true,
     });
     const ok = await run(
       editing?.id

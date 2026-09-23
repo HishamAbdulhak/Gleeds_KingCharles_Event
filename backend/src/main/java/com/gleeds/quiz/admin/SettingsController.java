@@ -1,7 +1,6 @@
 package com.gleeds.quiz.admin;
 
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -36,7 +35,6 @@ public class SettingsController {
 	}
 
 	@PutMapping
-	@Transactional
 	Settings put(@Valid @RequestBody Settings settings) {
 		jdbc.update("UPDATE settings SET questions_per_game = ?", settings.questionsPerGame());
 		return settings;

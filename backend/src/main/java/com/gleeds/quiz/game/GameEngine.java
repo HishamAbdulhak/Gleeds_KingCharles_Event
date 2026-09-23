@@ -38,9 +38,6 @@ import org.springframework.transaction.support.TransactionTemplate;
 @Service
 public class GameEngine {
 
-	/** Solo pacing: the gap between a question's RESULT and the next QUESTION_START. A Battle waits for the Host. */
-	private static final long NEXT_QUESTION_DELAY_MS = 3_000;
-
 	private static final Logger log = LoggerFactory.getLogger(GameEngine.class);
 
 	/** The open question of one live Game. Fields are guarded by the instance's monitor; {@link #answers} is its own. */
@@ -382,7 +379,8 @@ public class GameEngine {
 				var reveal = new GameEvent("REVEAL", new GameEvent.Reveal(correctOption, Live.counts(answers)));
 				afterCommit(() -> messaging.convertAndSend(topic(state.gameId), reveal));
 			} else {
-				afterCommit(() -> schedule(NEXT_QUESTION_DELAY_MS, () -> autoAdvance(state)));
+				// Solo pacing: 3 s between the RESULT and the next question; a Battle waits for the Host
+				afterCommit(() -> schedule(3_000, () -> autoAdvance(state)));
 			}
 		});
 	}
