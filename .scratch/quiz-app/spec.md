@@ -130,7 +130,7 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 - Endpoint `/ws`; app prefix `/app`; broker prefixes `/topic`, `/queue`; user prefix `/user`.
 - CONNECT is authenticated by a channel interceptor: an Admin Bearer JWT, or a Player session token header. Subscriptions to a Game's topic are limited to that Game's Players and Admins; the Host-only topic and the leaderboard topic require Admin.
 - Client → server: one Answer destination per Game carrying question index and selected option.
-- Server → client, all as `{type, payload}`: Game topic (`LOBBY_UPDATE`, `QUESTION_START` without the correct option, `REVEAL`, `LEADERBOARD`, `GAME_OVER`), Host topic (`HOST_STATE`, which carries who is in on the open question — story 31's count is the Host's, so it is not on the Game topic), personal queue (`ANSWER_ACK`, `RESULT`, `SYNC`), leaderboard topic (`DAY_LEADERBOARD`).
+- Server → client, all as `{type, payload}`: Game topic (`LOBBY_UPDATE`, `QUESTION_START` without the correct option, `REVEAL`, `LEADERBOARD`, `GAME_OVER`), Host topic (`HOST_STATE`, which carries who is in on the open question — story 31's count is the Host's, so it is not on the Game topic), personal queue (`ANSWER_ACK`, `RESULT`, `SYNC`, and `BEST_SCORE` right after `GAME_OVER`: the Player's name and best Score today, never the email — `docs/adr/0003`), leaderboard topic (`DAY_LEADERBOARD`).
 
 ### Admin API
 

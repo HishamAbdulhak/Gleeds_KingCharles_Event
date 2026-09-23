@@ -48,7 +48,7 @@ class BattleLobbyTest {
 	}
 
 	static Map<String, Object> joinForm(String name, String email) {
-		return Map.of("name", name, "email", email, "consent", true);
+		return Map.of("name", name, "email", email);
 	}
 
 	@SuppressWarnings("unchecked")

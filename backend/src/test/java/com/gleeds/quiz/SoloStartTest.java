@@ -45,7 +45,7 @@ class SoloStartTest {
 	}
 
 	static Map<String, Object> joinForm() {
-		return new HashMap<>(Map.of("name", "Ada", "email", "ada@example.com", "consent", true));
+		return new HashMap<>(Map.of("name", "Ada", "email", "ada@example.com"));
 	}
 
 	@SuppressWarnings("unchecked")
@@ -70,17 +70,17 @@ class SoloStartTest {
 		assertThat(jdbc.queryForMap("SELECT game_id, name, email, score, streak FROM player WHERE id = ?", playerId))
 				.containsEntry("game_id", gameId).containsEntry("name", "Ada").containsEntry("email", "ada@example.com")
 				.containsEntry("score", 0).containsEntry("streak", 0);
-		assertThat(jdbc.queryForObject("SELECT consented_at FROM player WHERE id = ?", Object.class, playerId)).isNotNull();
 	}
 
+	/** docs/adr/0003: there is no consent to give; a client that still sends the old field is not turned away. */
 	@Test
-	void withoutConsentIs400() {
-		var form = joinForm();
-		form.put("consent", false);
-		assertThatThrownBy(() -> client.post().uri("/api/solo").body(form).retrieve().toBodilessEntity())
-				.isInstanceOfSatisfying(HttpClientErrorException.BadRequest.class,
-						e -> assertThat(e.getResponseBodyAsString()).contains("consent"));
-		assertThat(jdbc.queryForObject("SELECT count(*) FROM player", Integer.class)).isZero();
+	void joinNeedsNoConsentAndAnOldBodyWithConsentIsStillAccepted() {
+		assertThat(client.post().uri("/api/solo").body(joinForm()).retrieve().toBodilessEntity().getStatusCode())
+				.isEqualTo(HttpStatus.CREATED);
+		var old = joinForm();
+		old.put("consent", false);
+		assertThat(client.post().uri("/api/solo").body(old).retrieve().toBodilessEntity().getStatusCode())
+				.isEqualTo(HttpStatus.CREATED);
 	}
 
 	@Test

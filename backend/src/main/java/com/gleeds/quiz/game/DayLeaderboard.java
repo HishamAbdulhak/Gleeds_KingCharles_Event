@@ -51,9 +51,9 @@ public class DayLeaderboard {
 				(rs, i) -> new Entry(rs.getInt("rank"), rs.getString("name"), rs.getInt("score")));
 	}
 
-	/** Rank of this email's best Game, or empty when it has no Game since the last Reset. */
-	public Optional<Integer> rankOf(String email) {
-		return jdbc.query("SELECT rank FROM (" + BOARD + ") b WHERE email = lower(?)", (rs, i) -> rs.getInt("rank"), email)
-				.stream().findFirst();
+	/** This email's row: its best Score today and that Game's rank; empty when it has no Game since the last Reset. */
+	public Optional<Entry> bestOf(String email) {
+		return jdbc.query("SELECT * FROM (" + BOARD + ") b WHERE email = lower(?)",
+				(rs, i) -> new Entry(rs.getInt("rank"), rs.getString("name"), rs.getInt("score")), email).stream().findFirst();
 	}
 }

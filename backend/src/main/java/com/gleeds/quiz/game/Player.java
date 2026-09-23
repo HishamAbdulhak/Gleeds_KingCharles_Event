@@ -9,7 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
-/** A person in exactly one Game (table {@code player}). The row doubles as the Lead. */
+/** A person in exactly one Game (table {@code player}). */
 @Entity
 @Table(name = "player")
 public class Player {
@@ -21,7 +21,6 @@ public class Player {
 	private UUID gameId;
 	private String name;
 	private String email;
-	private Instant consentedAt = Instant.now();
 	/** STOMP CONNECT credential and reconnect key. */
 	private UUID sessionToken = UUID.randomUUID();
 	private int score;

@@ -67,8 +67,8 @@ class DayLeaderboardTest {
 
 	UUID player(UUID gameId, String name, String email, int score) {
 		var id = UUID.randomUUID();
-		jdbc.update("INSERT INTO player (id, game_id, name, email, consented_at, session_token, score) "
-				+ "VALUES (?, ?, ?, ?, now(), ?, ?)", id, gameId, name, email, UUID.randomUUID(), score);
+		jdbc.update("INSERT INTO player (id, game_id, name, email, session_token, score) "
+				+ "VALUES (?, ?, ?, ?, ?, ?)", id, gameId, name, email, UUID.randomUUID(), score);
 		return id;
 	}
 
@@ -121,20 +121,38 @@ class DayLeaderboardTest {
 
 	// --- STOMP: the board is pushed when a Game finishes ---
 
-	/** Plays a one-question Solo Game for {@code email} to the end and returns its GAME_OVER payload. */
+	/** How a Solo Game ended for its phone: GAME_OVER on the Game topic, then BEST_SCORE on the personal queue. */
+	record Ending(Map<String, Object> gameOver, Map<String, Object> bestScore) {
+	}
+
+	/** Plays a one-question Solo Game for {@code email} to the end, answering right. */
 	@SuppressWarnings("unchecked")
-	Map<String, Object> playSolo(String name, String email) throws Exception {
-		var started = client.post().uri("/api/solo").body(Map.of("name", name, "email", email, "consent", true))
-				.retrieve().body(Map.class);
+	Ending playSolo(String name, String email) throws Exception {
+		var started = client.post().uri("/api/solo").body(Map.of("name", name, "email", email)).retrieve().body(Map.class);
 		var gameId = (String) started.get("gameId");
 		var session = Stomp.connectAsPlayer(port, (String) started.get("sessionToken"));
+		var queue = Stomp.subscribe(session, "/user/queue/player");
 		var topic = Stomp.ready(session, gameId);
-		assertThat(topic.poll(5, TimeUnit.SECONDS)).isNotNull().containsEntry("type", "QUESTION_START");
+		Stomp.next(topic, "QUESTION_START");
 		session.send("/app/game/" + gameId + "/answer", Map.of("questionIndex", 0, "option", 1));
-		var over = topic.poll(10, TimeUnit.SECONDS);
-		assertThat(over).isNotNull().containsEntry("type", "GAME_OVER");
+		var over = Stomp.next(topic, "GAME_OVER");
+		Stomp.next(queue, "ANSWER_ACK");
+		Stomp.next(queue, "RESULT");
+		var best = Stomp.next(queue, "BEST_SCORE");
 		session.disconnect();
-		return (Map<String, Object>) over.get("payload");
+		return new Ending(over, best);
+	}
+
+	/** docs/adr/0003: the phone's proof is the email's best Score today, so a worse Replay still shows the earlier one. */
+	@Test
+	void aReplayThatScoresLowerStillReportsTheEarlierBestUnderTheNewName() throws Exception {
+		jdbc.update("UPDATE settings SET questions_per_game = 1");
+		player(game(Instant.now().minusSeconds(60)), "Ada", "ada@example.com", 9000);   // more than one question can earn
+
+		var ending = playSolo("Ada Lovelace", "ADA@example.com");
+
+		assertThat((int) ending.gameOver().get("score")).isBetween(1, 1000);
+		assertThat(ending.bestScore()).isEqualTo(Map.of("name", "Ada Lovelace", "score", 9000));
 	}
 
 	/** Bob played earlier with a lower Score, so only the Score (never Game order) can put Ada first. */
@@ -146,7 +164,7 @@ class DayLeaderboardTest {
 		var admin = Stomp.connectAsAdmin(port);
 		var pushed = Stomp.subscribe(admin, "/topic/leaderboard");
 
-		var over = playSolo("Ada", "ada@example.com");
+		var over = playSolo("Ada", "ada@example.com").gameOver();
 
 		assertThat(over).containsEntry("rank", 1);
 		var event = pushed.poll(5, TimeUnit.SECONDS);
@@ -160,7 +178,7 @@ class DayLeaderboardTest {
 	@Test
 	void playerTokenCannotSubscribeToTheLeaderboardTopic() throws Exception {
 		jdbc.update("UPDATE settings SET questions_per_game = 1");
-		var started = client.post().uri("/api/solo").body(Map.of("name", "Ada", "email", "ada@example.com", "consent", true))
+		var started = client.post().uri("/api/solo").body(Map.of("name", "Ada", "email", "ada@example.com"))
 				.retrieve().body(Map.class);
 		var errors = new Stomp.ErrorFrames();
 		var session = Stomp.connectAsPlayer(port, (String) started.get("sessionToken"), errors);
@@ -173,7 +191,7 @@ class DayLeaderboardTest {
 	@Test
 	void playerTokenCannotSubscribeToTheLeaderboardTopicByWildcard() throws Exception {
 		jdbc.update("UPDATE settings SET questions_per_game = 1");
-		var started = client.post().uri("/api/solo").body(Map.of("name", "Ada", "email", "ada@example.com", "consent", true))
+		var started = client.post().uri("/api/solo").body(Map.of("name", "Ada", "email", "ada@example.com"))
 				.retrieve().body(Map.class);
 		var errors = new Stomp.ErrorFrames();
 		var session = Stomp.connectAsPlayer(port, (String) started.get("sessionToken"), errors);

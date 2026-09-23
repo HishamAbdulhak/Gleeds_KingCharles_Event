@@ -79,7 +79,7 @@ class SoloGameTest {
 	@SuppressWarnings("unchecked")
 	Seat play() throws Exception {
 		var started = RestClient.create("http://localhost:" + port).post().uri("/api/solo")
-				.body(Map.of("name", "Ada", "email", "ada@example.com", "consent", true)).retrieve().body(Map.class);
+				.body(Map.of("name", "Ada", "email", "ada@example.com")).retrieve().body(Map.class);
 		var gameId = UUID.fromString((String) started.get("gameId"));
 		session = Stomp.connectAsPlayer(port, (String) started.get("sessionToken"));
 		var queue = Stomp.subscribe(session, "/user/queue/player");
@@ -167,6 +167,8 @@ class SoloGameTest {
 
 		var over = seat.onTopic("GAME_OVER");
 		assertThat(over).containsEntry("score", score);
+		assertThat(seat.onQueue("BEST_SCORE")).as("the prize proof: this email's first Game is its best today")
+				.isEqualTo(Map.of("name", "Ada", "score", score));
 
 		assertThat(jdbc.queryForMap("SELECT status, score FROM game g JOIN player p ON p.game_id = g.id WHERE g.id = ?", seat.gameId()))
 				.containsEntry("status", "FINISHED").containsEntry("score", score);

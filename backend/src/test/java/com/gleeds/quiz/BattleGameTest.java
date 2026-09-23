@@ -88,7 +88,7 @@ class BattleGameTest {
 	Phone join(UUID gameId, String name) throws Exception {
 		var pin = jdbc.queryForObject("SELECT pin FROM game WHERE id = ?", String.class, gameId);
 		var seat = client.post().uri("/api/games/" + pin + "/join")
-				.body(Map.of("name", name, "email", name.toLowerCase() + "@example.com", "consent", true)).retrieve()
+				.body(Map.of("name", name, "email", name.toLowerCase() + "@example.com")).retrieve()
 				.body(Map.class);
 		var session = Stomp.connectAsPlayer(port, (String) seat.get("sessionToken"));
 		sessions.add(session);
@@ -247,6 +247,10 @@ class BattleGameTest {
 		assertThat(podium.get(0)).containsEntry("name", "Ada");
 		assertThat((int) podium.get(0).get("score")).isPositive();
 		assertThat(podium.get(1)).containsEntry("name", "Bob").containsEntry("score", 0);
+		// docs/adr/0003: each phone gets its own name and best Score today (a first Game: this one), and no email
+		assertThat(Stomp.next(ada.queue(), "BEST_SCORE")).isEqualTo(Map.of("name", "Ada", "score", podium.get(0).get("score")));
+		assertThat(Stomp.next(bob.queue(), "BEST_SCORE")).isEqualTo(Map.of("name", "Bob", "score", 0));
+		assertThat(podium).asString().doesNotContain("@");
 		assertThat(rows(Stomp.next(screen.board(), "DAY_LEADERBOARD"), "top")).as("the Battle's Scores are on the day's board")
 				.extracting(row -> row.get("name")).containsExactly("Ada", "Bob");
 		assertThat(jdbc.queryForObject("SELECT status FROM game WHERE id = ?", String.class, gameId)).isEqualTo("FINISHED");
@@ -426,6 +430,6 @@ class BattleGameTest {
 		assertThat(Stomp.next(bob.queue(), "RESULT")).as("no Answer from Bob: a timeout").containsEntry("correct", false);
 		Stomp.next(ada.topic(), "REVEAL");
 		assertThat(rows(Stomp.next(ada.topic(), "GAME_OVER"), "podium")).hasSize(2);
-		assertThat(ada.queue().poll(500, TimeUnit.MILLISECONDS)).as("one RESULT each, not two").isNull();
+		assertThat(Stomp.next(ada.queue(), "BEST_SCORE")).as("one RESULT each, not two").containsEntry("name", "Ada");
 	}
 }

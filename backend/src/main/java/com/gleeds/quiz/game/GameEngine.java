@@ -13,6 +13,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -340,21 +341,32 @@ public class GameEngine {
 		}
 	}
 
-	/** Marks the Game FINISHED, tells the Players how it ended, and pushes the fresh board to the Host screen. */
+	/**
+	 * Marks the Game FINISHED, tells the Players how it ended, and pushes the fresh board to the Host screen. Each
+	 * Player then gets their name and best Score today on their own queue: the phone that proves the prize
+	 * (docs/adr/0003), and the email stays here.
+	 */
 	private void finish(Game game, Live state) {
 		game.finish(Instant.now());
+		var lobby = players.findByGameIdOrderByJoinedAt(game.getId());
+		var best = lobby.stream().collect(Collectors.toMap(Player::getId, p -> leaderboard.bestOf(p.getEmail())));
 		GameEvent.GameOver ending;
 		if (game.isBattle()) {
 			ending = new GameEvent.GameOver(null, null, standings(game.getId(), state));
 		} else {
-			var player = players.findByGameIdOrderByJoinedAt(game.getId()).get(0);   // Solo: exactly one
-			ending = new GameEvent.GameOver(player.getScore(), leaderboard.rankOf(player.getEmail()).orElse(null), null);
+			var player = lobby.get(0);   // Solo: exactly one
+			ending = new GameEvent.GameOver(player.getScore(),
+					best.get(player.getId()).map(DayLeaderboard.Entry::rank).orElse(null), null);
 		}
 		var over = new GameEvent("GAME_OVER", ending);
 		var board = new GameEvent("DAY_LEADERBOARD", new GameEvent.Board(leaderboard.top()));
 		afterCommit(() -> {
 			live.remove(game.getId());
 			messaging.convertAndSend(topic(game.getId()), over);
+			for (var player : lobby) {
+				var score = best.get(player.getId()).map(DayLeaderboard.Entry::score).orElse(null);
+				toPlayer(player.getId(), new GameEvent("BEST_SCORE", new GameEvent.BestScore(player.getName(), score)));
+			}
 			messaging.convertAndSend("/topic/leaderboard", board);
 		});
 	}
