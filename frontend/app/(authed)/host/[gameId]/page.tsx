@@ -9,6 +9,7 @@ import { Timer } from "@/components/Timer";
 import { publicUrl } from "@/lib/api";
 import {
   hostCommand,
+  HostState,
   LobbyUpdate,
   podiumRevealMs,
   QuestionStart,
@@ -150,13 +151,7 @@ function Lobby({ pin, players }: { pin: string | null; players: LobbyUpdate["pla
 }
 
 /** Spec stories 30–31: the question big enough to read from a distance, and how many Players are in. */
-function Asked({
-  question,
-  roster,
-}: {
-  question: QuestionStart;
-  roster: { id: string; name: string; answered: boolean; score: number }[];
-}) {
+function Asked({ question, roster }: { question: QuestionStart; roster: HostState["players"] }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-8">
       <header className="flex items-center gap-8 text-3xl text-gold-300">
