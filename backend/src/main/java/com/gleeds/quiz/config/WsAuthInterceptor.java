@@ -37,8 +37,6 @@ import com.gleeds.quiz.game.PlayerRepository;
 @Component
 public class WsAuthInterceptor implements ChannelInterceptor {
 
-	public static final String SESSION_TOKEN_HEADER = "X-Session-Token";
-
 	private static final Logger log = LoggerFactory.getLogger(WsAuthInterceptor.class);
 
 	public record Admin(String email) implements Principal {
@@ -117,7 +115,7 @@ public class WsAuthInterceptor implements ChannelInterceptor {
 				// falls through to the refusal below
 			}
 		}
-		var token = accessor.getFirstNativeHeader(SESSION_TOKEN_HEADER);
+		var token = accessor.getFirstNativeHeader("X-Session-Token");
 		if (token != null) {
 			try {
 				var player = players.findBySessionToken(UUID.fromString(token));
