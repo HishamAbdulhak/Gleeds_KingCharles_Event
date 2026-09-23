@@ -6,8 +6,6 @@ import { api } from "@/lib/api";
 
 type Settings = { questionsPerGame: number };
 
-const buttonClass = "rounded bg-gold-500 px-3 py-1 font-semibold text-royal-900 disabled:opacity-50";
-
 /** Spec stories 42–44: the Question Set size, and the Reset that empties the Day Leaderboard before doors open. */
 export default function SettingsPage() {
   const [settings, setSettings] = useState<Settings | null>(null);
@@ -36,9 +34,7 @@ export default function SettingsPage() {
     e.preventDefault();
     const questionsPerGame = Number(new FormData(e.currentTarget).get("questionsPerGame"));
     run(
-      api<Settings>("/api/admin/settings", { method: "PUT", body: JSON.stringify({ questionsPerGame }) }).then(
-        setSettings,
-      ),
+      api("/api/admin/settings", { method: "PUT", body: JSON.stringify({ questionsPerGame }) }),
       `New Games will draw ${questionsPerGame} questions.`,
     );
   }
@@ -84,7 +80,7 @@ export default function SettingsPage() {
                 className="w-24 rounded bg-cream p-2 text-royal-900"
               />
             </label>
-            <button type="submit" className={buttonClass}>
+            <button type="submit" className="rounded bg-gold-500 px-3 py-1 font-semibold text-royal-900">
               Save
             </button>
           </form>
