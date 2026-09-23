@@ -83,14 +83,13 @@ export default function PlayGame() {
         ) : (
           <>
             <h1 className="text-3xl font-bold text-gold-500">Game over</h1>
-            {state.best && <p className="text-3xl font-bold">{state.best.name}</p>}
             <p className="text-lg">
               Your Score
               <br />
               <span className="text-6xl font-bold tabular-nums">{score}</span>
             </p>
-            <PrizeProof best={state.best} />
             {rank !== null && <p className="text-2xl font-bold text-gold-300">You&apos;re #{rank} today</p>}
+            <PrizeProof best={state.best} />
           </>
         )}
         <Link href="/play" className="rounded bg-gold-500 px-8 py-4 text-xl font-bold text-royal-900">
@@ -156,13 +155,16 @@ function ResultBanner({ result: { correct, points, streak, score }, answered }: 
 }
 
 /**
- * What the Player shows staff to claim the day's prize (docs/adr/0003): their best Score today, which is their email's,
- * not just this Game's, and the reminder to keep it on screen. Staff match it and the name to the live board.
+ * What the Player shows staff to claim the day's prize (docs/adr/0003): their name and Best Score, which is their
+ * email's, not just this Game's, and the reminder to keep it on screen. Staff match both to the live board. Renders
+ * nothing until BEST_SCORE lands, a moment after GAME_OVER.
  */
 function PrizeProof({ best }: { best?: BestScore }) {
+  if (!best) return null;
   return (
     <>
-      {best?.score != null && (
+      <p className="text-3xl font-bold">{best.name}</p>
+      {best.score !== null && (
         <p className="text-lg">
           Best today
           <br />
@@ -180,8 +182,8 @@ const PLACES = ["1st", "2nd", "3rd", "4th"];
 /**
  * The end of a Battle on the phone (#9): the Player's own place, held back until the big screen has finished
  * revealing it — both run the same schedule off the one GAME_OVER. Only their own place, so a 4th place can't read
- * out the winner, then their name and best Score today (the prize proof). A phone that lost its `player:<gameId>` has
- * no row to wait for and says so at once.
+ * out the winner, then the prize proof. A phone that lost its `player:<gameId>` has no row to wait for: it says so at
+ * once, and still shows the proof, which comes on its own queue.
  */
 function MyPlace({ podium, playerId, best }: { podium: Standing[]; playerId: string | null; best?: BestScore }) {
   const place = podium.findIndex((entry) => entry.playerId === playerId) + 1; // 0: this phone lost track of its Player
@@ -194,7 +196,12 @@ function MyPlace({ podium, playerId, best }: { podium: Standing[]; playerId: str
   }, [place, you]);
 
   if (!you) {
-    return <h1 className="text-3xl font-bold text-gold-500">Game over</h1>;
+    return (
+      <>
+        <h1 className="text-3xl font-bold text-gold-500">Game over</h1>
+        <PrizeProof best={best} />
+      </>
+    );
   }
   if (!revealed) {
     return <p className="text-2xl text-cream/80">Look at the big screen…</p>;
@@ -203,7 +210,6 @@ function MyPlace({ podium, playerId, best }: { podium: Standing[]; playerId: str
     <>
       <h1 className="text-6xl font-bold text-gold-500">{PLACES[place - 1]}</h1>
       <p className="text-cream/80">of {podium.length} players</p>
-      <p className="text-3xl font-bold">{you.name}</p>
       <PrizeProof best={best} />
     </>
   );

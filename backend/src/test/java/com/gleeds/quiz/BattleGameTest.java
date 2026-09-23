@@ -430,6 +430,7 @@ class BattleGameTest {
 		assertThat(Stomp.next(bob.queue(), "RESULT")).as("no Answer from Bob: a timeout").containsEntry("correct", false);
 		Stomp.next(ada.topic(), "REVEAL");
 		assertThat(rows(Stomp.next(ada.topic(), "GAME_OVER"), "podium")).hasSize(2);
-		assertThat(Stomp.next(ada.queue(), "BEST_SCORE")).as("one RESULT each, not two").containsEntry("name", "Ada");
+		assertThat(Stomp.next(ada.queue(), "BEST_SCORE")).as("right after her one RESULT").containsEntry("name", "Ada");
+		assertThat(ada.queue().poll(500, TimeUnit.MILLISECONDS)).as("one RESULT each, not two").isNull();
 	}
 }

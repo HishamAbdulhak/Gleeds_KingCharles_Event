@@ -66,6 +66,10 @@ _Avoid_: Results, final leaderboard
 The ranking of every Player's best Score across all Games since the last Reset, shown on the Host screen. Solo and Battle Games rank on the same board because every Game has the same number of questions. Ties break on faster total response time in that best Game (a question never answered counts as its full time limit), then on the earlier Game. A Player's rank is their email's position on the board, so a Replay that scores worse leaves it unchanged. The top Score at the end of the day wins the prize.
 _Avoid_: Global leaderboard, high scores, event leaderboard
 
+**Best Score**:
+A Player's email's highest Score across the Games since the last Reset: their row on the Day Leaderboard, which may be an earlier Game's. Each phone's final screen shows its Player's name and Best Score, and that screen is how the day's winner claims the prize; the email itself never leaves the server.
+_Avoid_: High score, personal best
+
 **Reset**:
 An Admin action that empties the Day Leaderboard. Earlier Games are kept; they simply stop counting.
 _Avoid_: Clear, wipe, delete scores
