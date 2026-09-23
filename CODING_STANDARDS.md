@@ -18,13 +18,16 @@ Read at review. The stack skills (`.agents/skills/<name>/SKILL.md`) are the base
 ## Rules that have bitten
 
 - Collections load through `@EntityGraph` or `JOIN FETCH` (`./check` greps out `EAGER`).
+- Personal-queue sends go through `GameEngine.toPlayer` / `toSession`, one message per session: under `preservePublishOrder` a user destination that resolves to several sessions reaches only one of them (`./check` greps for `convertAndSendToUser` elsewhere).
 - A switch over a wire event keeps a `default` arm with `satisfies never`: tsc checks the declared union, but the wire can send an event outside it, and a reducer that falls off its switch returns `undefined` and white-screens the page (`./check` greps for it beside `case "GAME_OVER"`).
 - PgJDBC hands `SMALLINT` back as `Integer`, not `Short`; JdbcTemplate assertions compare against `int`.
 - Every method that modifies rows is `@Transactional`; STOMP publishes happen in `afterCommit`, so a client never sees a row the database doesn't. `GameEngine` uses a `TransactionTemplate` instead: its timer callbacks are internal calls, which a `@Transactional` proxy never sees.
 - `201 Created` carries a `Location` header only when a `GET` for that resource exists.
 - A domain term used in code is in `CONTEXT.md`; add the glossary entry with the code that introduces it.
 - A change to the STOMP wire contract ships with an ADR in `docs/adr/` recording the decision and its compatibility impact; an amended spec line alone is not enough (`docs/adr/0002`).
-- A branch closes one issue. Repo-wide cleanup gets its own branch so the feature's spec review stays clean.
+- A branch closes one issue. Repo-wide cleanup gets its own branch so the feature's spec review stays clean; cuts a review of the branch finds may ride on it as their own commit.
 - The simple broker honours Ant wildcards, so `WsAuthInterceptor` allow-lists destinations per principal. A new topic ships with one boundary test: the wrong principal subscribing to `/topic/*` gets the ERROR frame.
-- A STOMP SUBSCRIBE can lose to a REST command issued on another connection. A boundary test waits for each client's first message on its subscription (a Battle phone's own `LOBBY_UPDATE`) before sending a command that depends on it, and skips the lobby chatter an early joiner also receives (`BattleGameTest.afterLobby`). Without the barrier the suite is flaky, not wrong.
+- A STOMP frame — a SUBSCRIBE, or a SEND such as an Answer — can lose to a REST command issued on another connection. A boundary test waits for the server's reply to each frame a command depends on (a Battle phone's own `LOBBY_UPDATE`, the Answer's `ANSWER_ACK`) before sending that command, and skips the lobby chatter an early joiner also receives (`BattleGameTest.afterLobby`). Without the barrier the suite is flaky, not wrong.
+- A boundary test reads a client's subscriptions the way the client consumes them: where the frontend feeds several destinations to one reducer, the test shares one queue (`Stomp.subscribe(session, destination, queue)`), so the order across destinations is asserted. After-commit sends go out in the order they were registered, which under `preservePublishOrder` is each session's delivery order (#11: a reloaded big screen dropped the `HOST_STATE` that beat its `SYNC`).
 - An ordering test seeds every lower-priority sort key to disagree with the key under test, so the test goes red without that key.
+- A test's name claims only what its assertions check.
