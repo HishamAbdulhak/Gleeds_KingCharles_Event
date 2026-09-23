@@ -24,8 +24,23 @@ export type AnswerAck = { accepted: boolean; reason: string | null };
 /** Personal queue: what the Answer (or timeout) earned and the running Score. */
 export type Result = { correct: boolean; points: number; streak: number; score: number; correctOption: number };
 
-/** Game topic, Solo: final Score and rank on the Day Leaderboard (null only if a Reset happened mid-Game). */
-export type GameOver = { score: number; rank: number | null };
+/** Game topic, Battle: the question is over — the correct option and how many chose each, by option index. */
+export type Reveal = { correctOption: number; counts: number[] };
+
+/** One Player's place in the Standings: their Score, and what the question just played earned them. */
+export type Standing = { playerId: string; name: string; score: number; points: number };
+
+/** Game topic, Battle between questions, as LEADERBOARD (the spec's name): the Standings, best first. */
+export type Standings = { players: Standing[] };
+
+/** Host topic, Battle: the roster the big screen shows — who is in on the open question, and everyone's Score. */
+export type HostState = { players: { id: string; name: string; answered: boolean; score: number }[] };
+
+/**
+ * Game topic, the end of the Game. Solo: the final Score and rank on the Day Leaderboard (null only if a Reset
+ * happened mid-Game). Battle: the Podium, every Player ranked, and no score/rank — each phone finds its own row.
+ */
+export type GameOver = { score: number | null; rank: number | null; podium: Standing[] | null };
 
 /** One row of the Day Leaderboard. */
 export type LeaderboardEntry = { rank: number; name: string; score: number };
@@ -38,7 +53,25 @@ export type GameEvent =
   | { type: "QUESTION_START"; payload: QuestionStart }
   | { type: "ANSWER_ACK"; payload: AnswerAck }
   | { type: "RESULT"; payload: Result }
+  | { type: "REVEAL"; payload: Reveal }
+  | { type: "LEADERBOARD"; payload: Standings }
+  | { type: "HOST_STATE"; payload: HostState }
   | { type: "GAME_OVER"; payload: GameOver };
+
+/**
+ * The Podium is revealed 3rd, then 2nd, then 1st, a beat apart (#9); a place below the top three is listed from the
+ * start, so it waits for nothing. The big screen and the phones run this same schedule off the one GAME_OVER — no
+ * extra message — and the phone trails the row's fade, so the room always reads a place first.
+ */
+export const REVEALED_PLACES = 3;
+/** How long a Podium row takes to fade up: `.reveal` in globals.css, which this has to stay in step with. */
+const REVEAL_MS = 400;
+
+/** When the big screen starts revealing a place: a Podium row's `animation-delay`. */
+export const podiumRevealMs = (rank: number) => Math.max(0, REVEALED_PLACES + 1 - rank) * 1500;
+
+/** When a phone may show its own place: once the big screen has finished revealing that row, never before it. */
+export const podiumRevealedMs = (rank: number) => podiumRevealMs(rank) + REVEAL_MS;
 
 /** What a Player gives to join any Game: the Lead and consent (backend JoinRequest). */
 export type JoinRequest = { name: string; email: string; consent: boolean };
@@ -56,8 +89,9 @@ export const joinBattle = (pin: string, req: JoinRequest) =>
 
 export const createBattle = () => api<{ gameId: string; pin: string }>("/api/games", { method: "POST" });
 
-/** 409 below 2 Players. */
-export const startBattle = (gameId: string) => api<void>(`/api/games/${gameId}/start`, { method: "POST" });
+/** Every Host command is idempotent; the screen follows the events it publishes. `start` is 409 below 2 Players. */
+export const hostCommand = (gameId: string, command: "start" | "reveal" | "next" | "end") =>
+  api<void>(`/api/games/${gameId}/${command}`, { method: "POST" });
 
 /**
  * Per-tab storage: the Seat (session token per Game, so a refresh reconnects) and the Lead (so "Play again" prefills).
@@ -146,9 +180,14 @@ export const watchLeaderboard = (onTop: (top: LeaderboardEntry[]) => void) =>
     ),
   );
 
-/** Host screen of one Battle: the Game topic. Says ready after subscribing, so the lobby arrives even after a refresh. */
+/**
+ * Host screen of one Battle: the Game topic and the Host-only topic (Admins only, so a visitor can't read the
+ * answers off it). Says ready after subscribing, so the lobby arrives even after a refresh.
+ */
 export const watchGame = (gameId: string, onEvent: (event: GameEvent) => void) =>
   connectAsAdmin((client) => {
-    client.subscribe(`/topic/game/${gameId}`, (frame) => onEvent(JSON.parse(frame.body) as GameEvent));
+    const deliver = (frame: { body: string }) => onEvent(JSON.parse(frame.body) as GameEvent);
+    client.subscribe(`/topic/game/${gameId}`, deliver);
+    client.subscribe(`/topic/game/${gameId}/host`, deliver);
     client.publish({ destination: `/app/game/${gameId}/ready` });
   });

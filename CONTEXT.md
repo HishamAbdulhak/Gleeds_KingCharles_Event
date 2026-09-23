@@ -54,8 +54,12 @@ The number of consecutive correct Answers a Player currently has. Multiplies Poi
 **Score**:
 The sum of a Player's Points within one Game.
 
+**Standings**:
+Every Player in one Game ranked by Score, with what the question just played earned them. The big screen shows them between questions, and at the end of the Game as the Podium. Spelled LEADERBOARD on the wire and in `game.status`, which the spec fixed before this term existed.
+_Avoid_: Leaderboard (that is the Day Leaderboard)
+
 **Podium**:
-The end-of-Game ranking of every Player in that Game.
+The end-of-Game ranking of every Player in that Game. Revealed a place at a time on the big screen — 3rd, then 2nd, then 1st — and each phone shows its Player their own place on the same schedule.
 _Avoid_: Results, final leaderboard
 
 **Day Leaderboard**:

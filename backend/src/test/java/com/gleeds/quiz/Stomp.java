@@ -1,5 +1,7 @@
 package com.gleeds.quiz;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.lang.reflect.Type;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -65,6 +67,14 @@ final class Stomp {
 		var events = subscribe(session, "/topic/game/" + gameId);
 		session.send("/app/game/" + gameId + "/ready", Map.of());
 		return events;
+	}
+
+	/** The next event on {@code events}, which must be of {@code type}; returns its payload. */
+	@SuppressWarnings("unchecked")
+	static Map<String, Object> next(BlockingQueue<Map<String, Object>> events, String type) throws InterruptedException {
+		var event = events.poll(10, TimeUnit.SECONDS);
+		assertThat(event).as("expected %s", type).isNotNull().containsEntry("type", type);
+		return (Map<String, Object>) event.get("payload");
 	}
 
 	/** Every {@code {type, payload}} event arriving on {@code destination}, in order. */

@@ -78,8 +78,9 @@ public class Game {
 		return id;
 	}
 
-	public Mode getMode() {
-		return mode;
+	/** Solo and Battle differ in pacing, in when a RESULT goes out, and in how the Game ends. */
+	public boolean isBattle() {
+		return mode == Mode.BATTLE;
 	}
 
 	public String getPin() {
@@ -115,6 +116,16 @@ public class Game {
 		currentQuestionIndex++;
 		questionStartedAt = at;
 		return true;
+	}
+
+	/** The question is over: the big screen shows the correct option. */
+	public void reveal() {
+		status = Status.REVEAL;
+	}
+
+	/** Between questions: the big screen shows the Standings (the status keeps the spec's spelling). */
+	public void showStandings() {
+		status = Status.LEADERBOARD;
 	}
 
 	public void finish(Instant at) {

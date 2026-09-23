@@ -1,7 +1,8 @@
 package com.gleeds.quiz.game;
 
 import java.time.Instant;
-import java.util.HashSet;
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -11,6 +12,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,29 +28,34 @@ import org.springframework.transaction.support.TransactionTemplate;
 /**
  * Live Game state, keyed by Game id. The database is the record; this holds only what a database can't: the monotonic
  * clock reading at question start, which response times are measured against (spec → Scoring), and who has already
- * answered the open question.
+ * answered the open question. A Solo Game paces itself; a Battle is driven by the Host's commands.
  */
 @Service
 public class GameEngine {
 
-	/** Solo pacing: the gap between a question's RESULT and the next QUESTION_START. */
+	/** Solo pacing: the gap between a question's RESULT and the next QUESTION_START. A Battle waits for the Host. */
 	private static final long NEXT_QUESTION_DELAY_MS = 3_000;
 
 	private static final Logger log = LoggerFactory.getLogger(GameEngine.class);
 
-	/** The open question of one live Game. All fields guarded by the instance's monitor. */
+	/** The open question of one live Game. Fields are guarded by the instance's monitor; {@link #answers} is its own. */
 	private static final class Live {
 		final UUID gameId;
 		int index = -1;
 		long startNanos;
 		long deadlineNanos;
 		boolean open;
-		final Set<UUID> answered = new HashSet<>();
+		/** Concurrent: the reveal and the Host state read it while an Answer that beat the deadline is still scoring. */
+		final Map<UUID, Answered> answers = new ConcurrentHashMap<>();
 		/** Ends the question at the deadline; cancelled when it ends early. */
 		ScheduledFuture<?> timer;
 
 		Live(UUID gameId) {
 			this.gameId = gameId;
+		}
+
+		/** A Player's Answer to the open question: what they chose, and what it scored — null until it is stored. */
+		record Answered(int option, GameEvent.Result result) {
 		}
 
 		/** Takes the Player's Answer (marking them as answered) and returns null, or returns why it is refused. */
@@ -62,7 +69,20 @@ public class GameEngine {
 			if (receiptNanos > deadlineNanos) {
 				return "Too late";
 			}
-			return answered.add(playerId) ? null : "Already answered";
+			return answers.putIfAbsent(playerId, new Answered(option, null)) == null ? null : "Already answered";
+		}
+
+		/** What the Player's Answer to the question just played earned them; 0 when they did not answer it. */
+		int points(UUID playerId) {
+			var answered = answers.get(playerId);
+			return answered == null || answered.result() == null ? 0 : answered.result().points();
+		}
+
+		/** How many chose each option, for the reveal, off the Answers as they stood when the question closed. */
+		static List<Integer> counts(Map<UUID, Answered> answers) {
+			var counts = new int[4];
+			answers.values().forEach(answered -> counts[answered.option()]++);
+			return Arrays.stream(counts).boxed().toList();
 		}
 	}
 
@@ -101,7 +121,7 @@ public class GameEngine {
 			if (game.getStatus() != Game.Status.LOBBY) {
 				return;
 			}
-			if (game.getMode() == Game.Mode.BATTLE) {
+			if (game.isBattle()) {
 				publishLobby(game);
 			} else if (fromPlayer) {   // an Admin watching a Solo topic must not start it before its Player is listening
 				game.startNextQuestion(Instant.now());
@@ -110,19 +130,83 @@ public class GameEngine {
 		});
 	}
 
+	// --- Host commands (spec → Game flow → Battle). Each is idempotent and answers with the Game's new status. ---
+
+	/** LOBBY → the first question. A Battle that has already started is left alone, so a double tap can't restart it. */
+	public Game.Status start(UUID gameId) {
+		return command(gameId, (game, state) -> {
+			if (game.getStatus() == Game.Status.LOBBY) {
+				game.startNextQuestion(Instant.now());
+				publishQuestion(game, state);
+			}
+		});
+	}
+
+	/** Ends the open question now, wherever its timer had got to (spec story 31). Nothing to do once it is over. */
+	public Game.Status reveal(UUID gameId) {
+		var state = live.get(gameId);
+		if (state != null) {
+			endQuestion(state);
+		}
+		return games.findById(gameId).orElseThrow().getStatus();
+	}
+
+	/** REVEAL → the leaderboard; LEADERBOARD → the next question, or the Podium after the last. */
+	public Game.Status next(UUID gameId) {
+		return command(gameId, (game, state) -> {
+			switch (game.getStatus()) {
+				case REVEAL -> {
+					game.showStandings();
+					var event = new GameEvent("LEADERBOARD", new GameEvent.Standings(standings(gameId, state)));
+					afterCommit(() -> messaging.convertAndSend(topic(gameId), event));
+				}
+				case LEADERBOARD -> advance(game, state);
+				default -> {
+					// LOBBY waits for start, QUESTION for the reveal, FINISHED has nowhere left to go
+				}
+			}
+		});
+	}
+
+	/** Ends the Battle from any state: the Podium, then the big screen's idle Day Leaderboard. */
+	public Game.Status end(UUID gameId) {
+		var open = live.get(gameId);
+		if (open != null) {
+			endQuestion(open);   // whatever was open ends the normal way: its timer stops and every Player gets their RESULT
+		}
+		return command(gameId, (game, state) -> {
+			if (game.getStatus() != Game.Status.FINISHED) {
+				finish(game, state);
+			}
+		});
+	}
+
+	/** Runs a Host command against the live Game and answers with its status, which is what the big screen switches on. */
+	private Game.Status command(UUID gameId, BiConsumer<Game, Live> action) {
+		return tx.execute(status -> {
+			var game = games.findById(gameId).orElseThrow();
+			if (game.getStatus() == Game.Status.FINISHED) {
+				return Game.Status.FINISHED;   // nothing left to drive, and no live state worth creating to find that out
+			}
+			action.accept(game, live.computeIfAbsent(gameId, Live::new));
+			return game.getStatus();
+		});
+	}
+
 	/** LOBBY_UPDATE with the Game's Players, on the Game topic once the caller's transaction commits. */
 	public void publishLobby(Game game) {
 		var lobby = players.findByGameIdOrderByJoinedAt(game.getId()).stream()
 				.map(p -> new GameEvent.LobbyPlayer(p.getId(), p.getName())).toList();
 		var event = new GameEvent("LOBBY_UPDATE", new GameEvent.LobbyUpdate(game.getPin(), lobby));
-		afterCommit(() -> messaging.convertAndSend("/topic/game/" + game.getId(), event));
+		afterCommit(() -> messaging.convertAndSend(topic(game.getId()), event));
 	}
 
 	/**
 	 * A Player's Answer to {@code questionIndex}. Response time is clocked on entry, before any lookup. Refused with
 	 * a negative ANSWER_ACK when the question isn't the open one, the deadline has passed or the Player already
-	 * answered (in memory; the answer table's unique constraint is the backstop). Otherwise the Answer is stored,
-	 * the Player's Score and Streak updated, and ANSWER_ACK then RESULT go to the Player's queue.
+	 * answered (in memory; the answer table's unique constraint is the backstop). Otherwise the Answer is stored and
+	 * the Player's Score and Streak updated. A Solo Player gets their RESULT at once; a Battle's waits for the reveal,
+	 * so one phone cannot show the group the correct option, and the Host topic gets the fresh roster instead.
 	 */
 	public void answer(UUID gameId, UUID playerId, int questionIndex, int option) {
 		long receiptNanos = System.nanoTime();
@@ -141,8 +225,9 @@ public class GameEngine {
 			refuse(playerId, refusal);
 			return;
 		}
+		boolean everyoneIsIn;
 		try {
-			tx.executeWithoutResult(status -> {
+			everyoneIsIn = tx.execute(status -> {
 				var game = games.findById(gameId).orElseThrow();
 				var player = players.findById(playerId).orElseThrow();
 				var q = game.currentQuestion().toDto();
@@ -151,24 +236,32 @@ public class GameEngine {
 				player.apply(scored);
 				jdbc.update("INSERT INTO answer (game_id, player_id, question_id, selected_option, correct, response_ms, points) "
 						+ "VALUES (?, ?, ?, ?, ?, ?, ?)", gameId, playerId, q.id(), option, correct, responseMs, scored.points());
-				afterCommit(() -> {
-					toPlayer(playerId, new GameEvent("ANSWER_ACK", new GameEvent.AnswerAck(true, null)));
-					toPlayer(playerId, new GameEvent("RESULT", new GameEvent.Result(correct, scored.points(),
-							scored.streak(), player.getScore(), q.correctOption())));
-				});
+				var result = new GameEvent.Result(correct, scored.points(), scored.streak(), player.getScore(),
+						q.correctOption());
+				boolean stillOpen;
+				synchronized (state) {
+					state.answers.put(playerId, new Live.Answered(option, result));
+					stillOpen = state.open;
+				}
+				afterCommit(() -> toPlayer(playerId, new GameEvent("ANSWER_ACK", new GameEvent.AnswerAck(true, null))));
+				var lobby = players.findByGameIdOrderByJoinedAt(gameId);
+				if (!game.isBattle() || !stillOpen) {
+					// Solo has nobody to wait for; a Battle Answer that landed as the question ended has missed the reveal
+					afterCommit(() -> toPlayer(playerId, new GameEvent("RESULT", result)));
+				} else {
+					publishHostState(gameId, lobby, state.answers.keySet());
+				}
+				return state.answers.size() == lobby.size();
 			});
 		} catch (RuntimeException e) {
 			// the Answer was taken in memory but not stored: give it back, so the Player can retry or time out normally
 			log.error("Storing Player {}'s Answer failed", playerId, e);
-			synchronized (state) {
-				state.answered.remove(playerId);
-			}
+			state.answers.remove(playerId);
 			refuse(playerId, "Server error");
 			return;
 		}
-		// ponytail: Solo is the only Mode yet, so the one Answer ends the question; Battle (ticket 08) waits for all
-		if (close(state)) {
-			schedule(NEXT_QUESTION_DELAY_MS, () -> next(state));
+		if (everyoneIsIn) {   // nobody left to wait for: the question ends now rather than running its timer out
+			endQuestion(state);
 		}
 	}
 
@@ -176,62 +269,102 @@ public class GameEngine {
 		toPlayer(playerId, new GameEvent("ANSWER_ACK", new GameEvent.AnswerAck(false, reason)));
 	}
 
-	/** Ends the open question exactly once: later Answers are refused. False if it was already over. */
-	private boolean close(Live state) {
+	/**
+	 * Ends the open question exactly once (later Answers are refused), handing back the Answers as they stood at that
+	 * instant; null if it was already over. The snapshot is what keeps the two RESULT senders apart: an Answer still
+	 * scoring here goes on to read {@code open == false} and send its own, and sits in the snapshot with a null result,
+	 * which {@link #endQuestion} skips. Without it the two could both fire and the phone's result screen would collapse.
+	 */
+	private Map<UUID, Live.Answered> close(Live state) {
 		synchronized (state) {
 			if (!state.open) {
-				return false;
+				return null;
 			}
 			state.open = false;
 			state.timer.cancel(false);
-			return true;
+			return Map.copyOf(state.answers);
 		}
 	}
 
-	/** The deadline passed: every Player without an Answer gets a wrong-by-timeout RESULT and loses their Streak. */
-	private void timeout(Live state) {
-		if (!close(state)) {
-			return;   // an Answer got there first
+	/**
+	 * The question is over, however it ended — the deadline, the Host's reveal, or the last Player answering. Everyone
+	 * who did not answer gets a wrong-by-timeout RESULT and loses their Streak; in a Battle everyone else gets the
+	 * RESULT held since their Answer, and the big screen gets the REVEAL. Solo then paces itself to the next question.
+	 */
+	private void endQuestion(Live state) {
+		var answers = close(state);
+		if (answers == null) {
+			return;
 		}
 		tx.executeWithoutResult(status -> {
 			var game = games.findById(state.gameId).orElseThrow();
 			int correctOption = game.currentQuestion().toDto().correctOption();
-			for (var player : players.findByGameIdOrderByJoinedAt(state.gameId)) {
-				if (state.answered.contains(player.getId())) {   // closed above on this thread: nobody adds any more
-					continue;
+			boolean battle = game.isBattle();
+			var lobby = players.findByGameIdOrderByJoinedAt(state.gameId);
+			for (var player : lobby) {
+				var answered = answers.get(player.getId());
+				if (answered == null) {
+					player.apply(new Scoring.Scored(0, 0));
+					var timedOut = new GameEvent.Result(false, 0, 0, player.getScore(), correctOption);
+					afterCommit(() -> toPlayer(player.getId(), new GameEvent("RESULT", timedOut)));
+				} else if (battle && answered.result() != null) {   // null: still scoring, and its own transaction sends it
+					afterCommit(() -> toPlayer(player.getId(), new GameEvent("RESULT", answered.result())));
 				}
-				player.apply(new Scoring.Scored(0, 0));
-				afterCommit(() -> toPlayer(player.getId(),
-						new GameEvent("RESULT", new GameEvent.Result(false, 0, 0, player.getScore(), correctOption))));
+			}
+			if (battle) {
+				game.reveal();
+				var reveal = new GameEvent("REVEAL", new GameEvent.Reveal(correctOption, Live.counts(answers)));
+				afterCommit(() -> messaging.convertAndSend(topic(state.gameId), reveal));
+			} else {
+				afterCommit(() -> schedule(NEXT_QUESTION_DELAY_MS, () -> autoAdvance(state)));
 			}
 		});
-		schedule(NEXT_QUESTION_DELAY_MS, () -> next(state));
 	}
 
-	/** The next question, or GAME_OVER after the last. */
-	private void next(Live state) {
+	/** Solo pacing: the next question a few seconds after the result. */
+	private void autoAdvance(Live state) {
 		tx.executeWithoutResult(status -> {
 			var game = games.findById(state.gameId).orElseThrow();
-			if (game.startNextQuestion(Instant.now())) {
-				publishQuestion(game, state);
-			} else {
-				finish(game);
+			if (game.getStatus() != Game.Status.FINISHED) {   // the Host ended the Game while this timer was pending
+				advance(game, state);
 			}
 		});
 	}
 
-	/** Marks the Game FINISHED, tells the Player their Score and rank, and pushes the fresh board to the Host screen. */
-	private void finish(Game game) {
+	/** The next question of the Question Set, or the end of the Game after the last. */
+	private void advance(Game game, Live state) {
+		if (game.startNextQuestion(Instant.now())) {
+			publishQuestion(game, state);
+		} else {
+			finish(game, state);
+		}
+	}
+
+	/** Marks the Game FINISHED, tells the Players how it ended, and pushes the fresh board to the Host screen. */
+	private void finish(Game game, Live state) {
 		game.finish(Instant.now());
-		var player = players.findByGameIdOrderByJoinedAt(game.getId()).get(0);   // Solo: exactly one; Battle's Podium is ticket 08
-		var rank = leaderboard.rankOf(player.getEmail()).orElse(null);
-		var over = new GameEvent("GAME_OVER", new GameEvent.GameOver(player.getScore(), rank));
+		GameEvent.GameOver ending;
+		if (game.isBattle()) {
+			ending = new GameEvent.GameOver(null, null, standings(game.getId(), state));
+		} else {
+			var player = players.findByGameIdOrderByJoinedAt(game.getId()).get(0);   // Solo: exactly one
+			ending = new GameEvent.GameOver(player.getScore(), leaderboard.rankOf(player.getEmail()).orElse(null), null);
+		}
+		var over = new GameEvent("GAME_OVER", ending);
 		var board = new GameEvent("DAY_LEADERBOARD", new GameEvent.Board(leaderboard.top()));
 		afterCommit(() -> {
 			live.remove(game.getId());
-			messaging.convertAndSend("/topic/game/" + game.getId(), over);
+			messaging.convertAndSend(topic(game.getId()), over);
 			messaging.convertAndSend("/topic/leaderboard", board);
 		});
+	}
+
+	/** The Standings: every Player by Score, with what the question just played earned them. Ties keep join order. */
+	private List<GameEvent.Standing> standings(UUID gameId, Live state) {
+		return players.findByGameIdOrderByJoinedAt(gameId).stream()
+				.map(p -> new GameEvent.Standing(p.getId(), p.getName(), p.getScore(), state.points(p.getId())))
+				.sorted(Comparator.comparingInt(GameEvent.Standing::score).reversed())
+				.toList();
 	}
 
 	/** A scheduled task that throws would otherwise vanish into the future: log it, so a stuck Game is at least visible. */
@@ -258,11 +391,27 @@ public class GameEngine {
 				state.startNanos = System.nanoTime();
 				state.deadlineNanos = state.startNanos + TimeUnit.SECONDS.toNanos(q.timeLimitSec());
 				state.open = true;
-				state.answered.clear();
-				state.timer = schedule(TimeUnit.SECONDS.toMillis(q.timeLimitSec()), () -> timeout(state));
+				state.answers.clear();
+				state.timer = schedule(TimeUnit.SECONDS.toMillis(q.timeLimitSec()), () -> endQuestion(state));
 			}
-			messaging.convertAndSend("/topic/game/" + game.getId(), event);
+			messaging.convertAndSend(topic(game.getId()), event);
 		});
+		if (game.isBattle()) {   // a fresh question, so nobody has answered it yet
+			publishHostState(game.getId(), players.findByGameIdOrderByJoinedAt(game.getId()), Set.of());
+		}
+	}
+
+	/** HOST_STATE on the Host-only topic: the roster with who is in on the open question and everyone's Score. */
+	private void publishHostState(UUID gameId, List<Player> lobby, Set<UUID> answered) {
+		var roster = lobby.stream()
+				.map(p -> new GameEvent.HostPlayer(p.getId(), p.getName(), answered.contains(p.getId()), p.getScore()))
+				.toList();
+		var event = new GameEvent("HOST_STATE", new GameEvent.HostState(roster));
+		afterCommit(() -> messaging.convertAndSend(topic(gameId) + "/host", event));
+	}
+
+	private static String topic(UUID gameId) {
+		return "/topic/game/" + gameId;
 	}
 
 	private void toPlayer(UUID playerId, GameEvent event) {

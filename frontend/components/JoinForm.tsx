@@ -43,8 +43,12 @@ export function JoinForm({
     const name = String(form.get("name")).trim();
     const email = String(form.get("email")).trim();
     try {
-      const { gameId, sessionToken } = await join({ name, email, consent: form.get("consent") === "on" }, form);
+      const { gameId, playerId, sessionToken } = await join(
+        { name, email, consent: form.get("consent") === "on" },
+        form,
+      );
       stored.set(`seat:${gameId}`, sessionToken);
+      stored.set(`player:${gameId}`, playerId); // which row of a Battle's Podium is this phone's (#9)
       stored.set("lead", JSON.stringify({ name, email }));
       router.replace(`/play/${gameId}`);
     } catch (err) {
