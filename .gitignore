@@ -7,13 +7,6 @@
 backend/target/
 backend/.mvn/wrapper/maven-wrapper.jar
 
-# frontend
-frontend/node_modules/
-frontend/.next/
-frontend/out/
-frontend/*.tsbuildinfo
-frontend/next-env.d.ts
-
 # data exports
 *.csv
 !backend/src/test/resources/**/*.csv
@@ -30,3 +23,4 @@ frontend/next-env.d.ts
 CLAUDE.md
 skills-lock.json
 .scratch/pr-*-body.md
+.railway/node_modules/

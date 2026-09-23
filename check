@@ -31,6 +31,10 @@ echo "$counts"
 
 (cd frontend && npx next typegen >/dev/null && npx tsc --noEmit -p . && npm run -s lint && npx prettier --check . && npm test -s) && echo "frontend: tsc + eslint + prettier + tests ok" || status=1
 
+# the Railway SDK's types are its contract: its runtime accepts options they refuse (postgres() takes no image)
+frontend/node_modules/.bin/tsc --noEmit --strict --module nodenext --moduleResolution nodenext --target es2022 --skipLibCheck .railway/railway.ts \
+	&& echo "railway: tsc ok" || { echo "railway: tsc failed (first time? npm ci --prefix .railway)"; status=1; }
+
 echo "$counts"   # again, so `./check | tail -20` shows the counts and the verdict from one run
 [ $status -eq 0 ] && echo "PASS" || echo "FAIL"
 exit $status
