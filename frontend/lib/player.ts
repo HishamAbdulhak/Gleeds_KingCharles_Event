@@ -1,4 +1,4 @@
-import type { GameEvent, GameOver, LobbyUpdate, QuestionStart, Result } from "./game.ts";
+import type { BestScore, GameEvent, GameOver, LobbyUpdate, QuestionStart, Result } from "./game.ts";
 
 /** What the Player's screen shows, driven by Game events and the Player's own tap. */
 export type PlayerState =
@@ -11,7 +11,8 @@ export type PlayerState =
   | { phase: "result"; question: QuestionStart | null; selected: number | null; result: Result }
   /** Battle between questions: the leaderboard is on the big screen, so the phone says to look at it */
   | { phase: "between" }
-  | { phase: "over"; gameOver: GameOver };
+  /** best arrives on the personal queue right after GAME_OVER */
+  | { phase: "over"; gameOver: GameOver; best?: BestScore };
 
 export type PlayerAction = GameEvent | { type: "SELECT"; option: number };
 
@@ -42,6 +43,8 @@ export function reducePlayer(state: PlayerState, action: PlayerAction): PlayerSt
       return { phase: "between" };
     case "GAME_OVER":
       return { phase: "over", gameOver: action.payload };
+    case "BEST_SCORE":
+      return state.phase === "over" ? { ...state, best: action.payload } : state;
     case "REVEAL":
     case "HOST_STATE":
       return state; // the big screen's, not the phone's

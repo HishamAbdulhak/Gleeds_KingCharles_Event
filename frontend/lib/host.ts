@@ -30,6 +30,7 @@ export function reduceHost(screen: HostScreen, event: GameEvent): HostScreen {
       return { phase: "podium", podium: event.payload.podium ?? [] };
     case "ANSWER_ACK":
     case "RESULT":
+    case "BEST_SCORE":
       return screen; // a Player's own, on their queue; the big screen never subscribes to it
     default:
       // as in reducePlayer: exhaustive at compile time, but an unknown event leaves the room's screen standing

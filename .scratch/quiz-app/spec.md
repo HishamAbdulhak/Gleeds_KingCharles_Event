@@ -6,15 +6,15 @@ Vocabulary: see `CONTEXT.md`.
 
 ## Problem Statement
 
-Gleeds is running a one-day stand at a King Charles / UK–Saudi themed event. They want visitors to stop, play a themed trivia game on their phone, and compete for a single end-of-day prize — and in exchange Gleeds captures each visitor's name and email as a Lead. Visitors arrive alone or in small groups, so the stand needs both a walk-up solo experience with no staff involvement and a staff-run head-to-head experience for groups. The trivia content comes from the client as a spreadsheet, so staff need to load it without a developer. Nothing like this exists yet; the directory is empty.
+Gleeds is running a one-day stand at a King Charles / UK–Saudi themed event. They want visitors to stop, play a themed trivia game on their phone, and compete for a single end-of-day prize, handed out on the day. Each visitor gives a name and an email; the email only tells one visitor from another across Games, and is deleted after the event (`docs/adr/0003`). Visitors arrive alone or in small groups, so the stand needs both a walk-up solo experience with no staff involvement and a staff-run head-to-head experience for groups. The trivia content comes from the client as a spreadsheet, so staff need to load it without a developer. Nothing like this exists yet; the directory is empty.
 
 ## Solution
 
 A web app with three surfaces:
 
-- **Player** (phone): scan the QR code on the big screen, enter name + email + consent, and play a **Solo** Game of 10 timed questions; or enter a **PIN** to join a **Battle** lobby of 2–4 Players run from the big screen.
+- **Player** (phone): scan the QR code on the big screen, enter name + email, and play a **Solo** Game of 10 timed questions; or enter a **PIN** to join a **Battle** lobby of 2–4 Players run from the big screen.
 - **Host** (big screen): when idle, shows the **Day Leaderboard** and the QR code; when a Battle is running, shows the lobby, each question, the reveal, the leaderboard between questions, and the **Podium**.
-- **Admin** (staff, JWT-protected): manage the **Question Bank** (CRUD + CSV/XLSX import), set questions-per-Game, download **Leads** as CSV, and **Reset** the Day Leaderboard.
+- **Admin** (staff, JWT-protected): manage the **Question Bank** (CRUD + CSV/XLSX import), set questions-per-Game, and **Reset** the Day Leaderboard.
 
 Both Modes use identical scoring (speed decay + Streak), and every Game draws the same number of random questions, so Solo and Battle Scores rank on one Day Leaderboard. Best Score per email wins.
 
@@ -23,7 +23,7 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 ### Solo Player
 
 1. As a visitor, I want to scan a QR code on the big screen and land on a join page, so that I can start playing without staff help.
-2. As a visitor, I want to enter my name and email and tick a consent box, so that I can play and Gleeds can contact me.
+2. As a visitor, I want to enter my name and email and be told what the email is for, so that I can play and every Game I play counts as mine.
 3. As a visitor, I want the form to reject an invalid email before I start, so that I don't lose my Score to a typo.
 4. As a Solo Player, I want to tap Start and immediately see the first question with four options and a countdown, so that play feels instant.
 5. As a Solo Player, I want the countdown to be visible and accurate, so that I know how much time I have.
@@ -31,7 +31,7 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 7. As a Solo Player, I want to see whether I was right, the Points I earned, my Streak, and my running Score after each question, so that I stay engaged.
 8. As a Solo Player, I want the next question to appear automatically a few seconds after the result, so that I don't have to tap "next".
 9. As a Solo Player, I want a question I don't answer in time to count as wrong and reset my Streak, so that the timer matters.
-10. As a Solo Player, I want a final screen with my Score and my rank on the Day Leaderboard, so that I know if I'm in prize contention.
+10. As a Solo Player, I want a final screen with my name, my Score, my best Score today and my rank on the Day Leaderboard, so that I know if I'm in prize contention and can show it to claim the prize.
 11. As a Solo Player, I want to play again with the same email, so that I can try to beat my Score.
 12. As a Solo Player replaying, I want a different random Question Set, so that replaying is a real game.
 13. As a Solo Player whose phone loses connection mid-game, I want to reopen the page and continue where I was, so that a flaky network doesn't ruin my run.
@@ -39,13 +39,13 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 
 ### Battle Player
 
-15. As a visitor in a group, I want to enter the PIN shown on the big screen plus my name, email and consent, so that I can join a Battle.
+15. As a visitor in a group, I want to enter the PIN shown on the big screen plus my name and email, so that I can join a Battle.
 16. As a Battle Player, I want to see "You're in" and the names of others in the lobby, so that I know I joined the right Game.
 17. As a Battle Player, I want to be told the lobby is full if a fifth person tries to join, so that I understand why I couldn't get in.
 18. As a Battle Player, I want each question to appear on my phone at the same moment it appears on the big screen, so that nobody has a head start.
 19. As a Battle Player, I want to answer once, see my personal result on my phone, and see the reveal and leaderboard on the big screen, so that the group shares the moment.
 20. As a Battle Player, I want my Streak to carry across the Battle's questions, so that consistency is rewarded.
-21. As a Battle Player, I want the Podium at the end to show every Player in the lobby, so that everyone sees where they finished.
+21. As a Battle Player, I want the Podium at the end to show every Player in the lobby, and my phone to show my place, my name and my best Score today, so that everyone sees where they finished and a day's winner can claim the prize.
 22. As a Battle Player who joins with an email already in this lobby, I want to be reconnected to my existing seat rather than duplicated, so that a page refresh doesn't create a second me.
 23. As a Battle Player who disconnects, I want the Battle to carry on and my Score to stand, so that I don't spoil the game for others.
 
@@ -74,9 +74,9 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 41. As an Admin, I want the importer to accept the correct answer as a letter (A–D), so that the client's sheet works as written.
 42. As an Admin, I want to set how many questions each Game draws, so that I can shorten Games if the queue is long.
 43. As an Admin, I want a Reset button that empties the Day Leaderboard, so that a test run before doors open doesn't win the prize.
-44. As an Admin, I want Reset to keep all Leads and past Games, so that a mis-click never loses data.
-45. As an Admin, I want to download Leads as a CSV with name, email, consent time, best Score and first-seen time, deduplicated by email, so that marketing gets one clean list.
-46. As an Admin, I want every admin endpoint to reject requests without a valid token, so that the Question Bank and Leads are private.
+44. As an Admin, I want Reset to keep all past Games, so that a mis-click never loses data.
+45. ~~As an Admin, I want to download Leads as a CSV with name, email, consent time, best Score and first-seen time, deduplicated by email, so that marketing gets one clean list.~~ Dropped: there are no Leads (`docs/adr/0003`).
+46. As an Admin, I want every admin endpoint to reject requests without a valid token, so that the Question Bank and settings are private.
 
 ### Gleeds (organiser)
 
@@ -101,10 +101,10 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 - **settings**: exactly one row: `questions_per_game` (default 10) and `leaderboard_since` (timestamp; default epoch). Reset sets `leaderboard_since` to now.
 - **game**: id (UUID), `mode` (SOLO | BATTLE), `pin` (6 chars, unique, null for Solo), `status` (LOBBY | QUESTION | REVEAL | LEADERBOARD | FINISHED), current question index, question started-at, created-at, ended-at. Solo Games skip LOBBY/LEADERBOARD and go QUESTION → REVEAL → QUESTION … → FINISHED automatically.
 - **game_question**: (game, position) → question. The Question Set is drawn at Game creation: `questions_per_game` random active questions. Snapshotting the draw keeps history stable if a question is later edited or deactivated.
-- **player**: id (UUID), game, name, email, `consented_at`, `session_token` (UUID, unique; used for STOMP auth and reconnect), score, streak, joined-at. Unique (game, email): a second join with the same email in the same Game returns the existing seat and token (reconnect), not an error.
+- **player**: id (UUID), game, name, email, `session_token` (UUID, unique; used for STOMP auth and reconnect), score, streak, joined-at. Unique (game, email): a second join with the same email in the same Game returns the existing seat and token (reconnect), not an error.
 - **answer**: game, player, question, selected option, correct flag, response ms, points, submitted-at. Unique (player, question) enforces one Answer at the database level as well as in memory.
 - No `battle` table. A Battle is a Game with mode BATTLE.
-- Leads are derived from `player` rows (distinct by lowercased email); no separate table.
+- The email identifies a Player across Games and never leaves the server, Admins included; the event database is wiped once prizes are handed out (`docs/adr/0003`).
 
 ### Scoring (pure function, both Modes)
 
@@ -121,8 +121,8 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 
 ### Game flow
 
-- **Solo**: a public REST call with name, email, consent creates the Game + Player + Question Set and returns ids and session token. The Player connects over STOMP and subscribes to the Game topic; the engine immediately sends the first question. On each Answer or timeout the engine sends the personal result, waits ~3 s, then sends the next question; after the last, it marks FINISHED, sends game-over with the Player's Day Leaderboard rank, and pushes the leaderboard topic.
-- **Battle**: Admin REST call creates a Game with mode BATTLE and a PIN. Public join by PIN with name, email, consent; refused with a conflict when the lobby already has 4 Players or the Game has left LOBBY. Start is refused with fewer than 2 Players. Host REST commands: start, reveal (force early end), next, end. Server-side timer auto-reveals at the deadline. Reveal broadcasts correct option + per-option counts; next either broadcasts the leaderboard-then-question or, after the last question, the Podium and FINISHED.
+- **Solo**: a public REST call with name and email creates the Game + Player + Question Set and returns ids and session token. The Player connects over STOMP and subscribes to the Game topic; the engine immediately sends the first question. On each Answer or timeout the engine sends the personal result, waits ~3 s, then sends the next question; after the last, it marks FINISHED, sends game-over with the Player's Day Leaderboard rank, and pushes the leaderboard topic.
+- **Battle**: Admin REST call creates a Game with mode BATTLE and a PIN. Public join by PIN with name and email; refused with a conflict when the lobby already has 4 Players or the Game has left LOBBY. Start is refused with fewer than 2 Players. Host REST commands: start, reveal (force early end), next, end. Server-side timer auto-reveals at the deadline. Reveal broadcasts correct option + per-option counts; next either broadcasts the leaderboard-then-question or, after the last question, the Podium and FINISHED.
 - Reconnect: a client that reconnects with its session token receives a sync message describing the current state (phase, current question if any, remaining time, own score/streak) on its personal queue.
 
 ### STOMP contract
@@ -130,22 +130,22 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 - Endpoint `/ws`; app prefix `/app`; broker prefixes `/topic`, `/queue`; user prefix `/user`.
 - CONNECT is authenticated by a channel interceptor: an Admin Bearer JWT, or a Player session token header. Subscriptions to a Game's topic are limited to that Game's Players and Admins; the Host-only topic and the leaderboard topic require Admin.
 - Client → server: one Answer destination per Game carrying question index and selected option.
-- Server → client, all as `{type, payload}`: Game topic (`LOBBY_UPDATE`, `QUESTION_START` without the correct option, `REVEAL`, `LEADERBOARD`, `GAME_OVER`), Host topic (`HOST_STATE`, which carries who is in on the open question — story 31's count is the Host's, so it is not on the Game topic), personal queue (`ANSWER_ACK`, `RESULT`, `SYNC`), leaderboard topic (`DAY_LEADERBOARD`).
+- Server → client, all as `{type, payload}`: Game topic (`LOBBY_UPDATE`, `QUESTION_START` without the correct option, `REVEAL`, `LEADERBOARD`, `GAME_OVER`), Host topic (`HOST_STATE`, which carries who is in on the open question — story 31's count is the Host's, so it is not on the Game topic), personal queue (`ANSWER_ACK`, `RESULT`, `SYNC`, and `BEST_SCORE` right after `GAME_OVER`: the Player's name and best Score today, never the email — `docs/adr/0003`), leaderboard topic (`DAY_LEADERBOARD`).
 
 ### Admin API
 
 - Login returns a JWT valid for 24 h.
 - Question CRUD; import accepts CSV or XLSX with header `text,a,b,c,d,correct,time_limit,category` (correct as A–D; time limit and category optional), inserts valid rows, and returns per-row errors for the rest.
-- Settings read/update (questions per Game); Reset; Leads CSV download.
+- Settings read/update (questions per Game); Reset.
 - Security: everything under the admin and host-command paths requires the ADMIN role; Solo start, Battle join, the leaderboard read and the WebSocket endpoint are public.
 
 ### Frontend routes
 
-- `/play` — Solo join (name, email, consent) and a "Have a PIN?" link.
-- `/join` — Battle join (PIN, name, email, consent).
+- `/play` — Solo join (name, email, and a one-line notice of what the email is for) and a "Have a PIN?" link.
+- `/join` — Battle join (PIN, name, email, and the same notice).
 - `/play/[gameId]` — Player view for both Modes (question, result, game-over).
 - `/host` — Host idle (Day Leaderboard + QR, "New Battle"); `/host/[gameId]` — Battle lobby / question / reveal / leaderboard / Podium.
-- `/admin/login`, `/admin/questions`, `/admin/settings` (questions per Game + Reset), `/admin/leads`.
+- `/admin/login`, `/admin/questions`, `/admin/settings` (questions per Game + Reset).
 
 ## Testing Decisions
 
@@ -159,7 +159,7 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
   4. Battle: create → two join → a fifth join is refused → start refused with one Player, allowed with two → both answer → reveal shows correct option and counts → next → … → Podium lists both; same email joining the same lobby twice gets the same seat.
   5. Late Answer (after deadline) rejected and Streak reset; Streak multiplier visible in the second consecutive correct result.
   6. Replay: same email, second Game, higher Score → Day Leaderboard shows the higher one only.
-  7. Reset: Games before Reset disappear from the board; Leads CSV still contains them.
+  7. Reset: Games before Reset disappear from the board; the Games themselves are kept.
 - Scoring unit test: instant correct = 1000, buzzer correct = 500, wrong = 0, multiplier 1.0/1.1/…/1.5 across a Streak, timeout resets Streak.
 - Prior art: none (empty repo). Use Spring's `WebSocketStompClient` with a `StringMessageConverter`/Jackson converter and Testcontainers' `@ServiceConnection` for the Postgres container.
 - No frontend tests in this spec beyond `tsc`/lint passing.
@@ -177,5 +177,5 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 
 ## Further Notes
 
-- Consent wording is a placeholder for Gleeds' legal text; store the timestamp, not the text.
+- The join form's notice wording is a placeholder for Gleeds' legal text.
 - The Host idle screen is the marketing surface of the stand: prioritise legibility from 5 m over information density.

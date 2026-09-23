@@ -8,9 +8,10 @@ import { JoinRequest, Seat, stored } from "@/lib/game";
 export const inputClass = "rounded bg-cream p-3 text-lg text-royal-900";
 
 /**
- * The Lead form every Game starts with (name, email, consent), for Solo start and Battle join. Native validation
- * gives the inline messages; what `join` throws is shown below. Prefills the Lead this phone already gave ("Play
- * again", a second Battle). On a Seat: stores it and goes to the Player page. `children` are the extra fields (the PIN).
+ * The form every Game starts with (name, email, and what the email is for), for Solo start and Battle join. Native
+ * validation gives the inline messages; what `join` throws is shown below. Prefills the name and email this phone
+ * already gave ("Play again", a second Battle). On a Seat: stores it and goes to the Player page. `children` are the
+ * extra fields (the PIN).
  */
 export function JoinForm({
   title,
@@ -28,12 +29,12 @@ export function JoinForm({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const lead = useSyncExternalStore(
+  const saved = useSyncExternalStore(
     noSubscribe,
-    () => stored.get("lead"),
+    () => stored.get("joinForm"),
     () => null,
   );
-  const { name: storedName, email: storedEmail }: Partial<JoinRequest> = lead ? JSON.parse(lead) : {};
+  const { name: storedName, email: storedEmail }: Partial<JoinRequest> = saved ? JSON.parse(saved) : {};
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -43,13 +44,10 @@ export function JoinForm({
     const name = String(form.get("name")).trim();
     const email = String(form.get("email")).trim();
     try {
-      const { gameId, playerId, sessionToken } = await join(
-        { name, email, consent: form.get("consent") === "on" },
-        form,
-      );
+      const { gameId, playerId, sessionToken } = await join({ name, email }, form);
       stored.set(`seat:${gameId}`, sessionToken);
       stored.set(`player:${gameId}`, playerId); // which row of a Battle's Podium is this phone's (#9)
-      stored.set("lead", JSON.stringify({ name, email }));
+      stored.set("joinForm", JSON.stringify({ name, email }));
       router.replace(`/play/${gameId}`);
     } catch (err) {
       setError((err as Error).message || "Could not reach the server.");
@@ -59,7 +57,7 @@ export function JoinForm({
 
   return (
     <main className="flex flex-1 items-center justify-center p-6">
-      {/* key: remount when the stored Lead appears after hydration, so defaultValue takes effect */}
+      {/* key: remount when the stored name and email appear after hydration, so defaultValue takes effect */}
       <form
         key={storedName ? "prefilled" : "blank"}
         onSubmit={onSubmit}
@@ -89,10 +87,10 @@ export function JoinForm({
             className={inputClass}
           />
         </label>
-        <label className="flex items-start gap-3 text-sm">
-          <input name="consent" type="checkbox" required className="mt-1 size-5 accent-gold-500" />
-          <span>I agree that Gleeds may contact me by email. {/* placeholder for Gleeds' legal text */}</span>
-        </label>
+        {/* placeholder until Gleeds approves the wording (docs/adr/0003) */}
+        <p className="text-sm text-cream/80">
+          Your email is only used to identify you for today&apos;s prize, and is deleted after the event.
+        </p>
         {error && (
           <p role="alert" className="text-sm text-red-300">
             {error}

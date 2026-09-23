@@ -10,7 +10,7 @@ const REFUSALS: Record<string, string> = {
   GAME_STARTED: "That Battle has already started. Ask the Host for the next one.",
 };
 
-/** Battle join (spec story 15): the PIN from the big screen plus the Lead form. */
+/** Battle join (spec story 15): the PIN from the big screen plus the join form. */
 export default function Join() {
   return (
     <JoinForm

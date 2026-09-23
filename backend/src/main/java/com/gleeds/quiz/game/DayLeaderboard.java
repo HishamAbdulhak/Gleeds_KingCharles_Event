@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -38,6 +39,9 @@ public class DayLeaderboard {
 			SELECT email, name, score, row_number() OVER (ORDER BY score DESC, total_ms, created_at) AS rank FROM best
 			""";
 
+	private static final RowMapper<Entry> ENTRY = (rs, i) -> new Entry(rs.getInt("rank"), rs.getString("name"),
+			rs.getInt("score"));
+
 	private final JdbcTemplate jdbc;
 
 	DayLeaderboard(JdbcTemplate jdbc) {
@@ -47,13 +51,11 @@ public class DayLeaderboard {
 	/** The top ten: what the Host screen shows, legible from 5 m. */
 	@GetMapping("/api/leaderboard")
 	public List<Entry> top() {
-		return jdbc.query(BOARD + "ORDER BY rank LIMIT 10",
-				(rs, i) -> new Entry(rs.getInt("rank"), rs.getString("name"), rs.getInt("score")));
+		return jdbc.query(BOARD + "ORDER BY rank LIMIT 10", ENTRY);
 	}
 
-	/** Rank of this email's best Game, or empty when it has no Game since the last Reset. */
-	public Optional<Integer> rankOf(String email) {
-		return jdbc.query("SELECT rank FROM (" + BOARD + ") b WHERE email = lower(?)", (rs, i) -> rs.getInt("rank"), email)
-				.stream().findFirst();
+	/** This email's row: its best Score today and that Game's rank; empty when it has no Game since the last Reset. */
+	public Optional<Entry> bestOf(String email) {
+		return jdbc.query("SELECT * FROM (" + BOARD + ") b WHERE email = lower(?)", ENTRY, email).stream().findFirst();
 	}
 }

@@ -71,6 +71,16 @@ test("GAME_OVER ends the Game with the final Score", () => {
   assert.deepEqual(reducePlayer(result, { type: "GAME_OVER", payload: over }), { phase: "over", gameOver: over });
 });
 
+test("BEST_SCORE after GAME_OVER adds the name and best Score today the phone claims the prize with", () => {
+  const over = reducePlayer(WAITING, { type: "GAME_OVER", payload: { score: 1500, rank: 3, podium: null } });
+  const best = { name: "Ada", score: 2100 };
+  assert.deepEqual(reducePlayer(over, { type: "BEST_SCORE", payload: best }), { ...over, best });
+});
+
+test("BEST_SCORE before GAME_OVER is ignored: the server always sends it after", () => {
+  assert.equal(reducePlayer(locked, { type: "BEST_SCORE", payload: { name: "Ada", score: 2100 } }), locked);
+});
+
 const roster = {
   pin: "123456",
   players: [

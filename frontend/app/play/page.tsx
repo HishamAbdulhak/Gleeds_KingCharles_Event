@@ -4,7 +4,7 @@ import Link from "next/link";
 import { JoinForm } from "@/components/JoinForm";
 import { startSolo } from "@/lib/game";
 
-/** Solo join: the Lead form, then straight into the Game. */
+/** Solo join: the join form, then straight into the Game. */
 export default function Play() {
   return (
     <JoinForm

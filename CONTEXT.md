@@ -21,7 +21,7 @@ _Avoid_: 1v1, duel, multiplayer
 
 **Player**:
 A person who has joined a Game by giving their name and email. One Player belongs to exactly one Game.
-_Avoid_: User, participant, contestant, applicant
+_Avoid_: User, participant, contestant, applicant, lead
 
 **Host**:
 The big-screen view that drives a Battle and shows the Day Leaderboard. Operated by an Admin.
@@ -66,8 +66,12 @@ _Avoid_: Results, final leaderboard
 The ranking of every Player's best Score across all Games since the last Reset, shown on the Host screen. Solo and Battle Games rank on the same board because every Game has the same number of questions. Ties break on faster total response time in that best Game (a question never answered counts as its full time limit), then on the earlier Game. A Player's rank is their email's position on the board, so a Replay that scores worse leaves it unchanged. The top Score at the end of the day wins the prize.
 _Avoid_: Global leaderboard, high scores, event leaderboard
 
+**Best Score**:
+A Player's email's highest Score across the Games since the last Reset: their row on the Day Leaderboard, which may be an earlier Game's. Each phone's final screen shows its Player's name and Best Score, and that screen is how the day's winner claims the prize; the email itself never leaves the server.
+_Avoid_: High score, personal best
+
 **Reset**:
-An Admin action that empties the Day Leaderboard. Earlier Games and Leads are kept; they simply stop counting.
+An Admin action that empties the Day Leaderboard. Earlier Games are kept; they simply stop counting.
 _Avoid_: Clear, wipe, delete scores
 
 **Replay**:
@@ -80,6 +84,3 @@ _Avoid_: Quiz, round, pack
 **Seat**:
 A Player's place in one Game, held by the session token the phone keeps for the tab's life; a refresh or a second join with the same email reconnects to the same Seat rather than creating a second Player.
 _Avoid_: Session, slot
-
-**Lead**:
-The name and email captured when a Player joins. What Gleeds actually keeps.

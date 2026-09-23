@@ -42,6 +42,13 @@ export type HostState = { players: { id: string; name: string; answered: boolean
  */
 export type GameOver = { score: number | null; rank: number | null; podium: Standing[] | null };
 
+/**
+ * Personal queue, right after GAME_OVER, both Modes: the Player's name and best Score today (the Day Leaderboard's
+ * Score for their email, maybe an earlier Game's), which the phone shows to claim the prize — never the email
+ * (docs/adr/0003). `score` is null only if a Reset happened mid-Game.
+ */
+export type BestScore = { name: string; score: number | null };
+
 /** One row of the Day Leaderboard. */
 export type LeaderboardEntry = { rank: number; name: string; score: number };
 
@@ -56,7 +63,8 @@ export type GameEvent =
   | { type: "REVEAL"; payload: Reveal }
   | { type: "LEADERBOARD"; payload: Standings }
   | { type: "HOST_STATE"; payload: HostState }
-  | { type: "GAME_OVER"; payload: GameOver };
+  | { type: "GAME_OVER"; payload: GameOver }
+  | { type: "BEST_SCORE"; payload: BestScore };
 
 /**
  * The Podium is revealed 3rd, then 2nd, then 1st, a beat apart (#9); a place below the top three is listed from the
@@ -73,8 +81,8 @@ export const podiumRevealMs = (rank: number) => Math.max(0, REVEALED_PLACES + 1 
 /** When a phone may show its own place: once the big screen has finished revealing that row, never before it. */
 export const podiumRevealedMs = (rank: number) => podiumRevealMs(rank) + REVEAL_MS;
 
-/** What a Player gives to join any Game: the Lead and consent (backend JoinRequest). */
-export type JoinRequest = { name: string; email: string; consent: boolean };
+/** What a Player gives to join any Game (backend JoinRequest). The email only tells Players apart (docs/adr/0003). */
+export type JoinRequest = { name: string; email: string };
 
 /** A Player's Seat in one Game: the ids and the session token the phone keeps. */
 export type Seat = { gameId: string; playerId: string; sessionToken: string };
@@ -94,7 +102,7 @@ export const hostCommand = (gameId: string, command: "start" | "reveal" | "next"
   api<void>(`/api/games/${gameId}/${command}`, { method: "POST" });
 
 /**
- * Per-tab storage: the Seat (session token per Game, so a refresh reconnects) and the Lead (so "Play again" prefills).
+ * Per-tab storage: the Seat (session token per Game, so a refresh reconnects) and the name and email (so "Play again" prefills).
  * sessionStorage can throw (private browsing, disabled); a lost Seat is reported by the game page.
  */
 export const stored = {

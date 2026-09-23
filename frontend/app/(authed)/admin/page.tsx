@@ -17,7 +17,7 @@ export default function AdminHome() {
           Question Bank
         </Link>
       </nav>
-      <p className="text-cream/80">Settings and Leads will appear here.</p>
+      <p className="text-cream/80">Settings will appear here.</p>
     </main>
   );
 }

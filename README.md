@@ -1,6 +1,6 @@
 # King Charles Quiz
 
-Real-time trivia for a Gleeds event — King Charles & UK–Saudi relations. Solo play from a QR code, 2–4 player Battles run from a big screen, one Day Leaderboard, lead capture, JWT-protected admin panel.
+Real-time trivia for a Gleeds event — King Charles & UK–Saudi relations. Solo play from a QR code, 2–4 player Battles run from a big screen, one Day Leaderboard, JWT-protected admin panel.
 
 Docs: [CONTEXT.md](CONTEXT.md) (glossary) · [spec](.scratch/quiz-app/spec.md) · [issues](https://github.com/HishamAbdulhak/Gleeds_KingCharles_Event/issues)
 
@@ -46,5 +46,5 @@ Copy `frontend/.env.example` to `frontend/.env.local`. `.env*` files are gitigno
 ## Skipped (add when needed)
 
 - Redis/RabbitMQ STOMP relay — only if you scale past one backend node.
-- Player accounts / OAuth — email is a lead field, not a login.
+- Player accounts / OAuth — the email only tells Players apart; it isn't a login.
 - Question types beyond 4-option MCQ — schema change is one `type` column when asked.
