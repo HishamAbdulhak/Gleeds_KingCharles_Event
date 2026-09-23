@@ -115,20 +115,24 @@ class BattleGameTest {
 		return (Map<String, Object>) event.get("payload");
 	}
 
-	/** The big screen: the Game topic, the Host-only topic and the day's board. */
-	record BigScreen(BlockingQueue<Map<String, Object>> topic, BlockingQueue<Map<String, Object>> host,
-			BlockingQueue<Map<String, Object>> board) {
+	/**
+	 * The big screen: the Game topic and the Host-only topic as one stream, the way the Battle page feeds both to one
+	 * reducer, so the order across them is asserted; and the day's board.
+	 */
+	record BigScreen(BlockingQueue<Map<String, Object>> events, BlockingQueue<Map<String, Object>> board) {
 	}
 
-	/** The Host screen's three subscriptions, then a ready — whose lobby is proof that all three are live. */
+	/** The Host screen's subscriptions, then a ready — whose lobby is proof that they are live. */
 	BigScreen bigScreen(UUID gameId) throws Exception {
 		var admin = Stomp.connectAsAdmin(port);
 		sessions.add(admin);
-		var host = Stomp.subscribe(admin, "/topic/game/" + gameId + "/host");
+		var events = new LinkedBlockingQueue<Map<String, Object>>();
+		Stomp.subscribe(admin, "/topic/game/" + gameId + "/host", events);
 		var board = Stomp.subscribe(admin, "/topic/leaderboard");
-		var topic = Stomp.ready(admin, gameId.toString());
-		Stomp.next(topic, "LOBBY_UPDATE");
-		return new BigScreen(topic, host, board);
+		Stomp.subscribe(admin, "/topic/game/" + gameId, events);
+		admin.send("/app/game/" + gameId + "/ready", Map.of());
+		Stomp.next(events, "LOBBY_UPDATE");
+		return new BigScreen(events, board);
 	}
 
 	/** Starts the Battle and takes the first question off every phone. */
@@ -164,19 +168,20 @@ class BattleGameTest {
 		var bob = join(gameId, "Bob");
 		var screen = bigScreen(gameId);
 		start(gameId, ada, bob);
-		assertThat(answered(Stomp.next(screen.host(), "HOST_STATE"))).as("a fresh question: nobody in yet").isZero();
+		Stomp.next(screen.events(), "QUESTION_START");   // first: the screen drops a roster that beats its question
+		assertThat(answered(Stomp.next(screen.events(), "HOST_STATE"))).as("a fresh question: nobody in yet").isZero();
 
 		ada.answer(0, CORRECT);
 
 		assertThat(Stomp.next(ada.queue(), "ANSWER_ACK")).containsEntry("accepted", true);
-		assertThat(answered(Stomp.next(screen.host(), "HOST_STATE"))).isEqualTo(1);
+		assertThat(answered(Stomp.next(screen.events(), "HOST_STATE"))).isEqualTo(1);
 		assertThat(ada.queue().poll(500, TimeUnit.MILLISECONDS))
 				.as("the RESULT waits for the reveal, so one phone can't show the group the answer").isNull();
 
 		bob.answer(0, WRONG);
 
 		assertThat(Stomp.next(bob.queue(), "ANSWER_ACK")).containsEntry("accepted", true);
-		assertThat(answered(Stomp.next(screen.host(), "HOST_STATE"))).isEqualTo(2);
+		assertThat(answered(Stomp.next(screen.events(), "HOST_STATE"))).isEqualTo(2);
 		var result = Stomp.next(ada.queue(), "RESULT");
 		assertThat(result).containsEntry("correct", true).containsEntry("streak", 1).containsEntry("correctOption", CORRECT);
 		assertThat((int) result.get("points")).isBetween(500, 1000);
@@ -323,13 +328,14 @@ class BattleGameTest {
 		var screen = bigScreen(gameId);
 		start(gameId, ada, bob);
 
-		assertThat(rows(Stomp.next(screen.host(), "HOST_STATE"), "players")).hasSize(2)
+		Stomp.next(screen.events(), "QUESTION_START");
+		assertThat(rows(Stomp.next(screen.events(), "HOST_STATE"), "players")).hasSize(2)
 				.allSatisfy(player -> assertThat(player).containsEntry("answered", false).containsEntry("score", 0));
 
 		ada.answer(0, CORRECT);
 		Stomp.next(ada.queue(), "ANSWER_ACK");
 
-		var roster = rows(Stomp.next(screen.host(), "HOST_STATE"), "players");
+		var roster = rows(Stomp.next(screen.events(), "HOST_STATE"), "players");
 		assertThat(roster.get(0)).containsEntry("name", "Ada").containsEntry("answered", true)
 				.containsEntry("id", ada.playerId().toString());
 		assertThat((int) roster.get(0).get("score")).isPositive();
