@@ -45,5 +45,10 @@ export function reducePlayer(state: PlayerState, action: PlayerAction): PlayerSt
     case "REVEAL":
     case "HOST_STATE":
       return state; // the big screen's, not the phone's
+    default:
+      // `satisfies never` keeps the cases above exhaustive at compile time; this arm is for the event a newer
+      // server sends that this build has never heard of, which must not white-screen a phone mid-Game
+      action satisfies never;
+      return state;
   }
 }

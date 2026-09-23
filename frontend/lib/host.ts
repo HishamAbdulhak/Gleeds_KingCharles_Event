@@ -31,5 +31,9 @@ export function reduceHost(screen: HostScreen, event: GameEvent): HostScreen {
     case "ANSWER_ACK":
     case "RESULT":
       return screen; // a Player's own, on their queue; the big screen never subscribes to it
+    default:
+      // as in reducePlayer: exhaustive at compile time, but an unknown event leaves the room's screen standing
+      event satisfies never;
+      return screen;
   }
 }

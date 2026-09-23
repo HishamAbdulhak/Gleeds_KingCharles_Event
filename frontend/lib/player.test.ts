@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import type { QuestionStart } from "./game.ts";
+import type { PlayerAction } from "./player.ts";
 import { reducePlayer, WAITING } from "./player.ts";
 
 const q1: QuestionStart = {
@@ -111,4 +112,9 @@ test("GAME_OVER in a Battle carries the Podium instead of a Score", () => {
   const over = { score: null, rank: null, podium };
   const between = reducePlayer(WAITING, { type: "LEADERBOARD", payload: { players: podium } });
   assert.deepEqual(reducePlayer(between, { type: "GAME_OVER", payload: over }), { phase: "over", gameOver: over });
+});
+
+test("an event from a newer server leaves the phone standing", () => {
+  const unknown = { type: "SYNC", payload: {} } as unknown as PlayerAction;
+  assert.equal(reducePlayer(locked, unknown), locked);
 });

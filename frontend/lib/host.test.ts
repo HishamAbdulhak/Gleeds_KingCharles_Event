@@ -69,3 +69,9 @@ test("a Player's own ack and result are not the big screen's", () => {
     asked,
   );
 });
+
+test("an event from a newer server leaves the screen standing", () => {
+  // version skew: the deployed backend publishes something this build has never heard of
+  const unknown = { type: "SYNC", payload: {} } as unknown as Parameters<typeof reduceHost>[1];
+  assert.equal(reduceHost(asked, unknown), asked);
+});
