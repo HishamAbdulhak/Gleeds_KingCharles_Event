@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
+import { Reconnecting } from "@/components/Reconnecting";
 import { publicUrl } from "@/lib/api";
 import { createBattle, fetchLeaderboard, LeaderboardEntry, watchLeaderboard } from "@/lib/game";
 
@@ -14,10 +15,11 @@ export default function Host() {
   const router = useRouter();
   const [top, setTop] = useState<LeaderboardEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [online, setOnline] = useState<boolean | null>(null);
 
   useEffect(() => {
     void fetchLeaderboard().then(setTop); // once; the topic keeps it current from here
-    return watchLeaderboard(setTop);
+    return watchLeaderboard(setTop, setOnline);
   }, []);
 
   async function newBattle() {
@@ -34,6 +36,7 @@ export default function Host() {
 
   return (
     <main className="flex flex-1 gap-16 p-12">
+      <Reconnecting online={online} />
       <section className="flex flex-1 flex-col gap-8">
         <h1 className="text-6xl font-bold text-gold-500">Today&apos;s leaderboard</h1>
         {top.length === 0 ? (

@@ -84,3 +84,7 @@ _Avoid_: Quiz, round, pack
 **Seat**:
 A Player's place in one Game, held by the session token the phone keeps for the tab's life; a refresh or a second join with the same email reconnects to the same Seat rather than creating a second Player.
 _Avoid_: Session, slot
+
+**Reconnect**:
+A phone or the big screen coming back to a Game already under way, after a dropped connection or a reopened page, and picking it up where the Game now is, with what it missed while away. A phone reconnects to its Seat; it never becomes a new Player.
+_Avoid_: Rejoin, resume, sync

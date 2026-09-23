@@ -200,16 +200,16 @@ export const fetchLeaderboard = () => api<LeaderboardEntry[]>("/api/leaderboard"
  * The Host screen's connection. Admin JWT; reconnects by itself, running `onConnect` again; a refused CONNECT (expired
  * token) logs out like a 401 would. `onOnline` as for a phone. Returns the disconnect.
  */
-function connectAsAdmin(onConnect: (client: Client) => void, onOnline?: (online: boolean) => void) {
+function connectAsAdmin(onConnect: (client: Client) => void, onOnline: (online: boolean) => void) {
   const client = new Client({
     ...STOMP,
     connectHeaders: { Authorization: `Bearer ${getToken()}` },
     onConnect: () => {
-      onOnline?.(true);
+      onOnline(true);
       onConnect(client);
     },
     onStompError: logout,
-    onWebSocketClose: () => onOnline?.(false),
+    onWebSocketClose: () => onOnline(false),
   });
   client.activate();
   return () => {
@@ -219,11 +219,13 @@ function connectAsAdmin(onConnect: (client: Client) => void, onOnline?: (online:
 }
 
 /** Host idle screen: the top of the Day Leaderboard as it changes. */
-export const watchLeaderboard = (onTop: (top: LeaderboardEntry[]) => void) =>
-  connectAsAdmin((client) =>
-    client.subscribe("/topic/leaderboard", (frame) =>
-      onTop((JSON.parse(frame.body) as { payload: Board }).payload.top),
-    ),
+export const watchLeaderboard = (onTop: (top: LeaderboardEntry[]) => void, onOnline: (online: boolean) => void) =>
+  connectAsAdmin(
+    (client) =>
+      client.subscribe("/topic/leaderboard", (frame) =>
+        onTop((JSON.parse(frame.body) as { payload: Board }).payload.top),
+      ),
+    onOnline,
   );
 
 /**
