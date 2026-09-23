@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import type { QuestionStart } from "./game.ts";
+import type { QuestionStart, Sync } from "./game.ts";
 import type { PlayerAction } from "./player.ts";
 import { reducePlayer, WAITING } from "./player.ts";
 
@@ -46,17 +46,17 @@ const timedOut = { correct: false, points: 0, streak: 0, score: 630, correctOpti
 
 test("RESULT after an Answer shows it against the question and the chosen option", () => {
   const state = reducePlayer(locked, { type: "RESULT", payload: won });
-  assert.deepEqual(state, { phase: "result", question: q1, selected: 2, result: won });
+  assert.deepEqual(state, { phase: "result", question: q1, selected: 2, answered: true, result: won });
 });
 
 test("RESULT with no Answer (timeout) shows nothing chosen", () => {
   const state = reducePlayer(asked, { type: "RESULT", payload: timedOut });
-  assert.deepEqual(state, { phase: "result", question: q1, selected: null, result: timedOut });
+  assert.deepEqual(state, { phase: "result", question: q1, selected: null, answered: false, result: timedOut });
 });
 
 test("RESULT while waiting (page reopened mid-question) shows the outcome without a question", () => {
   const state = reducePlayer(WAITING, { type: "RESULT", payload: timedOut });
-  assert.deepEqual(state, { phase: "result", question: null, selected: null, result: timedOut });
+  assert.deepEqual(state, { phase: "result", question: null, selected: null, answered: false, result: timedOut });
 });
 
 test("the next QUESTION_START replaces the result without a tap", () => {
@@ -124,7 +124,67 @@ test("GAME_OVER in a Battle carries the Podium instead of a Score", () => {
   assert.deepEqual(reducePlayer(between, { type: "GAME_OVER", payload: over }), { phase: "over", gameOver: over });
 });
 
+// --- Reconnect (#11): a reopened page or a reconnected socket gets SYNC, then what it missed ---
+
+const sync = (payload: Partial<Sync>): PlayerAction => ({
+  type: "SYNC",
+  payload: { status: "QUESTION", questionIndex: 0, answered: false, score: 0, streak: 0, ...payload },
+});
+
+test("SYNC with the open question puts it back up, on the original clock", () => {
+  const state = reducePlayer(WAITING, sync({ question: q1, startedAt: q1.startedAt, timeLimitSec: 20 }));
+  assert.deepEqual(state, { phase: "question", question: q1 });
+});
+
+test("SYNC after answering says Locked in, with no question to show again", () => {
+  const state = reducePlayer(WAITING, sync({ answered: true, score: 630, streak: 1 }));
+  assert.deepEqual(state, { phase: "locked", question: null, selected: null });
+});
+
+test("a RESULT after that SYNC reads as answered: a wrong Answer is Wrong, not Time's up", () => {
+  const reopened = reducePlayer(WAITING, sync({ answered: true }));
+  assert.deepEqual(reducePlayer(reopened, { type: "RESULT", payload: timedOut }), {
+    phase: "result",
+    question: null,
+    selected: null,
+    answered: true,
+    result: timedOut,
+  });
+});
+
+test("SYNC after answering on a page that never went away keeps the question and the choice", () => {
+  assert.equal(reducePlayer(locked, sync({ answered: true })), locked);
+});
+
+test("SYNC on a question that closed unanswered waits for the timeout RESULT, not the stale question", () => {
+  const state = reducePlayer(asked, sync({ status: "REVEAL" }));
+  assert.deepEqual(state, WAITING);
+  assert.deepEqual(reducePlayer(state, { type: "RESULT", payload: timedOut }), {
+    phase: "result",
+    question: null,
+    selected: null,
+    answered: false,
+    result: timedOut,
+  });
+});
+
+test("a socket blip on the result screen keeps it: SYNC and the replayed RESULT leave the question and the choice up", () => {
+  const result = reducePlayer(locked, { type: "RESULT", payload: won });
+  const synced = reducePlayer(result, sync({ status: "REVEAL", answered: true }));
+  assert.equal(synced, result);
+  assert.deepEqual(reducePlayer(synced, { type: "RESULT", payload: won }), result);
+});
+
+test("SYNC between questions sends the phone to the big screen", () => {
+  assert.deepEqual(reducePlayer(WAITING, sync({ status: "LEADERBOARD" })), { phase: "between" });
+});
+
+test("SYNC at the end leaves the screen for the GAME_OVER that follows it", () => {
+  const over = reducePlayer(WAITING, { type: "GAME_OVER", payload: { score: 1500, rank: 3, podium: null } });
+  assert.equal(reducePlayer(over, sync({ status: "FINISHED" })), over);
+});
+
 test("an event from a newer server leaves the phone standing", () => {
-  const unknown = { type: "SYNC", payload: {} } as unknown as PlayerAction;
+  const unknown = { type: "FROM_THE_FUTURE", payload: {} } as unknown as PlayerAction;
   assert.equal(reducePlayer(locked, unknown), locked);
 });

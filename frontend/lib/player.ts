@@ -6,9 +6,10 @@ export type PlayerState =
   /** Battle: "You're in" with the names in the lobby, until the Host starts */
   | { phase: "lobby"; players: LobbyUpdate["players"] }
   | { phase: "question"; question: QuestionStart; notice?: string }
-  | { phase: "locked"; question: QuestionStart; selected: number }
-  /** question is null when the page was reopened mid-question and the timeout RESULT arrived first */
-  | { phase: "result"; question: QuestionStart | null; selected: number | null; result: Result }
+  /** question and selected are null when the page was reopened after answering: SYNC says so, but not what */
+  | { phase: "locked"; question: QuestionStart | null; selected: number | null }
+  /** question is null when the page was reopened after the question closed, and the RESULT came with the SYNC */
+  | { phase: "result"; question: QuestionStart | null; selected: number | null; answered: boolean; result: Result }
   /** Battle between questions: the leaderboard is on the big screen, so the phone says to look at it */
   | { phase: "between" }
   /** best arrives on the personal queue right after GAME_OVER */
@@ -28,15 +29,27 @@ export function reducePlayer(state: PlayerState, action: PlayerAction): PlayerSt
       return state.phase === "question"
         ? { phase: "locked", question: state.question, selected: action.option }
         : state;
+    case "SYNC": {
+      const { status, questionIndex, question, answered } = action.payload;
+      if (question) return { phase: "question", question };
+      if (status === "LEADERBOARD") return { phase: "between" };
+      if (status === "FINISHED") return state; // GAME_OVER follows
+      if (state.phase === "result" && state.question?.index === questionIndex) return state; // a socket blip: still true
+      if (!answered) return WAITING; // the question closed while away: its timeout RESULT follows
+      return state.phase === "locked" ? state : { phase: "locked", question: null, selected: null };
+    }
     case "ANSWER_ACK":
-      return state.phase === "locked" && !action.payload.accepted
+      return state.phase === "locked" && state.question && !action.payload.accepted
         ? { phase: "question", question: state.question, notice: action.payload.reason ?? "Not accepted" }
         : state;
     case "RESULT":
+      // a second RESULT for the screen already up (the one a reconnect replays) keeps the question and the choice
+      if (state.phase === "result") return { ...state, result: action.payload };
       return {
         phase: "result",
         question: "question" in state ? state.question : null,
         selected: state.phase === "locked" ? state.selected : null,
+        answered: state.phase === "locked",
         result: action.payload,
       };
     case "LEADERBOARD":

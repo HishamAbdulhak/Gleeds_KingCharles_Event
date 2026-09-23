@@ -22,12 +22,12 @@ export default function Join() {
         })
       }
       footer={
-        <Link href="/play" className="text-center text-sm text-gold-300 underline">
+        <Link href="/play" className="text-center text-lg text-gold-300 underline">
           No PIN? Play solo
         </Link>
       }
     >
-      <label className="flex flex-col gap-1 text-sm">
+      <label className="flex flex-col gap-1 text-lg">
         PIN
         <input
           name="pin"

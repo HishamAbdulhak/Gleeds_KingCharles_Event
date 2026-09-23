@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useReducer, useRef, useState, useSyncExternalStore } from "react";
 import { AnswerGrid } from "@/components/AnswerGrid";
+import { Reconnecting } from "@/components/Reconnecting";
 import { Timer } from "@/components/Timer";
 import { noSubscribe } from "@/lib/api";
 import { BestScore, connectToGame, podiumRevealedMs, Result, Standing, stored } from "@/lib/game";
@@ -13,7 +14,7 @@ export default function PlayGame() {
   const { gameId } = useParams<{ gameId: string }>();
   const [state, dispatch] = useReducer(reducePlayer, WAITING);
   const [error, setError] = useState<string | null>(null);
-  const [online, setOnline] = useState(false);
+  const [online, setOnline] = useState<boolean | null>(null);
   const socket = useRef<ReturnType<typeof connectToGame>>(null);
   // undefined on the server render, null when this phone never started this Game
   const seat = useSyncExternalStore(
@@ -40,7 +41,7 @@ export default function PlayGame() {
         <p role="alert" className="text-lg text-red-300">
           {error ?? "No seat for this Game on this phone."}
         </p>
-        <Link href="/play" className="text-gold-300 underline">
+        <Link href="/play" className="text-lg text-gold-300 underline">
           Start again
         </Link>
       </main>
@@ -48,14 +49,20 @@ export default function PlayGame() {
   }
 
   if (state.phase === "waiting") {
-    return <main className="flex flex-1 items-center justify-center p-6 text-lg text-cream/80">Get ready…</main>;
+    return (
+      <main className="flex flex-1 items-center justify-center p-6 text-lg text-cream/80">
+        <Reconnecting online={online} />
+        Get ready…
+      </main>
+    );
   }
 
   if (state.phase === "lobby") {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6 text-center">
+        <Reconnecting online={online} />
         <h1 className="text-3xl font-bold text-gold-500">You&apos;re in!</h1>
-        <p className="text-lg text-cream/80">{online ? "Waiting for the Host to start…" : "Reconnecting…"}</p>
+        <p className="text-lg text-cream/80">Waiting for the Host to start…</p>
         <ul className="flex flex-col gap-2 text-2xl font-bold">
           {state.players.map((p) => (
             <li key={p.id}>{p.name}</li>
@@ -68,6 +75,7 @@ export default function PlayGame() {
   if (state.phase === "between") {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+        <Reconnecting online={online} />
         <h1 className="text-3xl font-bold text-gold-500">Look at the big screen</h1>
         <p className="text-lg text-cream/80">Next question coming up…</p>
       </main>
@@ -78,6 +86,7 @@ export default function PlayGame() {
     const { podium, score, rank } = state.gameOver;
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6 text-center">
+        <Reconnecting online={online} />
         {podium ? (
           <MyPlace podium={podium} playerId={playerId} best={state.best} />
         ) : (
@@ -103,18 +112,16 @@ export default function PlayGame() {
 
   return (
     <main className="flex flex-1 flex-col gap-4 p-4">
+      <Reconnecting online={online} />
       {question && (
         <header className="flex flex-col gap-2 text-gold-300">
-          <div className="flex items-center justify-between text-sm">
-            <span>
-              {question.index + 1} / {question.total}
-            </span>
-            {!online && <span className="text-red-300">Reconnecting…</span>}
-          </div>
+          <span className="text-lg">
+            {question.index + 1} / {question.total}
+          </span>
           {state.phase !== "result" && <Timer question={question} />}
         </header>
       )}
-      {state.phase === "result" && <ResultBanner result={state.result} answered={state.selected !== null} />}
+      {state.phase === "result" && <ResultBanner result={state.result} answered={state.answered} />}
       {question && <h1 className="text-2xl font-bold leading-snug">{question.text}</h1>}
       {question && (
         <AnswerGrid
@@ -122,7 +129,7 @@ export default function PlayGame() {
           selected={state.phase === "question" ? null : state.selected}
           correctOption={state.phase === "result" ? state.result.correctOption : undefined}
           onSelect={
-            state.phase === "question" && online // publish() throws on a closed socket; the header says Reconnecting…
+            state.phase === "question" && online // publish() throws on a closed socket; the banner says Reconnecting…
               ? (option) => {
                   dispatch({ type: "SELECT", option });
                   socket.current?.answer(question.index, option);
@@ -131,7 +138,7 @@ export default function PlayGame() {
           }
         />
       )}
-      <p role="status" aria-live="polite" className="min-h-6 text-center text-cream/80">
+      <p role="status" aria-live="polite" className="min-h-6 text-center text-lg text-cream/80">
         {state.phase === "locked" && "Locked in…"}
         {state.phase === "question" && state.notice}
         {state.phase === "result" && "Next question coming up…"}
@@ -146,7 +153,7 @@ function ResultBanner({ result: { correct, points, streak, score }, answered }: 
     <section className={`rounded-lg p-4 text-center ${correct ? "bg-saudi" : "bg-red-700"}`}>
       <h2 className="text-3xl font-bold">{correct ? "Correct!" : answered ? "Wrong" : "Time's up"}</h2>
       <p className="text-2xl font-bold tabular-nums">+{points}</p>
-      <p className="flex justify-center gap-4 text-sm">
+      <p className="flex justify-center gap-4 text-lg">
         <span>{streak >= 2 ? `🔥 ${streak} streak` : `Streak ${streak}`}</span>
         <span>Score {score}</span>
       </p>
@@ -171,7 +178,7 @@ function PrizeProof({ best }: { best?: BestScore }) {
           <span className="text-4xl font-bold tabular-nums text-gold-300">{best.score}</span>
         </p>
       )}
-      <p className="text-sm text-cream/80">Keep this screen open to claim your prize</p>
+      <p className="text-lg text-cream/80">Keep this screen open to claim your prize</p>
     </>
   );
 }
@@ -209,7 +216,7 @@ function MyPlace({ podium, playerId, best }: { podium: Standing[]; playerId: str
   return (
     <>
       <h1 className="text-6xl font-bold text-gold-500">{PLACES[place - 1]}</h1>
-      <p className="text-cream/80">of {podium.length} players</p>
+      <p className="text-lg text-cream/80">of {podium.length} players</p>
       <PrizeProof best={best} />
     </>
   );

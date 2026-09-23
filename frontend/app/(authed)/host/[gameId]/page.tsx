@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useReducer, useState } from "react";
 import { OPTION_COLOURS, OPTION_SHAPES } from "@/components/AnswerGrid";
+import { Reconnecting } from "@/components/Reconnecting";
 import { Timer } from "@/components/Timer";
 import { publicUrl } from "@/lib/api";
 import {
@@ -40,8 +41,9 @@ export default function HostGame() {
   const [screen, dispatch] = useReducer(reduceHost, LOBBY);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [online, setOnline] = useState<boolean | null>(null);
 
-  useEffect(() => watchGame(gameId, dispatch), [gameId]);
+  useEffect(() => watchGame(gameId, dispatch, setOnline), [gameId]);
 
   async function run(command: "start" | "reveal" | "next" | "end") {
     setBusy(true);
@@ -61,6 +63,7 @@ export default function HostGame() {
 
   return (
     <main className="flex flex-1 flex-col gap-8 p-10">
+      <Reconnecting online={online} />
       <div className="flex min-h-0 flex-1 gap-12">
         <Screen screen={screen} />
       </div>
@@ -161,7 +164,7 @@ function Asked({
           {question.index + 1} / {question.total}
         </span>
         <div className="flex-1">
-          <Timer question={question} />
+          <Timer question={question} big />
         </div>
         <span className="tabular-nums">
           {roster.filter((player) => player.answered).length} of {roster.length} answered
@@ -201,7 +204,7 @@ function Options({ options, reveal }: { options: string[]; reveal?: Reveal }) {
       {options.map((option, i) => (
         <div
           key={i}
-          className={`flex flex-col justify-center gap-3 rounded-xl p-6 text-3xl font-bold text-white ${OPTION_COLOURS[i]} ${reveal && i !== reveal.correctOption ? "opacity-40" : ""}`}
+          className={`flex flex-col justify-center gap-3 rounded-xl p-6 text-4xl font-bold ${OPTION_COLOURS[i]} ${reveal && i !== reveal.correctOption ? "opacity-40" : ""}`}
         >
           <span className="flex items-center gap-4">
             <span aria-hidden className="text-4xl">
@@ -232,7 +235,7 @@ function Standings({ standings }: { standings: Standing[] }) {
           <li key={entry.playerId} className="flex items-baseline gap-8 text-5xl font-bold">
             <span className="w-16 text-right tabular-nums text-gold-300">{i + 1}</span>
             <span className="flex-1 truncate">{entry.name}</span>
-            <span className="text-3xl text-saudi tabular-nums">+{entry.points}</span>
+            <span className="text-3xl text-gold-300 tabular-nums">+{entry.points}</span>
             <span className="tabular-nums">{entry.score}</span>
           </li>
         ))}

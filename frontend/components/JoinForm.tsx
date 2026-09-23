@@ -65,7 +65,7 @@ export function JoinForm({
       >
         <h1 className="text-3xl font-bold text-gold-500">{title}</h1>
         {children}
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-lg">
           Name
           <input
             name="name"
@@ -76,7 +76,7 @@ export function JoinForm({
             className={inputClass}
           />
         </label>
-        <label className="flex flex-col gap-1 text-sm">
+        <label className="flex flex-col gap-1 text-lg">
           Email
           <input
             name="email"
@@ -88,11 +88,11 @@ export function JoinForm({
           />
         </label>
         {/* placeholder until Gleeds approves the wording (docs/adr/0003) */}
-        <p className="text-sm text-cream/80">
+        <p className="text-lg text-cream/80">
           Your email is only used to identify you for today&apos;s prize, and is deleted after the event.
         </p>
         {error && (
-          <p role="alert" className="text-sm text-red-300">
+          <p role="alert" className="text-lg text-red-300">
             {error}
           </p>
         )}

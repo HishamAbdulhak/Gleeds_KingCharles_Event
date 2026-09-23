@@ -4,7 +4,9 @@ import java.security.Principal;
 import java.util.UUID;
 
 import org.springframework.messaging.handler.annotation.DestinationVariable;
+import org.springframework.messaging.handler.annotation.Header;
 import org.springframework.messaging.handler.annotation.MessageMapping;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
 import org.springframework.stereotype.Controller;
 
 import com.gleeds.quiz.config.WsAuthInterceptor.PlayerPrincipal;
@@ -24,8 +26,9 @@ public class GameSocketController {
 	 * rather than a subscribe-event hook: see docs/adr/0001-ready-message-starts-solo.md.
 	 */
 	@MessageMapping("/game/{gameId}/ready")
-	public void ready(@DestinationVariable UUID gameId, Principal principal) {
-		engine.ready(gameId, principal instanceof PlayerPrincipal);
+	public void ready(@DestinationVariable UUID gameId, Principal principal,
+			@Header(SimpMessageHeaderAccessor.SESSION_ID_HEADER) String sessionId) {
+		engine.ready(gameId, principal.getName(), sessionId, principal instanceof PlayerPrincipal p ? p.playerId() : null);
 	}
 
 	record AnswerRequest(int questionIndex, int option) {

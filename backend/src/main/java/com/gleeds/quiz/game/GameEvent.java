@@ -4,6 +4,8 @@ import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+
 /** Every server → client STOMP message. Mirrored by {@code frontend/lib/game.ts}. */
 public record GameEvent(String type, Object payload) {
 
@@ -20,6 +22,17 @@ public record GameEvent(String type, Object payload) {
 	/** A question as the Player sees it: no correct option. {@code total} is the Question Set size, for "3 / 10". */
 	public record QuestionStart(int index, int total, String text, List<String> options, int timeLimitSec,
 			Instant startedAt) {
+	}
+
+	/**
+	 * Personal queue, the answer to a {@code ready} on a Game past LOBBY — a reopened page, a reconnected socket: where
+	 * the Game is and where this Player stands in it (spec → Game flow → Reconnect). {@code question} only while the
+	 * Player can still answer it; {@code startedAt} and {@code timeLimitSec} while a question is on, so the countdown
+	 * resumes on the original clock. What the client missed that this can't carry follows it (docs/adr/0004).
+	 */
+	@JsonInclude(JsonInclude.Include.NON_NULL)
+	public record Sync(Game.Status status, int questionIndex, QuestionStart question, Instant startedAt,
+			Integer timeLimitSec, boolean answered, int score, int streak) {
 	}
 
 	/** Personal queue: was the Answer taken? {@code reason} only when refused. */

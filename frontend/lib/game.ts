@@ -1,8 +1,16 @@
-import { Client } from "@stomp/stompjs";
+import { Client, ReconnectionTimeMode } from "@stomp/stompjs";
 import { api, API_URL, getToken, logout } from "@/lib/api";
 
-/** Shared by every STOMP client: the broker URL and a reconnect that keeps trying while the socket is down. */
-const STOMP = { brokerURL: `${API_URL.replace(/^http/, "ws")}/ws`, reconnectDelay: 2000 };
+/**
+ * Shared by every STOMP client: the broker URL, and a reconnect that keeps trying while the socket is down — 1 s,
+ * then doubling to a cap well inside a question's time limit, so a phone back on Wi-Fi is back in the Game quickly.
+ */
+const STOMP = {
+  brokerURL: `${API_URL.replace(/^http/, "ws")}/ws`,
+  reconnectDelay: 1000,
+  reconnectTimeMode: ReconnectionTimeMode.EXPONENTIAL,
+  maxReconnectDelay: 8000,
+};
 
 // Server → client STOMP messages, mirroring backend GameEvent. Later tickets add members to the union.
 
@@ -16,6 +24,25 @@ export type QuestionStart = {
   options: [string, string, string, string];
   timeLimitSec: number;
   startedAt: string; // ISO instant
+};
+
+/** A Game's status, as the backend's `game.status` spells it. */
+export type GameStatus = "LOBBY" | "QUESTION" | "REVEAL" | "LEADERBOARD" | "FINISHED";
+
+/**
+ * Personal queue, the answer to `ready` once a Game is past its lobby — a reopened page, a reconnected socket
+ * (docs/adr/0004). `question` only while this Player can still answer it; `startedAt` and `timeLimitSec` while a
+ * question is on. What it can't carry — a missed RESULT, the Host's screen, GAME_OVER — follows on the same queue.
+ */
+export type Sync = {
+  status: GameStatus;
+  questionIndex: number;
+  question?: QuestionStart;
+  startedAt?: string;
+  timeLimitSec?: number;
+  answered: boolean;
+  score: number;
+  streak: number;
 };
 
 /** Personal queue (`/user/queue/player`): was the Answer taken? `reason` only when refused. */
@@ -58,6 +85,7 @@ export type Board = { top: LeaderboardEntry[] };
 export type GameEvent =
   | { type: "LOBBY_UPDATE"; payload: LobbyUpdate }
   | { type: "QUESTION_START"; payload: QuestionStart }
+  | { type: "SYNC"; payload: Sync }
   | { type: "ANSWER_ACK"; payload: AnswerAck }
   | { type: "RESULT"; payload: Result }
   | { type: "REVEAL"; payload: Reveal }
@@ -128,7 +156,7 @@ export const stored = {
 
 /**
  * Connects with the session token, subscribes to the Game topic and the personal queue, then says ready
- * (docs/adr/0001; a no-op on a Game already running, so a reopened page just waits for the next message). Returns
+ * (docs/adr/0001) — on every connect, so a reconnect gets SYNC and picks the Game up where it is. Returns
  * `answer` to send an Answer and `disconnect`. `onError` fires once for a refused CONNECT/SUBSCRIBE (the server's
  * ERROR frame), which ends the connection; a dropped socket instead reports `onOnline(false)` and reconnects by itself.
  */
@@ -173,17 +201,24 @@ export const fetchLeaderboard = () => api<LeaderboardEntry[]>("/api/leaderboard"
 
 /**
  * The Host screen's connection. Admin JWT; reconnects by itself, running `onConnect` again; a refused CONNECT (expired
- * token) logs out like a 401 would. Returns the disconnect.
+ * token) logs out like a 401 would. `onOnline` as for a phone. Returns the disconnect.
  */
-function connectAsAdmin(onConnect: (client: Client) => void) {
+function connectAsAdmin(onConnect: (client: Client) => void, onOnline?: (online: boolean) => void) {
   const client = new Client({
     ...STOMP,
     connectHeaders: { Authorization: `Bearer ${getToken()}` },
-    onConnect: () => onConnect(client),
+    onConnect: () => {
+      onOnline?.(true);
+      onConnect(client);
+    },
     onStompError: logout,
+    onWebSocketClose: () => onOnline?.(false),
   });
   client.activate();
-  return () => void client.deactivate();
+  return () => {
+    client.onWebSocketClose = () => {}; // our own deactivate() closes the socket too
+    void client.deactivate();
+  };
 }
 
 /** Host idle screen: the top of the Day Leaderboard as it changes. */
@@ -195,13 +230,15 @@ export const watchLeaderboard = (onTop: (top: LeaderboardEntry[]) => void) =>
   );
 
 /**
- * Host screen of one Battle: the Game topic and the Host-only topic (Admins only, so a visitor can't read the
- * answers off it). Says ready after subscribing, so the lobby arrives even after a refresh.
+ * Host screen of one Battle: the Game topic, the Host-only topic (Admins only, so a visitor can't read the answers
+ * off it) and the Admin's own queue, where a reconnect's SYNC and the screen it lost arrive. Says ready after
+ * subscribing, so a refresh or a reconnect gets the lobby, or the screen the Battle is on.
  */
-export const watchGame = (gameId: string, onEvent: (event: GameEvent) => void) =>
+export const watchGame = (gameId: string, onEvent: (event: GameEvent) => void, onOnline: (online: boolean) => void) =>
   connectAsAdmin((client) => {
     const deliver = (frame: { body: string }) => onEvent(JSON.parse(frame.body) as GameEvent);
     client.subscribe(`/topic/game/${gameId}`, deliver);
     client.subscribe(`/topic/game/${gameId}/host`, deliver);
+    client.subscribe("/user/queue/player", deliver);
     client.publish({ destination: `/app/game/${gameId}/ready` });
-  });
+  }, onOnline);
