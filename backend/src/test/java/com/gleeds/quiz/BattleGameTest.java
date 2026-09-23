@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterEach;
@@ -446,17 +447,19 @@ class BattleGameTest {
 		return new Phone(phone.gameId(), phone.playerId(), phone.name(), phone.sessionToken(), session, topic, queue);
 	}
 
-	/** The big screen reloaded: the Host screen's subscriptions, its own queue among them, then ready. */
-	record Reloaded(BlockingQueue<Map<String, Object>> queue, BlockingQueue<Map<String, Object>> host) {
-	}
-
-	Reloaded reloadBigScreen(UUID gameId) throws Exception {
+	/**
+	 * The big screen reloaded: the Host screen's three subscriptions, its own queue among them, then ready. One stream,
+	 * as the frontend's {@code watchGame} feeds them all to one reducer, so the order across destinations is checked.
+	 */
+	BlockingQueue<Map<String, Object>> reloadBigScreen(UUID gameId) throws Exception {
 		var admin = Stomp.connectAsAdmin(port);
 		sessions.add(admin);
-		var queue = Stomp.subscribe(admin, "/user/queue/player");
-		var host = Stomp.subscribe(admin, "/topic/game/" + gameId + "/host");
-		Stomp.ready(admin, gameId.toString());
-		return new Reloaded(queue, host);
+		var screen = new LinkedBlockingQueue<Map<String, Object>>();
+		for (var destination : List.of("/topic/game/" + gameId, "/topic/game/" + gameId + "/host", "/user/queue/player")) {
+			Stomp.subscribe(admin, destination, screen);
+		}
+		admin.send("/app/game/" + gameId + "/ready", Map.of());
+		return screen;
 	}
 
 	/** Ticket #11: a phone that was away when its question ended sees that it timed out, not the stale question. */
@@ -493,27 +496,28 @@ class BattleGameTest {
 
 		var screen = reloadBigScreen(gameId);
 
-		var sync = Stomp.next(screen.queue(), "SYNC");
+		var sync = Stomp.next(screen, "SYNC");
 		assertThat(sync).containsEntry("status", "QUESTION").containsEntry("answered", false);
 		assertThat((Map<String, Object>) sync.get("question")).containsEntry("index", 0);
-		var roster = rows(Stomp.next(screen.host(), "HOST_STATE"), "players");
+		// after SYNC: the reloaded screen is still on the lobby until SYNC, and drops a roster that comes first
+		var roster = rows(Stomp.next(screen, "HOST_STATE"), "players");
 		assertThat(roster).extracting(row -> row.get("answered")).containsExactly(true, false);
 
 		assertThat(command(gameId, "reveal")).isEqualTo("REVEAL");
 		Stomp.next(ada.topic(), "REVEAL");
 		var again = reloadBigScreen(gameId);
 
-		assertThat(Stomp.next(again.queue(), "SYNC")).containsEntry("status", "REVEAL").doesNotContainKey("question");
-		assertThat(Stomp.next(again.queue(), "QUESTION_START")).containsEntry("index", 0);
-		assertThat(Stomp.next(again.queue(), "REVEAL")).containsEntry("correctOption", CORRECT)
+		assertThat(Stomp.next(again, "SYNC")).containsEntry("status", "REVEAL").doesNotContainKey("question");
+		assertThat(Stomp.next(again, "QUESTION_START")).containsEntry("index", 0);
+		assertThat(Stomp.next(again, "REVEAL")).containsEntry("correctOption", CORRECT)
 				.containsEntry("counts", List.of(0, 1, 0, 0));
 
 		assertThat(command(gameId, "next")).isEqualTo("LEADERBOARD");
 		Stomp.next(ada.topic(), "LEADERBOARD");
 		var third = reloadBigScreen(gameId);
 
-		Stomp.next(third.queue(), "SYNC");
-		assertThat(rows(Stomp.next(third.queue(), "LEADERBOARD"), "players")).extracting(row -> row.get("name"))
+		Stomp.next(third, "SYNC");
+		assertThat(rows(Stomp.next(third, "LEADERBOARD"), "players")).extracting(row -> row.get("name"))
 				.containsExactly("Ada", "Bob");
 	}
 

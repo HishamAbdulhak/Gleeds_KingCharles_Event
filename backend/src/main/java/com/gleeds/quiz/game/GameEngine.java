@@ -189,10 +189,11 @@ public class GameEngine {
 				}
 			}
 		}
+		afterCommit(() -> events.forEach(event -> toSession(user, sessionId, event)));
 		if (player == null && game.isBattle() && status != Game.Status.FINISHED) {
+			// after SYNC: until it lands, a reloaded screen is on its lobby and drops a roster
 			publishHostState(game.getId(), lobby, answers.keySet());
 		}
-		afterCommit(() -> events.forEach(event -> toSession(user, sessionId, event)));
 	}
 
 	// --- Host commands (spec → Game flow → Battle). Each is idempotent and answers with the Game's new status. ---

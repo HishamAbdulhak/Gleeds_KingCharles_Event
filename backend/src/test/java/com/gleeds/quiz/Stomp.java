@@ -78,9 +78,14 @@ final class Stomp {
 	}
 
 	/** Every {@code {type, payload}} event arriving on {@code destination}, in order. */
-	@SuppressWarnings("unchecked")
 	static BlockingQueue<Map<String, Object>> subscribe(StompSession session, String destination) {
-		var events = new LinkedBlockingQueue<Map<String, Object>>();
+		return subscribe(session, destination, new LinkedBlockingQueue<>());
+	}
+
+	/** As above, into {@code events}: subscriptions sharing it read as one stream, in arrival order. */
+	@SuppressWarnings("unchecked")
+	static BlockingQueue<Map<String, Object>> subscribe(StompSession session, String destination,
+			BlockingQueue<Map<String, Object>> events) {
 		session.subscribe(destination, new StompFrameHandler() {
 			@Override
 			public Type getPayloadType(StompHeaders headers) {

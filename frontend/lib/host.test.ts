@@ -72,7 +72,10 @@ test("a Player's own ack and result are not the big screen's", () => {
 
 test("a reloaded big screen's SYNC puts the open question back up; HOST_STATE fills the roster", () => {
   const sync = { status: "QUESTION", questionIndex: 0, question: q1, answered: false, score: 0, streak: 0 } as const;
-  assert.deepEqual(reduceHost(LOBBY, { type: "SYNC", payload: sync }), asked);
+  const synced = reduceHost(LOBBY, { type: "SYNC", payload: sync });
+  assert.deepEqual(synced, asked);
+  const roster = [{ id: "p1", name: "Ada", answered: true, score: 870 }];
+  assert.deepEqual(reduceHost(synced, { type: "HOST_STATE", payload: { players: roster } }), { ...asked, roster });
 });
 
 test("a SYNC with no question leaves the screen to the events replayed after it", () => {
