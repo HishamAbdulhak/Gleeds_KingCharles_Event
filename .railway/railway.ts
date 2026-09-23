@@ -5,7 +5,8 @@ import { defineRailway, github, postgres, project, preserve, service } from "rai
 export default defineRailway(() => {
   // 18, as Testcontainers: Railway created this database on 18 whatever image the file named, and 18 can't go back
   // to 16 in place. DB_URL below names this service in ${{postgres.…}}.
-  const db = postgres("postgres");
+  // Amsterdam: Railway's nearest region to the players in Riyadh (the api is there too, see below).
+  const db = postgres("postgres", { region: "europe-west4-drams3a" });
 
   const api = service("api", {
     source: github("HishamAbdulhak/Gleeds_KingCharles_Event", { branch: "main", rootDirectory: "/backend" }),
@@ -13,6 +14,7 @@ export default defineRailway(() => {
     build: { watchPatterns: ["/backend/**"] },   // Railway finds backend/Dockerfile itself
     healthcheck: "/api/leaderboard",
     replicas: 1, // GameEngine and the simple broker keep live state in memory
+    // region: Amsterdam too, set in the dashboard: `config plan` never compares a service's region, so it can't live here
     env: {
       PORT: "8080", // where Railway routes the domain and the healthcheck; Spring's own default
       DB_URL: "jdbc:postgresql://${{postgres.PGHOST}}:${{postgres.PGPORT}}/${{postgres.PGDATABASE}}",
