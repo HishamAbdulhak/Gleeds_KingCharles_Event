@@ -123,14 +123,14 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 
 - **Solo**: a public REST call with name and email creates the Game + Player + Question Set and returns ids and session token. The Player connects over STOMP and subscribes to the Game topic; the engine immediately sends the first question. On each Answer or timeout the engine sends the personal result, waits ~3 s, then sends the next question; after the last, it marks FINISHED, sends game-over with the Player's Day Leaderboard rank, and pushes the leaderboard topic.
 - **Battle**: Admin REST call creates a Game with mode BATTLE and a PIN. Public join by PIN with name and email; refused with a conflict when the lobby already has 4 Players or the Game has left LOBBY. Start is refused with fewer than 2 Players. Host REST commands: start, reveal (force early end), next, end. Server-side timer auto-reveals at the deadline. Reveal broadcasts correct option + per-option counts; next either broadcasts the leaderboard-then-question or, after the last question, the Podium and FINISHED.
-- Reconnect: a client that reconnects with its session token receives a sync message describing the current state (phase, current question if any, remaining time, own score/streak) on its personal queue.
+- Reconnect: a client that reconnects with its session token receives a sync message describing the current state (phase, current question if any, remaining time, own score/streak) on its personal queue, after its `ready`. The events it missed that the sync can't carry follow on the same queue (`docs/adr/0004`).
 
 ### STOMP contract
 
 - Endpoint `/ws`; app prefix `/app`; broker prefixes `/topic`, `/queue`; user prefix `/user`.
 - CONNECT is authenticated by a channel interceptor: an Admin Bearer JWT, or a Player session token header. Subscriptions to a Game's topic are limited to that Game's Players and Admins; the Host-only topic and the leaderboard topic require Admin.
 - Client → server: one Answer destination per Game carrying question index and selected option.
-- Server → client, all as `{type, payload}`: Game topic (`LOBBY_UPDATE`, `QUESTION_START` without the correct option, `REVEAL`, `LEADERBOARD`, `GAME_OVER`), Host topic (`HOST_STATE`, which carries who is in on the open question — story 31's count is the Host's, so it is not on the Game topic), personal queue (`ANSWER_ACK`, `RESULT`, `SYNC`, and `BEST_SCORE` right after `GAME_OVER`: the Player's name and best Score today, never the email — `docs/adr/0003`), leaderboard topic (`DAY_LEADERBOARD`).
+- Server → client, all as `{type, payload}`: Game topic (`LOBBY_UPDATE`, `QUESTION_START` without the correct option, `REVEAL`, `LEADERBOARD`, `GAME_OVER`), Host topic (`HOST_STATE`, which carries who is in on the open question — story 31's count is the Host's, so it is not on the Game topic), personal queue (`ANSWER_ACK`, `RESULT`, `SYNC` — answering `ready` past LOBBY and followed by a replay of what the reconnecting client missed, `docs/adr/0004` —, and `BEST_SCORE` right after `GAME_OVER`: the Player's name and best Score today, never the email — `docs/adr/0003`), leaderboard topic (`DAY_LEADERBOARD`).
 
 ### Admin API
 

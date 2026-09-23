@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.jupiter.api.AfterEach;
@@ -432,5 +433,135 @@ class BattleGameTest {
 		assertThat(rows(Stomp.next(ada.topic(), "GAME_OVER"), "podium")).hasSize(2);
 		assertThat(Stomp.next(ada.queue(), "BEST_SCORE")).as("right after her one RESULT").containsEntry("name", "Ada");
 		assertThat(ada.queue().poll(500, TimeUnit.MILLISECONDS)).as("one RESULT each, not two").isNull();
+	}
+
+	/**
+	 * The phone reopens the page: a new connection with the same Seat, subscribed and ready as before. The old session
+	 * is the test's to close first, or to leave open, as a server that hasn't noticed the drop does.
+	 */
+	Phone reconnect(Phone phone) throws Exception {
+		var session = Stomp.connectAsPlayer(port, phone.sessionToken());
+		sessions.add(session);
+		var queue = Stomp.subscribe(session, "/user/queue/player");
+		var topic = Stomp.ready(session, phone.gameId().toString());
+		return new Phone(phone.gameId(), phone.playerId(), phone.name(), phone.sessionToken(), session, topic, queue);
+	}
+
+	/**
+	 * The big screen reloaded: the Host screen's three subscriptions, its own queue among them, then ready. One stream,
+	 * as the frontend's {@code watchGame} feeds them all to one reducer, so the order across destinations is checked.
+	 */
+	BlockingQueue<Map<String, Object>> reloadBigScreen(UUID gameId) throws Exception {
+		var admin = Stomp.connectAsAdmin(port);
+		sessions.add(admin);
+		var screen = new LinkedBlockingQueue<Map<String, Object>>();
+		for (var destination : List.of("/topic/game/" + gameId, "/topic/game/" + gameId + "/host", "/user/queue/player")) {
+			Stomp.subscribe(admin, destination, screen);
+		}
+		admin.send("/app/game/" + gameId + "/ready", Map.of());
+		return screen;
+	}
+
+	/** Ticket #11: a phone that was away when its question ended sees that it timed out, not the stale question. */
+	@Test
+	void aPlayerBackAfterAMissedQuestionGetsTheTimeoutResult() throws Exception {
+		var gameId = createBattle();
+		var ada = join(gameId, "Ada");
+		var bob = join(gameId, "Bob");
+		start(gameId, ada, bob);
+		ada.session().disconnect();
+		bob.answer(0, CORRECT);
+		Stomp.next(bob.queue(), "ANSWER_ACK");
+		assertThat(command(gameId, "reveal")).isEqualTo("REVEAL");
+		Stomp.next(bob.topic(), "REVEAL");
+
+		var back = reconnect(ada);
+
+		assertThat(Stomp.next(back.queue(), "SYNC")).containsEntry("status", "REVEAL").containsEntry("questionIndex", 0)
+				.containsEntry("answered", false).containsEntry("score", 0).doesNotContainKey("question");
+		assertThat(Stomp.next(back.queue(), "RESULT")).containsEntry("correct", false).containsEntry("points", 0)
+				.containsEntry("streak", 0).containsEntry("correctOption", CORRECT);
+	}
+
+	/** Ticket #11: a reloaded big screen gets the open question and the roster, and after the reveal, the reveal. */
+	@Test
+	@SuppressWarnings("unchecked")
+	void aReloadedBigScreenGetsItsScreenBack() throws Exception {
+		var gameId = createBattle();
+		var ada = join(gameId, "Ada");
+		var bob = join(gameId, "Bob");
+		start(gameId, ada, bob);
+		ada.answer(0, CORRECT);
+		Stomp.next(ada.queue(), "ANSWER_ACK");
+
+		var screen = reloadBigScreen(gameId);
+
+		var sync = Stomp.next(screen, "SYNC");
+		assertThat(sync).containsEntry("status", "QUESTION").containsEntry("answered", false);
+		assertThat((Map<String, Object>) sync.get("question")).containsEntry("index", 0);
+		// after SYNC: the reloaded screen is still on the lobby until SYNC, and drops a roster that comes first
+		var roster = rows(Stomp.next(screen, "HOST_STATE"), "players");
+		assertThat(roster).extracting(row -> row.get("answered")).containsExactly(true, false);
+
+		assertThat(command(gameId, "reveal")).isEqualTo("REVEAL");
+		Stomp.next(ada.topic(), "REVEAL");
+		var again = reloadBigScreen(gameId);
+
+		assertThat(Stomp.next(again, "SYNC")).containsEntry("status", "REVEAL").doesNotContainKey("question");
+		assertThat(Stomp.next(again, "QUESTION_START")).containsEntry("index", 0);
+		assertThat(Stomp.next(again, "REVEAL")).containsEntry("correctOption", CORRECT)
+				.containsEntry("counts", List.of(0, 1, 0, 0));
+
+		assertThat(command(gameId, "next")).isEqualTo("LEADERBOARD");
+		Stomp.next(ada.topic(), "LEADERBOARD");
+		var third = reloadBigScreen(gameId);
+
+		Stomp.next(third, "SYNC");
+		assertThat(rows(Stomp.next(third, "LEADERBOARD"), "players")).extracting(row -> row.get("name"))
+				.containsExactly("Ada", "Bob");
+	}
+
+	/** Ticket #11 and docs/adr/0003: a phone reopened after the end still gets its place and its prize proof. */
+	@Test
+	void aPlayerBackAfterTheEndGetsThePodiumAndTheirBestScore() throws Exception {
+		var gameId = createBattle();
+		var ada = join(gameId, "Ada");
+		var bob = join(gameId, "Bob");
+		start(gameId, ada, bob);
+		bothAnswer(ada, bob, 0);
+		ada.session().disconnect();
+		assertThat(command(gameId, "end")).isEqualTo("FINISHED");
+		Stomp.next(bob.topic(), "GAME_OVER");
+
+		var back = reconnect(ada);
+
+		assertThat(Stomp.next(back.queue(), "SYNC")).containsEntry("status", "FINISHED").containsEntry("answered", false);
+		var podium = rows(Stomp.next(back.queue(), "GAME_OVER"), "podium");
+		assertThat(podium).extracting(row -> row.get("name")).containsExactly("Ada", "Bob");
+		assertThat(Stomp.next(back.queue(), "BEST_SCORE")).isEqualTo(Map.of("name", "Ada", "score", podium.get(0).get("score")));
+	}
+
+	/**
+	 * Ticket #11: a phone back from a Wi-Fi drop has a second session while the server still holds the dead one (no
+	 * heartbeats, so it waits on TCP). Everything on the personal queue must reach both, the live one included.
+	 */
+	@Test
+	void aPlayerWithAStaleSessionStillGetsTheirQueueOnTheNewOne() throws Exception {
+		var gameId = createBattle();
+		var ada = join(gameId, "Ada");
+		var bob = join(gameId, "Bob");
+		start(gameId, ada, bob);
+
+		var back = reconnect(ada);
+		assertThat(Stomp.next(back.queue(), "SYNC")).containsEntry("status", "QUESTION");
+		assertThat(ada.queue().poll(500, TimeUnit.MILLISECONDS)).as("the SYNC is the reconnecting session's alone").isNull();
+		back.answer(0, CORRECT);
+		assertThat(Stomp.next(back.queue(), "ANSWER_ACK")).containsEntry("accepted", true);   // before the reveal can close it
+		assertThat(command(gameId, "reveal")).isEqualTo("REVEAL");
+
+		assertThat(Stomp.next(ada.queue(), "ANSWER_ACK")).containsEntry("accepted", true);
+		for (var session : List.of(back, ada)) {
+			assertThat(Stomp.next(session.queue(), "RESULT")).containsEntry("correct", true);
+		}
 	}
 }

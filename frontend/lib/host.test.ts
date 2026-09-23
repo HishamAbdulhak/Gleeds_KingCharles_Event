@@ -70,8 +70,21 @@ test("a Player's own ack and result are not the big screen's", () => {
   );
 });
 
+test("a reloaded big screen's SYNC puts the open question back up; HOST_STATE fills the roster", () => {
+  const sync = { status: "QUESTION", questionIndex: 0, question: q1, answered: false, score: 0, streak: 0 } as const;
+  const synced = reduceHost(LOBBY, { type: "SYNC", payload: sync });
+  assert.deepEqual(synced, asked);
+  const roster = [{ id: "p1", name: "Ada", answered: true, score: 870 }];
+  assert.deepEqual(reduceHost(synced, { type: "HOST_STATE", payload: { players: roster } }), { ...asked, roster });
+});
+
+test("a SYNC with no question leaves the screen to the events replayed after it", () => {
+  const sync = { status: "REVEAL", questionIndex: 0, answered: false, score: 0, streak: 0 } as const;
+  assert.equal(reduceHost(LOBBY, { type: "SYNC", payload: sync }), LOBBY);
+});
+
 test("an event from a newer server leaves the screen standing", () => {
   // version skew: the deployed backend publishes something this build has never heard of
-  const unknown = { type: "SYNC", payload: {} } as unknown as Parameters<typeof reduceHost>[1];
+  const unknown = { type: "FROM_THE_FUTURE", payload: {} } as unknown as Parameters<typeof reduceHost>[1];
   assert.equal(reduceHost(asked, unknown), asked);
 });

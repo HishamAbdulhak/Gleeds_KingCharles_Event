@@ -40,8 +40,8 @@ class SoloGameTest {
 	StompSession session;
 
 	/** One Solo Player mid-game: the session, the Game topic and the personal queue. */
-	record Seat(UUID gameId, UUID playerId, StompSession session, BlockingQueue<Map<String, Object>> topic,
-			BlockingQueue<Map<String, Object>> queue) {
+	record Seat(UUID gameId, UUID playerId, String sessionToken, StompSession session,
+			BlockingQueue<Map<String, Object>> topic, BlockingQueue<Map<String, Object>> queue) {
 
 		void answer(int questionIndex, int option) {
 			session.send("/app/game/" + gameId + "/answer", Map.of("questionIndex", questionIndex, "option", option));
@@ -84,9 +84,19 @@ class SoloGameTest {
 		session = Stomp.connectAsPlayer(port, (String) started.get("sessionToken"));
 		var queue = Stomp.subscribe(session, "/user/queue/player");
 		var topic = Stomp.ready(session, gameId.toString());
-		var seat = new Seat(gameId, UUID.fromString((String) started.get("playerId")), session, topic, queue);
+		var seat = new Seat(gameId, UUID.fromString((String) started.get("playerId")),
+				(String) started.get("sessionToken"), session, topic, queue);
 		assertThat(seat.onTopic("QUESTION_START")).containsEntry("index", 0).containsEntry("total", QUESTIONS_PER_GAME);
 		return seat;
+	}
+
+	/** The phone drops off and reopens the page: a new connection with the same Seat, subscribed and ready as before. */
+	Seat reconnect(Seat seat) throws Exception {
+		seat.session().disconnect();
+		session = Stomp.connectAsPlayer(port, seat.sessionToken());
+		var queue = Stomp.subscribe(session, "/user/queue/player");
+		var topic = Stomp.ready(session, seat.gameId().toString());
+		return new Seat(seat.gameId(), seat.playerId(), seat.sessionToken(), session, topic, queue);
 	}
 
 	@Test
@@ -200,5 +210,42 @@ class SoloGameTest {
 		assertThat(jdbc.queryForObject("SELECT count(*) FROM answer WHERE player_id = ?", Integer.class, seat.playerId()))
 				.isEqualTo(1);
 		assertThat(seat.onTopic("QUESTION_START")).as("the run carries on after a timeout").containsEntry("index", 2);
+	}
+
+	/** Ticket #11's boundary test: mid-question, the reopened page gets the same question on the same clock. */
+	@Test
+	@SuppressWarnings("unchecked")
+	void reconnectingMidQuestionSyncsTheOpenQuestionWithItsOriginalStart() throws Exception {
+		var seat = play();
+		var startedAt = jdbc.queryForObject("SELECT question_started_at FROM game WHERE id = ?", java.sql.Timestamp.class,
+				seat.gameId()).toInstant().toString();
+
+		var back = reconnect(seat);
+
+		var sync = back.onQueue("SYNC");
+		assertThat(sync).containsEntry("status", "QUESTION").containsEntry("questionIndex", 0)
+				.containsEntry("startedAt", startedAt).containsEntry("timeLimitSec", TIME_LIMIT_SEC)
+				.containsEntry("answered", false).containsEntry("score", 0).containsEntry("streak", 0);
+		assertThat((Map<String, Object>) sync.get("question")).containsEntry("index", 0).containsEntry("startedAt", startedAt)
+				.containsKeys("text", "options");
+		back.answer(0, CORRECT);
+		assertThat(back.onQueue("ANSWER_ACK")).as("the synced question is still open").containsEntry("accepted", true);
+	}
+
+	/** Ticket #11: after answering, the reopened page has no question to show again, only the RESULT it already earned. */
+	@Test
+	void reconnectingAfterAnsweringSyncsNoQuestionAndResendsTheResult() throws Exception {
+		var seat = play();
+		seat.answer(0, CORRECT);
+		seat.onQueue("ANSWER_ACK");
+		var result = seat.onQueue("RESULT");
+
+		var back = reconnect(seat);   // inside the ~3 s before the next question
+
+		assertThat(back.onQueue("SYNC")).containsEntry("status", "QUESTION").containsEntry("questionIndex", 0)
+				.containsEntry("answered", true).containsEntry("score", result.get("score")).containsEntry("streak", 1)
+				.doesNotContainKey("question");
+		assertThat(back.onQueue("RESULT")).isEqualTo(result);
+		assertThat(back.onTopic("QUESTION_START")).as("the run carries on on the new connection").containsEntry("index", 1);
 	}
 }

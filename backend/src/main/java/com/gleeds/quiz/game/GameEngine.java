@@ -1,6 +1,7 @@
 package com.gleeds.quiz.game;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
@@ -18,7 +19,10 @@ import java.util.stream.Collectors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
+import org.springframework.messaging.simp.SimpMessageType;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
+import org.springframework.messaging.simp.user.SimpUserRegistry;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -33,9 +37,6 @@ import org.springframework.transaction.support.TransactionTemplate;
  */
 @Service
 public class GameEngine {
-
-	/** Solo pacing: the gap between a question's RESULT and the next QUESTION_START. A Battle waits for the Host. */
-	private static final long NEXT_QUESTION_DELAY_MS = 3_000;
 
 	private static final Logger log = LoggerFactory.getLogger(GameEngine.class);
 
@@ -73,6 +74,11 @@ public class GameEngine {
 			return answers.putIfAbsent(playerId, new Answered(option, null)) == null ? null : "Already answered";
 		}
 
+		/** Whether question {@code index} still takes Answers. */
+		synchronized boolean isOpen(int index) {
+			return open && this.index == index;
+		}
+
 		/** What the Player's Answer to the question just played earned them; 0 when they did not answer it. */
 		int points(UUID playerId) {
 			var answered = answers.get(playerId);
@@ -98,37 +104,93 @@ public class GameEngine {
 	private final JdbcTemplate jdbc;
 	private final DayLeaderboard leaderboard;
 	private final SimpMessagingTemplate messaging;
+	private final SimpUserRegistry users;
 	/** Explicit transactions: the timer callbacks are internal calls, which a {@code @Transactional} proxy never sees. */
 	private final TransactionTemplate tx;
 
 	GameEngine(GameRepository games, PlayerRepository players, JdbcTemplate jdbc, DayLeaderboard leaderboard,
-			SimpMessagingTemplate messaging, PlatformTransactionManager transactions) {
+			SimpMessagingTemplate messaging, SimpUserRegistry users, PlatformTransactionManager transactions) {
 		this.games = games;
 		this.players = players;
 		this.jdbc = jdbc;
 		this.leaderboard = leaderboard;
 		this.messaging = messaging;
+		this.users = users;
 		this.tx = new TransactionTemplate(transactions);
 	}
 
 	/**
-	 * A client is subscribed to the Game topic (docs/adr/0001). A Solo Game starts on its Player's ready: the first
-	 * question goes out; a second ready (page refresh) is ignored. A Battle in LOBBY answers anyone's ready — the
-	 * Player who just joined, a refreshed Host — with the lobby. Past LOBBY nothing happens yet: SYNC is a later ticket.
+	 * A client is subscribed to the Game topic and its personal queue (docs/adr/0001). A Solo Game starts on its
+	 * Player's ready: the first question goes out. A Battle in LOBBY answers anyone's ready — the Player who just
+	 * joined, a refreshed Host — with the lobby. Past LOBBY a ready is a reconnect, answered with {@link #sync}.
+	 * {@code user} and {@code sessionId} say whose personal queue, and which connection of theirs, a reconnect answers;
+	 * {@code playerId} is null for an Admin.
 	 */
-	public void ready(UUID gameId, boolean fromPlayer) {
+	public void ready(UUID gameId, String user, String sessionId, UUID playerId) {
 		tx.executeWithoutResult(status -> {
 			var game = games.findById(gameId).orElseThrow();
 			if (game.getStatus() != Game.Status.LOBBY) {
-				return;
-			}
-			if (game.isBattle()) {
+				sync(game, user, sessionId, playerId);
+			} else if (game.isBattle()) {
 				publishLobby(game);
-			} else if (fromPlayer) {   // an Admin watching a Solo topic must not start it before its Player is listening
+			} else if (playerId != null) {   // an Admin watching a Solo topic must not start it before its Player is listening
 				game.startNextQuestion(Instant.now());
 				publishQuestion(game, live.computeIfAbsent(gameId, Live::new));
 			}
 		});
+	}
+
+	/**
+	 * A client is back mid-Game (spec → Game flow → Reconnect, docs/adr/0004): SYNC on its personal queue, then what it
+	 * missed that SYNC can't carry. A Player whose question has closed gets the RESULT it earned, a timeout included, so
+	 * a missed question shows as missed rather than as a stale one. The Host gets its screen back — the question under a
+	 * reveal and the reveal, or the Standings — and the roster on the Host topic. At the end everyone gets GAME_OVER, and
+	 * a Player their BEST_SCORE: the prize proof survives a closed tab (docs/adr/0003).
+	 */
+	private void sync(Game game, String user, String sessionId, UUID playerId) {
+		var state = live.get(game.getId());   // null once the Game is over
+		var lobby = players.findByGameIdOrderByJoinedAt(game.getId());
+		var player = lobby.stream().filter(p -> p.getId().equals(playerId)).findFirst().orElse(null);   // null: the Host
+		var answers = state == null ? Map.<UUID, Live.Answered>of() : state.answers;
+		var answered = player == null ? null : answers.get(player.getId());
+		boolean open = state != null && state.isOpen(game.getCurrentQuestionIndex());
+		var status = game.getStatus();
+		boolean asking = status == Game.Status.QUESTION;
+		var q = game.currentQuestion().toDto();   // past LOBBY there always is one
+		var events = new ArrayList<GameEvent>();
+		events.add(new GameEvent("SYNC", new GameEvent.Sync(status, game.getCurrentQuestionIndex(),
+				open && answered == null ? questionStart(game) : null, asking ? game.getQuestionStartedAt() : null,
+				asking ? q.timeLimitSec() : null, answered != null, player == null ? 0 : player.getScore(),
+				player == null ? 0 : player.getStreak())));
+		switch (status) {
+			case QUESTION, REVEAL -> {
+				int correctOption = q.correctOption();
+				if (player == null && status == Game.Status.REVEAL) {
+					events.add(new GameEvent("QUESTION_START", questionStart(game)));
+					events.add(new GameEvent("REVEAL", new GameEvent.Reveal(correctOption, Live.counts(answers))));
+				} else if (player != null && !open && answered == null) {
+					events.add(timedOut(player, correctOption));
+				} else if (player != null && !open && answered.result() != null) {   // null: still scoring, which sends it
+					events.add(new GameEvent("RESULT", answered.result()));
+				}
+			}
+			case LEADERBOARD -> {
+				if (player == null) {
+					events.add(new GameEvent("LEADERBOARD", new GameEvent.Standings(standings(game.getId(), state))));
+				}
+			}
+			case FINISHED -> {
+				events.add(ending(game, lobby, state));
+				if (player != null) {
+					events.add(bestScore(player));
+				}
+			}
+		}
+		afterCommit(() -> events.forEach(event -> toSession(user, sessionId, event)));
+		if (player == null && game.isBattle() && status != Game.Status.FINISHED) {
+			// after SYNC: until it lands, a reloaded screen is on its lobby and drops a roster
+			publishHostState(game.getId(), lobby, answers.keySet());
+		}
 	}
 
 	// --- Host commands (spec → Game flow → Battle). Each is idempotent and answers with the Game's new status. ---
@@ -306,8 +368,8 @@ public class GameEngine {
 				var answered = answers.get(player.getId());
 				if (answered == null) {
 					player.apply(new Scoring.Scored(0, 0));
-					var timedOut = new GameEvent.Result(false, 0, 0, player.getScore(), correctOption);
-					afterCommit(() -> toPlayer(player.getId(), new GameEvent("RESULT", timedOut)));
+					var timedOut = timedOut(player, correctOption);
+					afterCommit(() -> toPlayer(player.getId(), timedOut));
 				} else if (battle && answered.result() != null) {   // null: still scoring, and its own transaction sends it
 					afterCommit(() -> toPlayer(player.getId(), new GameEvent("RESULT", answered.result())));
 				}
@@ -317,9 +379,15 @@ public class GameEngine {
 				var reveal = new GameEvent("REVEAL", new GameEvent.Reveal(correctOption, Live.counts(answers)));
 				afterCommit(() -> messaging.convertAndSend(topic(state.gameId), reveal));
 			} else {
-				afterCommit(() -> schedule(NEXT_QUESTION_DELAY_MS, () -> autoAdvance(state)));
+				// Solo pacing: 3 s between the RESULT and the next question; a Battle waits for the Host
+				afterCommit(() -> schedule(3_000, () -> autoAdvance(state)));
 			}
 		});
+	}
+
+	/** The RESULT of a question the Player never answered: wrong, no Points, Streak gone. */
+	private static GameEvent timedOut(Player player, int correctOption) {
+		return new GameEvent("RESULT", new GameEvent.Result(false, 0, 0, player.getScore(), correctOption));
 	}
 
 	/** Solo pacing: the next question a few seconds after the result. */
@@ -349,32 +417,40 @@ public class GameEngine {
 	private void finish(Game game, Live state) {
 		game.finish(Instant.now());
 		var lobby = players.findByGameIdOrderByJoinedAt(game.getId());
-		var best = lobby.stream().collect(Collectors.toMap(Player::getId, p -> leaderboard.bestOf(p.getEmail())));
-		GameEvent.GameOver ending;
-		if (game.isBattle()) {
-			ending = new GameEvent.GameOver(null, null, standings(game.getId(), state));
-		} else {
-			var player = lobby.get(0);   // Solo: exactly one
-			ending = new GameEvent.GameOver(player.getScore(),
-					best.get(player.getId()).map(DayLeaderboard.Entry::rank).orElse(null), null);
-		}
-		var over = new GameEvent("GAME_OVER", ending);
+		var over = ending(game, lobby, state);
+		var best = lobby.stream().collect(Collectors.toMap(Player::getId, this::bestScore));
 		var top = leaderboard.top();
 		afterCommit(() -> {
 			live.remove(game.getId());
 			messaging.convertAndSend(topic(game.getId()), over);
-			for (var player : lobby) {
-				var score = best.get(player.getId()).map(DayLeaderboard.Entry::score).orElse(null);
-				toPlayer(player.getId(), new GameEvent("BEST_SCORE", new GameEvent.BestScore(player.getName(), score)));
-			}
+			best.forEach(this::toPlayer);
 			leaderboard.push(top);
 		});
 	}
 
-	/** The Standings: every Player by Score, with what the question just played earned them. Ties keep join order. */
+	/** GAME_OVER: a Battle's Podium, or the Solo Player's Score and rank on the Day Leaderboard. */
+	private GameEvent ending(Game game, List<Player> lobby, Live state) {
+		if (game.isBattle()) {
+			return new GameEvent("GAME_OVER", new GameEvent.GameOver(null, null, standings(game.getId(), state)));
+		}
+		var player = lobby.get(0);   // Solo: exactly one
+		var rank = leaderboard.bestOf(player.getEmail()).map(DayLeaderboard.Entry::rank).orElse(null);
+		return new GameEvent("GAME_OVER", new GameEvent.GameOver(player.getScore(), rank, null));
+	}
+
+	/** BEST_SCORE: the Player's name and their email's best Score today; the email stays here (docs/adr/0003). */
+	private GameEvent bestScore(Player player) {
+		var score = leaderboard.bestOf(player.getEmail()).map(DayLeaderboard.Entry::score).orElse(null);
+		return new GameEvent("BEST_SCORE", new GameEvent.BestScore(player.getName(), score));
+	}
+
+	/**
+	 * The Standings: every Player by Score, with what the question just played earned them (0 once the Game is over and
+	 * its live state gone: the Podium shows Scores only). Ties keep join order.
+	 */
 	private List<GameEvent.Standing> standings(UUID gameId, Live state) {
 		return players.findByGameIdOrderByJoinedAt(gameId).stream()
-				.map(p -> new GameEvent.Standing(p.getId(), p.getName(), p.getScore(), state.points(p.getId())))
+				.map(p -> new GameEvent.Standing(p.getId(), p.getName(), p.getScore(), state == null ? 0 : state.points(p.getId())))
 				.sorted(Comparator.comparingInt(GameEvent.Standing::score).reversed())
 				.toList();
 	}
@@ -394,8 +470,7 @@ public class GameEngine {
 	private void publishQuestion(Game game, Live state) {
 		int index = game.getCurrentQuestionIndex();
 		var q = game.currentQuestion().toDto();
-		var event = new GameEvent("QUESTION_START", new GameEvent.QuestionStart(index, game.questionCount(), q.text(),
-				List.of(q.optionA(), q.optionB(), q.optionC(), q.optionD()), q.timeLimitSec(), game.getQuestionStartedAt()));
+		var event = new GameEvent("QUESTION_START", questionStart(game));
 		afterCommit(() -> {
 			// the clock starts when the question leaves the server, not when the row was written
 			synchronized (state) {
@@ -413,6 +488,13 @@ public class GameEngine {
 		}
 	}
 
+	/** The Game's current question as a Player sees it: no correct option. */
+	private static GameEvent.QuestionStart questionStart(Game game) {
+		var q = game.currentQuestion().toDto();
+		return new GameEvent.QuestionStart(game.getCurrentQuestionIndex(), game.questionCount(), q.text(),
+				List.of(q.optionA(), q.optionB(), q.optionC(), q.optionD()), q.timeLimitSec(), game.getQuestionStartedAt());
+	}
+
 	/** HOST_STATE on the Host-only topic: the roster with who is in on the open question and everyone's Score. */
 	private void publishHostState(UUID gameId, List<Player> lobby, Set<UUID> answered) {
 		var roster = lobby.stream()
@@ -426,8 +508,25 @@ public class GameEngine {
 		return "/topic/game/" + gameId;
 	}
 
+	/**
+	 * The Player's personal queue on every connection they have. One message per session, never one for Spring to fan
+	 * out: with preservePublishOrder the ordered channel freezes a message's headers on its first send, so a user
+	 * destination resolved to two sessions reaches only one — and a phone back from a Wi-Fi drop has two until the
+	 * server notices the dead one.
+	 */
 	private void toPlayer(UUID playerId, GameEvent event) {
-		messaging.convertAndSendToUser(playerId.toString(), "/queue/player", event);
+		var user = users.getUser(playerId.toString());
+		if (user != null) {
+			user.getSessions().forEach(session -> toSession(user.getName(), session.getId(), event));
+		}
+	}
+
+	/** One connection's personal queue ({@code /user/queue/player}), as {@code @SendToUser(broadcast = false)} does it. */
+	private void toSession(String user, String sessionId, GameEvent event) {
+		var headers = SimpMessageHeaderAccessor.create(SimpMessageType.MESSAGE);
+		headers.setSessionId(sessionId);
+		headers.setLeaveMutable(true);
+		messaging.convertAndSendToUser(user, "/queue/player", event, headers.getMessageHeaders());
 	}
 
 	/** STOMP publishes happen after commit, so a client never sees a row the database doesn't. */

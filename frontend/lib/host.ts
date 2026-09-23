@@ -18,6 +18,8 @@ export function reduceHost(screen: HostScreen, event: GameEvent): HostScreen {
       return { phase: "lobby", pin: event.payload.pin, players: event.payload.players };
     case "QUESTION_START":
       return { phase: "question", question: event.payload, roster: [] };
+    case "SYNC": // a reload's: the open question, if any; the screen it lost otherwise follows on the Admin's queue
+      return event.payload.question ? { phase: "question", question: event.payload.question, roster: [] } : screen;
     case "HOST_STATE":
       return screen.phase === "question" ? { ...screen, roster: event.payload.players } : screen;
     case "REVEAL":
@@ -31,7 +33,7 @@ export function reduceHost(screen: HostScreen, event: GameEvent): HostScreen {
     case "ANSWER_ACK":
     case "RESULT":
     case "BEST_SCORE":
-      return screen; // a Player's own, on their queue; the big screen never subscribes to it
+      return screen; // a Player's own, on their queue; the Admin's queue never carries them
     default:
       // as in reducePlayer: exhaustive at compile time, but an unknown event leaves the room's screen standing
       event satisfies never;
