@@ -6,13 +6,13 @@ Docs: [CONTEXT.md](CONTEXT.md) (glossary) · [spec](.scratch/quiz-app/spec.md) �
 
 ## Stack
 
-- **Backend** `backend/` — Java 21, Spring Boot 4.1, Spring Security (JWT), STOMP over WebSocket, Spring Data JPA, Flyway, PostgreSQL 16
+- **Backend** `backend/` — Java 21, Spring Boot 4.1, Spring Security (JWT), STOMP over WebSocket, Spring Data JPA, Flyway, PostgreSQL 18
 - **Frontend** `frontend/` — Next.js 16 (App Router), TypeScript, Tailwind 4, `@stomp/stompjs`
 
 ## Run it
 
 ```bash
-docker compose up -d                      # Postgres 16 on :5432 (quiz/quiz)
+docker compose up -d                      # Postgres 18 on :5432 (quiz/quiz)
 ```
 
 ```bash
@@ -45,7 +45,7 @@ Copy `frontend/.env.example` to `frontend/.env.local`. `.env*` files are gitigno
 
 ## Deploy
 
-The backend and Postgres 16 run on **Railway**, as defined in [`.railway/railway.ts`](.railway/railway.ts): the `api` service builds [`backend/Dockerfile`](backend/Dockerfile) from `main`. The frontend runs on **Vercel**, from `frontend/`. Secrets are Railway or Vercel variables and never go in the repo.
+The backend and Postgres 18 run on **Railway**, as defined in [`.railway/railway.ts`](.railway/railway.ts): the `api` service builds [`backend/Dockerfile`](backend/Dockerfile) from `main`. The frontend runs on **Vercel**, from `frontend/`. Secrets are Railway or Vercel variables and never go in the repo.
 
 First deploy (once; Railway CLI ≥ 5.42.1, and the Railway GitHub app needs access to this repo):
 
