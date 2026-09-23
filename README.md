@@ -87,7 +87,7 @@ railway domain --service api
 - `JWT_SECRET`: run `railway variable set JWT_SECRET=$(openssl rand -base64 48) --service api`. It redeploys, and the Admin and the Host screen have to log in again.
 - The Admin password: `ADMIN_PASSWORD` only seeds the first boot (the V2 migration), so changing the variable does nothing. Run `railway connect postgres`, then `UPDATE admin_user SET password_hash = crypt('<new>', gen_salt('bf', 10)) WHERE email = '<ADMIN_EMAIL>';`.
 
-**Smoke check**, on a real phone over mobile data: scan the QR on the Host screen, play Solo to game-over and see the rank, watch the Host screen update live, then log in as Admin and import questions.
+**Smoke check**: first log in as Admin, import questions and keep Settings → Questions per Game at or below the active count (an empty Question Bank refuses every Game with a 409). Then, on a real phone over mobile data: scan the QR on the Host screen, play Solo to game-over and see the rank, and watch the Host screen update live.
 
 ## Skipped (add when needed)
 
