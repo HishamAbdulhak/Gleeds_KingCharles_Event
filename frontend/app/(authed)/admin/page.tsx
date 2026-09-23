@@ -16,8 +16,13 @@ export default function AdminHome() {
         <Link href="/admin/questions" className="text-gold-300 underline">
           Question Bank
         </Link>
+        <Link href="/admin/settings" className="text-gold-300 underline">
+          Settings
+        </Link>
+        <Link href="/host" className="text-gold-300 underline">
+          Host screen
+        </Link>
       </nav>
-      <p className="text-cream/80">Settings will appear here.</p>
     </main>
   );
 }
