@@ -66,7 +66,7 @@ test("the next QUESTION_START replaces the result without a tap", () => {
 
 test("GAME_OVER ends the Game with the final Score", () => {
   const result = reducePlayer(locked, { type: "RESULT", payload: won });
-  const over = { score: 1500, rank: 3 };
+  const over = { score: 1500, rank: 3, podium: null };
   assert.deepEqual(reducePlayer(result, { type: "GAME_OVER", payload: over }), { phase: "over", gameOver: over });
 });
 
@@ -86,4 +86,33 @@ test("LOBBY_UPDATE shows who is in the lobby", () => {
 test("the first QUESTION_START replaces the lobby", () => {
   const lobby = reducePlayer(WAITING, { type: "LOBBY_UPDATE", payload: roster });
   assert.deepEqual(reducePlayer(lobby, { type: "QUESTION_START", payload: q1 }), { phase: "question", question: q1 });
+});
+
+// --- Battle: the phone follows the big screen between questions (#9) ---
+
+test("the count of who has answered is the big screen's business, not the phone's", () => {
+  assert.equal(reducePlayer(locked, { type: "ANSWER_COUNT", payload: { answered: 1, total: 4 } }), locked);
+});
+
+test("the reveal on the big screen leaves the personal result alone", () => {
+  const result = reducePlayer(locked, { type: "RESULT", payload: won });
+  assert.equal(reducePlayer(result, { type: "REVEAL", payload: { correctOption: 2, counts: [0, 1, 1, 0] } }), result);
+});
+
+test("LEADERBOARD sends the phone to the big screen until the next question", () => {
+  const result = reducePlayer(locked, { type: "RESULT", payload: won });
+  const standings = [{ playerId: "p1", name: "Ada", score: 1500, delta: 870 }];
+  assert.deepEqual(reducePlayer(result, { type: "LEADERBOARD", payload: { players: standings } }), {
+    phase: "between",
+  });
+});
+
+test("GAME_OVER in a Battle carries the Podium instead of a Score", () => {
+  const podium = [
+    { playerId: "p1", name: "Ada", score: 1500, delta: 870 },
+    { playerId: "p2", name: "Bob", score: 300, delta: 0 },
+  ];
+  const over = { score: null, rank: null, podium };
+  const between = reducePlayer(WAITING, { type: "LEADERBOARD", payload: { players: podium } });
+  assert.deepEqual(reducePlayer(between, { type: "GAME_OVER", payload: over }), { phase: "over", gameOver: over });
 });

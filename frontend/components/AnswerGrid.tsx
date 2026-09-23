@@ -1,6 +1,7 @@
-// Kahoot-style: one colour and shape per option so a Player can aim by colour, not by reading
-const OPTION_COLOURS = ["bg-red-600", "bg-blue-600", "bg-yellow-500", "bg-saudi"];
-const OPTION_SHAPES = ["▲", "◆", "●", "■"];
+// Kahoot-style: one colour and shape per option so a Player can aim by colour, not by reading. The big screen
+// shows the same four, so the phone and the room are talking about the same option.
+export const OPTION_COLOURS = ["bg-red-600", "bg-blue-600", "bg-yellow-500", "bg-saudi"];
+export const OPTION_SHAPES = ["▲", "◆", "●", "■"];
 
 type Props = {
   options: string[];

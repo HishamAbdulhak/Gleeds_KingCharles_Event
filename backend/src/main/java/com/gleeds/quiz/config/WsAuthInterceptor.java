@@ -27,7 +27,8 @@ import com.gleeds.quiz.game.PlayerRepository;
  * <li>CONNECT with {@code Authorization: Bearer <admin JWT>} → {@link Admin}; with {@code X-Session-Token: <player
  * session token>} → {@link PlayerPrincipal}; anything else is refused.</li>
  * <li>SUBSCRIBE and SEND: an Admin anywhere; a Player only to their own Game ({@code /topic/game/{id}},
- * {@code /app/game/{id}/**}) and their personal queue ({@code /user/**}). The leaderboard topic is therefore Admin-only.</li>
+ * {@code /app/game/{id}/**}) and their personal queue ({@code /user/**}). The leaderboard topic and the Host topic
+ * ({@code /topic/game/{id}/host}, which carries what everyone answered) are therefore Admin-only.</li>
  * </ul>
  * A refusal sends the client a STOMP ERROR frame (which closes the session) and drops the offending frame. Not by
  * throwing: with {@code preserveReceiveOrder} Spring's ordering decorator swallows interceptor exceptions, and the
@@ -55,7 +56,8 @@ public class WsAuthInterceptor implements ChannelInterceptor {
 		}
 	}
 
-	private static final Pattern GAME_DESTINATION = Pattern.compile("^/(?:topic|app)/game/([^/]+)(?:/.*)?$");
+	/** The Game topic itself — not what hangs off it, which is the Host's — and the Game's app destinations. */
+	private static final Pattern GAME_DESTINATION = Pattern.compile("^/topic/game/([^/]+)$|^/app/game/([^/]+)/.+$");
 
 	private final JwtDecoder jwtDecoder;
 	private final PlayerRepository players;
@@ -146,7 +148,11 @@ public class WsAuthInterceptor implements ChannelInterceptor {
 			return true;
 		}
 		var match = GAME_DESTINATION.matcher(destination);
+		if (!match.matches()) {
+			return false;
+		}
+		var gameId = match.group(1) != null ? match.group(1) : match.group(2);   // the topic's, or an app destination's
 		// text compare: a non-canonical spelling of the Player's own Game id is refused too, which is the safe direction
-		return match.matches() && player.gameId().toString().equals(match.group(1));
+		return player.gameId().toString().equals(gameId);
 	}
 }

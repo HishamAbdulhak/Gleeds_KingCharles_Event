@@ -6,7 +6,7 @@ import { useEffect, useReducer, useRef, useState, useSyncExternalStore } from "r
 import { AnswerGrid } from "@/components/AnswerGrid";
 import { Timer } from "@/components/Timer";
 import { noSubscribe } from "@/lib/api";
-import { connectToGame, Result, stored } from "@/lib/game";
+import { connectToGame, podiumRevealMs, Result, Standing, stored } from "@/lib/game";
 import { reducePlayer, WAITING } from "@/lib/player";
 
 export default function PlayGame() {
@@ -20,6 +20,12 @@ export default function PlayGame() {
     noSubscribe,
     () => stored.get(`seat:${gameId}`),
     () => undefined,
+  );
+  // which row of a Battle's Podium is this phone's
+  const playerId = useSyncExternalStore(
+    noSubscribe,
+    () => stored.get(`player:${gameId}`),
+    () => null,
   );
 
   useEffect(() => {
@@ -59,17 +65,31 @@ export default function PlayGame() {
     );
   }
 
+  if (state.phase === "between") {
+    return (
+      <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+        <h1 className="text-3xl font-bold text-gold-500">Look at the big screen</h1>
+        <p className="text-lg text-cream/80">Next question coming up…</p>
+      </main>
+    );
+  }
+
   if (state.phase === "over") {
+    const { podium, score, rank } = state.gameOver;
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6 text-center">
-        <h1 className="text-3xl font-bold text-gold-500">Game over</h1>
-        <p className="text-lg">
-          Your Score
-          <br />
-          <span className="text-6xl font-bold tabular-nums">{state.gameOver.score}</span>
-        </p>
-        {state.gameOver.rank !== null && (
-          <p className="text-2xl font-bold text-gold-300">You&apos;re #{state.gameOver.rank} today</p>
+        {podium ? (
+          <MyPlace podium={podium} playerId={playerId} />
+        ) : (
+          <>
+            <h1 className="text-3xl font-bold text-gold-500">Game over</h1>
+            <p className="text-lg">
+              Your Score
+              <br />
+              <span className="text-6xl font-bold tabular-nums">{score}</span>
+            </p>
+            {rank !== null && <p className="text-2xl font-bold text-gold-300">You&apos;re #{rank} today</p>}
+          </>
         )}
         <Link href="/play" className="rounded bg-gold-500 px-8 py-4 text-xl font-bold text-royal-900">
           Play again
@@ -130,5 +150,39 @@ function ResultBanner({ result: { correct, points, streak, score }, answered }: 
         <span>Score {score}</span>
       </p>
     </section>
+  );
+}
+
+/** A Battle is 2–4 Players (CONTEXT.md → Lobby). */
+const PLACES = ["1st", "2nd", "3rd", "4th"];
+
+/**
+ * The end of a Battle on the phone (#9): the Player's own place, held back until the big screen has revealed it —
+ * both run the same schedule off the one GAME_OVER. Only their own place, so a 4th place can't read out the winner.
+ */
+function MyPlace({ podium, playerId }: { podium: Standing[]; playerId: string | null }) {
+  const place = podium.findIndex((entry) => entry.playerId === playerId) + 1; // 0: this phone lost track of its Player
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setRevealed(true), podiumRevealMs(place));
+    return () => clearTimeout(timer);
+  }, [place]);
+
+  if (!revealed) {
+    return <p className="text-2xl text-cream/80">Look at the big screen…</p>;
+  }
+  const you = podium[place - 1];
+  return (
+    <>
+      <h1 className="text-6xl font-bold text-gold-500">{you ? PLACES[place - 1] : "Game over"}</h1>
+      {you && (
+        <p className="text-lg">
+          Your Score
+          <br />
+          <span className="text-6xl font-bold tabular-nums">{you.score}</span>
+        </p>
+      )}
+      <p className="text-cream/80">of {podium.length} players</p>
+    </>
   );
 }

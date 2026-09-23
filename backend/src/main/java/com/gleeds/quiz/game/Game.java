@@ -117,6 +117,16 @@ public class Game {
 		return true;
 	}
 
+	/** The question is over: the big screen shows the correct option. */
+	public void reveal() {
+		status = Status.REVEAL;
+	}
+
+	/** Between questions: the big screen shows the Standings (the status keeps the spec's spelling). */
+	public void showStandings() {
+		status = Status.LEADERBOARD;
+	}
+
 	public void finish(Instant at) {
 		status = Status.FINISHED;
 		endedAt = at;

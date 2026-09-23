@@ -15,7 +15,10 @@ import org.springframework.web.server.ResponseStatusException;
 
 import jakarta.validation.Valid;
 
-/** A Battle's lobby (spec → Game flow → Battle): an Admin creates it with a PIN; Players join by that PIN. */
+/**
+ * A Battle (spec → Game flow → Battle): an Admin creates it with a PIN, Players join by that PIN, and the Host's
+ * commands drive it from the big screen. Every command is idempotent and answers with the Game's new status.
+ */
 @RestController
 public class BattleController {
 
@@ -24,6 +27,10 @@ public class BattleController {
 	static final int MAX_PLAYERS = 4;
 
 	record Created(UUID gameId, String pin) {
+	}
+
+	/** What every Host command answers with: the Game's status once the command has been applied. */
+	record State(Game.Status status) {
 	}
 
 	private final GameRepository games;
@@ -79,16 +86,44 @@ public class BattleController {
 		return ResponseEntity.status(HttpStatus.CREATED).body(Seat.of(player));
 	}
 
-	/** Admin. 409 below {@link #MIN_PLAYERS}; otherwise 202. */
+	/** Admin. 409 below {@link #MIN_PLAYERS}; otherwise 202 with the new status. */
 	@PostMapping("/api/games/{id}/start")
 	@ResponseStatus(HttpStatus.ACCEPTED)
-	void start(@PathVariable UUID id) {
-		if (!games.existsById(id)) {
-			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such Game");
-		}
+	State start(@PathVariable UUID id) {
+		requireGame(id);
 		if (players.findByGameIdOrderByJoinedAt(id).size() < MIN_PLAYERS) {
 			throw new ResponseStatusException(HttpStatus.CONFLICT, "A Battle needs " + MIN_PLAYERS + "–" + MAX_PLAYERS + " Players");
 		}
-		// ponytail: the transition to QUESTION and the Battle question loop are ticket 09; the acceptance bar here is the guard
+		return new State(engine.start(id));
+	}
+
+	/** Admin. Ends the open question now, so the group does not wait out a timer everyone has already beaten. */
+	@PostMapping("/api/games/{id}/reveal")
+	@ResponseStatus(HttpStatus.ACCEPTED)
+	State reveal(@PathVariable UUID id) {
+		requireGame(id);
+		return new State(engine.reveal(id));
+	}
+
+	/** Admin. The reveal's leaderboard, then the next question — or the Podium after the last. */
+	@PostMapping("/api/games/{id}/next")
+	@ResponseStatus(HttpStatus.ACCEPTED)
+	State next(@PathVariable UUID id) {
+		requireGame(id);
+		return new State(engine.next(id));
+	}
+
+	/** Admin. Ends the Battle from any state: the Podium, and the big screen's board is up to date again. */
+	@PostMapping("/api/games/{id}/end")
+	@ResponseStatus(HttpStatus.ACCEPTED)
+	State end(@PathVariable UUID id) {
+		requireGame(id);
+		return new State(engine.end(id));
+	}
+
+	private void requireGame(UUID id) {
+		if (!games.existsById(id)) {
+			throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No such Game");
+		}
 	}
 }
