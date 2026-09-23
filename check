@@ -4,9 +4,13 @@ set -u
 cd "$(dirname "$0")"
 status=0
 
-# mechanical standards (CODING_STANDARDS.md points here): collections never fetch EAGER; tests sit at the boundary, no slices
+# mechanical standards (CODING_STANDARDS.md points here): collections never fetch EAGER; tests sit at the boundary, no
+# slices; a switch over a wire event keeps the default arm that survives an event this build has never heard of
 grep -rnE 'FetchType\.EAGER|fetch *= *EAGER' backend/src && { echo "backend: EAGER fetch"; status=1; }
 grep -rnE '@(WebMvcTest|DataJpaTest|MockBean|MockitoBean)' backend/src/test && { echo "backend: slice test / mock bean"; status=1; }
+for f in $(grep -rl 'case "GAME_OVER"' frontend/lib frontend/app --include='*.ts' --include='*.tsx'); do
+	grep -q 'satisfies never' "$f" || { echo "$f: switch over a wire event with no satisfies-never default"; status=1; }
+done
 # javac is silent on an unused import: every imported simple name must appear a second time in its file
 for f in $(find backend/src -name '*.java'); do
 	for sym in $(grep -oE '^import (static )?[A-Za-z0-9_.]+;' "$f" | sed -E 's/.*\.([A-Za-z0-9_]+);/\1/'); do
@@ -16,13 +20,15 @@ done
 
 rm -rf backend/target/surefire-reports   # a stale report would count a deleted test as passing
 (cd backend && ./mvnw -q test) || status=1
-for f in backend/target/surefire-reports/TEST-*.xml; do
-	[ -e "$f" ] || { echo "backend: no test reports"; status=1; break; }
+counts=$(for f in backend/target/surefire-reports/TEST-*.xml; do
+	[ -e "$f" ] || exit 1
 	printf '%-22s %s\n' "$(basename "$f" .xml | sed 's/TEST-com.gleeds.quiz.//')" \
 		"$(grep -o 'tests="[0-9]*" errors="[0-9]*" skipped="[0-9]*" failures="[0-9]*"' "$f")"
-done
+done) || { counts="backend: no test reports"; status=1; }
+echo "$counts"
 
 (cd frontend && npx next typegen >/dev/null && npx tsc --noEmit -p . && npm run -s lint && npx prettier --check . && npm test -s) && echo "frontend: tsc + eslint + prettier + tests ok" || status=1
 
+echo "$counts"   # again, so `./check | tail -20` shows the counts and the verdict from one run
 [ $status -eq 0 ] && echo "PASS" || echo "FAIL"
 exit $status

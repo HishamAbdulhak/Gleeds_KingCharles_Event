@@ -1,6 +1,6 @@
 # King Charles Quiz
 
-Kahoot-style real-time quiz (Spring Boot + STOMP backend, Next.js frontend, Postgres). See `PLAN.md` for layout and build order; the spec (`.scratch/quiz-app/spec.md`) for schema and the STOMP contract, with `GameEvent.java` ↔ `frontend/lib/game.ts` as the wire shape; `README.md` → Run it for the dev servers and env vars. `./check` runs everything CI runs.
+Kahoot-style real-time quiz (Spring Boot + STOMP backend, Next.js frontend, Postgres). See the spec (`.scratch/quiz-app/spec.md`) for schema and the STOMP contract, with `GameEvent.java` ↔ `frontend/lib/game.ts` as the wire shape; `README.md` → Run it for the dev servers and env vars. `./check` runs everything CI runs.
 
 ## Stack skills
 

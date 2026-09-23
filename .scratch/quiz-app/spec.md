@@ -2,7 +2,7 @@
 
 Status: ready-for-agent (implementation tickets: GitHub issues #1–#11)
 
-Vocabulary: see `CONTEXT.md`. Supersedes `PLAN.md` wherever they conflict (Battle is no longer a 1v1 finale; Solo Mode and the Day Leaderboard are new).
+Vocabulary: see `CONTEXT.md`.
 
 ## Problem Statement
 
@@ -177,6 +177,5 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 
 ## Further Notes
 
-- The earlier `PLAN.md` directory layout and step order still apply; its schema and STOMP sections are replaced by this spec (drop the `battle` table, add `mode`, `settings`, `consented_at`, nullable `pin`).
 - Consent wording is a placeholder for Gleeds' legal text; store the timestamp, not the text.
 - The Host idle screen is the marketing surface of the stand: prioritise legibility from 5 m over information density.
