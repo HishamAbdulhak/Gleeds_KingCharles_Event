@@ -6,7 +6,16 @@ import { useEffect, useReducer, useState } from "react";
 import { OPTION_COLOURS, OPTION_SHAPES } from "@/components/AnswerGrid";
 import { Timer } from "@/components/Timer";
 import { publicUrl } from "@/lib/api";
-import { hostCommand, LobbyUpdate, podiumRevealMs, QuestionStart, Reveal, Standing, watchGame } from "@/lib/game";
+import {
+  hostCommand,
+  LobbyUpdate,
+  podiumRevealMs,
+  QuestionStart,
+  REVEALED_PLACES,
+  Reveal,
+  Standing,
+  watchGame,
+} from "@/lib/game";
 import { HostScreen, LOBBY, reduceHost } from "@/lib/host";
 
 /** Spec stories 28–29, as BattleController has them. */
@@ -23,7 +32,8 @@ const ACTIONS = {
 
 /**
  * The Battle on the big screen (spec stories 26–35): lobby, question, reveal, leaderboard, Podium. Nothing advances
- * by itself — every screen is the Host's tap, and End Battle is on all of them.
+ * by itself — every screen is the Host's tap, and End Battle is on all of them but the Podium, which the Game has
+ * already ended on.
  */
 export default function HostGame() {
   const { gameId } = useParams<{ gameId: string }>();
@@ -222,7 +232,7 @@ function Standings({ standings }: { standings: Standing[] }) {
           <li key={entry.playerId} className="flex items-baseline gap-8 text-5xl font-bold">
             <span className="w-16 text-right tabular-nums text-gold-300">{i + 1}</span>
             <span className="flex-1 truncate">{entry.name}</span>
-            <span className="text-3xl text-saudi tabular-nums">+{entry.delta}</span>
+            <span className="text-3xl text-saudi tabular-nums">+{entry.points}</span>
             <span className="tabular-nums">{entry.score}</span>
           </li>
         ))}
@@ -239,7 +249,7 @@ function Podium({ podium }: { podium: Standing[] }) {
   return (
     <section className="flex flex-1 flex-col items-center justify-center gap-8">
       <ol className="flex w-full max-w-4xl flex-col gap-6">
-        {podium.slice(0, 3).map((entry, i) => (
+        {podium.slice(0, REVEALED_PLACES).map((entry, i) => (
           <li
             key={entry.playerId}
             style={{ animationDelay: `${podiumRevealMs(i + 1)}ms` }}
@@ -252,9 +262,9 @@ function Podium({ podium }: { podium: Standing[] }) {
         ))}
       </ol>
       <ol className="flex w-full max-w-4xl flex-col gap-3 text-3xl">
-        {podium.slice(3).map((entry, i) => (
+        {podium.slice(REVEALED_PLACES).map((entry, i) => (
           <li key={entry.playerId} className="flex items-baseline gap-8">
-            <span className="w-16 text-right tabular-nums text-cream/60">{i + 4}</span>
+            <span className="w-16 text-right tabular-nums text-cream/60">{i + REVEALED_PLACES + 1}</span>
             <span className="flex-1 truncate">{entry.name}</span>
             <span className="tabular-nums">{entry.score}</span>
           </li>

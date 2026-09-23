@@ -215,6 +215,8 @@ class BattleGameTest {
 		var gameId = createBattle();
 		var ada = join(gameId, "Ada");
 		var bob = join(gameId, "Bob");
+		// Ada out-scores Bob, so put Bob first in join order: without the Score sort these come back Bob-first and go red
+		jdbc.update("UPDATE player SET joined_at = joined_at - interval '1 minute' WHERE id = ?", bob.playerId());
 		var screen = bigScreen(gameId);
 		start(gameId, ada, bob);
 
@@ -233,8 +235,8 @@ class BattleGameTest {
 			var standings = rows(Stomp.next(ada.topic(), "LEADERBOARD"), "players");
 			assertThat(standings).hasSize(2);
 			assertThat(standings.get(0)).containsEntry("name", "Ada").containsEntry("playerId", ada.playerId().toString());
-			assertThat((int) standings.get(0).get("delta")).as("what question %d earned Ada", i).isPositive();
-			assertThat(standings.get(1)).containsEntry("name", "Bob").containsEntry("score", 0).containsEntry("delta", 0);
+			assertThat((int) standings.get(0).get("points")).as("what question %d earned Ada", i).isPositive();
+			assertThat(standings.get(1)).containsEntry("name", "Bob").containsEntry("score", 0).containsEntry("points", 0);
 			Stomp.next(bob.topic(), "LEADERBOARD");
 		}
 
@@ -404,6 +406,26 @@ class BattleGameTest {
 
 		var podium = rows(afterLobby(ada, "GAME_OVER"), "podium");
 		assertThat(podium).extracting(row -> row.get("name")).containsExactly("Bob", "Ada");
-		assertThat(podium).allSatisfy(row -> assertThat(row).containsEntry("score", 0).containsEntry("delta", 0));
+		assertThat(podium).allSatisfy(row -> assertThat(row).containsEntry("score", 0).containsEntry("points", 0));
+	}
+
+	/** Ticket #9: End mid-question ends the question too, so the phones get their RESULT instead of jumping to the Podium. */
+	@Test
+	void endDuringAQuestionStillGivesEveryPlayerTheirResult() throws Exception {
+		var gameId = createBattle();
+		var ada = join(gameId, "Ada");
+		var bob = join(gameId, "Bob");
+		start(gameId, ada, bob);
+		ada.answer(0, CORRECT);
+		Stomp.next(ada.queue(), "ANSWER_ACK");
+
+		assertThat(command(gameId, "end")).isEqualTo("FINISHED");
+
+		assertThat(Stomp.next(ada.queue(), "RESULT")).as("the Answer she had in was scored and told to her")
+				.containsEntry("correct", true);
+		assertThat(Stomp.next(bob.queue(), "RESULT")).as("no Answer from Bob: a timeout").containsEntry("correct", false);
+		Stomp.next(ada.topic(), "REVEAL");
+		assertThat(rows(Stomp.next(ada.topic(), "GAME_OVER"), "podium")).hasSize(2);
+		assertThat(ada.queue().poll(500, TimeUnit.MILLISECONDS)).as("one RESULT each, not two").isNull();
 	}
 }

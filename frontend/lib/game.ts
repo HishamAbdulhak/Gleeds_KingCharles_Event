@@ -28,7 +28,7 @@ export type Result = { correct: boolean; points: number; streak: number; score: 
 export type Reveal = { correctOption: number; counts: number[] };
 
 /** One Player's place in the Standings: their Score, and what the question just played earned them. */
-export type Standing = { playerId: string; name: string; score: number; delta: number };
+export type Standing = { playerId: string; name: string; score: number; points: number };
 
 /** Game topic, Battle between questions, as LEADERBOARD (the spec's name): the Standings, best first. */
 export type Standings = { players: Standing[] };
@@ -60,11 +60,18 @@ export type GameEvent =
 
 /**
  * The Podium is revealed 3rd, then 2nd, then 1st, a beat apart (#9); a place below the top three is listed from the
- * start, so it waits for nothing. The big screen and the phones run this same schedule off the one GAME_OVER, so a
- * Player sees their place exactly when the room does — no extra message.
+ * start, so it waits for nothing. The big screen and the phones run this same schedule off the one GAME_OVER — no
+ * extra message — and the phone trails the row's fade, so the room always reads a place first.
  */
-const REVEALED_PLACES = 3;
+export const REVEALED_PLACES = 3;
+/** How long a Podium row takes to fade up: `.reveal` in globals.css, which this has to stay in step with. */
+const REVEAL_MS = 400;
+
+/** When the big screen starts revealing a place: a Podium row's `animation-delay`. */
 export const podiumRevealMs = (rank: number) => Math.max(0, REVEALED_PLACES + 1 - rank) * 1500;
+
+/** When a phone may show its own place: once the big screen has finished revealing that row, never before it. */
+export const podiumRevealedMs = (rank: number) => podiumRevealMs(rank) + REVEAL_MS;
 
 /** What a Player gives to join any Game: the Lead and consent (backend JoinRequest). */
 export type JoinRequest = { name: string; email: string; consent: boolean };

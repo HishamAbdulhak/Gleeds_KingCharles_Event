@@ -1,6 +1,7 @@
 package com.gleeds.quiz.game;
 
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -77,11 +78,11 @@ public class GameEngine {
 			return answered == null || answered.result() == null ? 0 : answered.result().points();
 		}
 
-		/** How many chose each option, for the reveal. */
-		int[] counts() {
+		/** How many chose each option, for the reveal, off the Answers as they stood when the question closed. */
+		static List<Integer> counts(Map<UUID, Answered> answers) {
 			var counts = new int[4];
 			answers.values().forEach(answered -> counts[answered.option()]++);
-			return counts;
+			return Arrays.stream(counts).boxed().toList();
 		}
 	}
 
@@ -120,7 +121,7 @@ public class GameEngine {
 			if (game.getStatus() != Game.Status.LOBBY) {
 				return;
 			}
-			if (game.getMode() == Game.Mode.BATTLE) {
+			if (game.isBattle()) {
 				publishLobby(game);
 			} else if (fromPlayer) {   // an Admin watching a Solo topic must not start it before its Player is listening
 				game.startNextQuestion(Instant.now());
@@ -171,7 +172,7 @@ public class GameEngine {
 	public Game.Status end(UUID gameId) {
 		var open = live.get(gameId);
 		if (open != null) {
-			close(open);   // whatever was open is over, and its timer must not fire into a finished Game
+			endQuestion(open);   // whatever was open ends the normal way: its timer stops and every Player gets their RESULT
 		}
 		return command(gameId, (game, state) -> {
 			if (game.getStatus() != Game.Status.FINISHED) {
@@ -184,6 +185,9 @@ public class GameEngine {
 	private Game.Status command(UUID gameId, BiConsumer<Game, Live> action) {
 		return tx.execute(status -> {
 			var game = games.findById(gameId).orElseThrow();
+			if (game.getStatus() == Game.Status.FINISHED) {
+				return Game.Status.FINISHED;   // nothing left to drive, and no live state worth creating to find that out
+			}
 			action.accept(game, live.computeIfAbsent(gameId, Live::new));
 			return game.getStatus();
 		});
@@ -241,7 +245,7 @@ public class GameEngine {
 				}
 				afterCommit(() -> toPlayer(playerId, new GameEvent("ANSWER_ACK", new GameEvent.AnswerAck(true, null))));
 				var lobby = players.findByGameIdOrderByJoinedAt(gameId);
-				if (game.getMode() == Game.Mode.SOLO || !stillOpen) {
+				if (!game.isBattle() || !stillOpen) {
 					// Solo has nobody to wait for; a Battle Answer that landed as the question ended has missed the reveal
 					afterCommit(() -> toPlayer(playerId, new GameEvent("RESULT", result)));
 				} else {
@@ -265,15 +269,20 @@ public class GameEngine {
 		toPlayer(playerId, new GameEvent("ANSWER_ACK", new GameEvent.AnswerAck(false, reason)));
 	}
 
-	/** Ends the open question exactly once: later Answers are refused. False if it was already over. */
-	private boolean close(Live state) {
+	/**
+	 * Ends the open question exactly once (later Answers are refused), handing back the Answers as they stood at that
+	 * instant; null if it was already over. The snapshot is what keeps the two RESULT senders apart: an Answer still
+	 * scoring here goes on to read {@code open == false} and send its own, and sits in the snapshot with a null result,
+	 * which {@link #endQuestion} skips. Without it the two could both fire and the phone's result screen would collapse.
+	 */
+	private Map<UUID, Live.Answered> close(Live state) {
 		synchronized (state) {
 			if (!state.open) {
-				return false;
+				return null;
 			}
 			state.open = false;
 			state.timer.cancel(false);
-			return true;
+			return Map.copyOf(state.answers);
 		}
 	}
 
@@ -283,16 +292,17 @@ public class GameEngine {
 	 * RESULT held since their Answer, and the big screen gets the REVEAL. Solo then paces itself to the next question.
 	 */
 	private void endQuestion(Live state) {
-		if (!close(state)) {
+		var answers = close(state);
+		if (answers == null) {
 			return;
 		}
 		tx.executeWithoutResult(status -> {
 			var game = games.findById(state.gameId).orElseThrow();
 			int correctOption = game.currentQuestion().toDto().correctOption();
-			boolean battle = game.getMode() == Game.Mode.BATTLE;
+			boolean battle = game.isBattle();
 			var lobby = players.findByGameIdOrderByJoinedAt(state.gameId);
 			for (var player : lobby) {
-				var answered = state.answers.get(player.getId());
+				var answered = answers.get(player.getId());
 				if (answered == null) {
 					player.apply(new Scoring.Scored(0, 0));
 					var timedOut = new GameEvent.Result(false, 0, 0, player.getScore(), correctOption);
@@ -303,9 +313,8 @@ public class GameEngine {
 			}
 			if (battle) {
 				game.reveal();
-				var reveal = new GameEvent("REVEAL", new GameEvent.Reveal(correctOption, state.counts()));
+				var reveal = new GameEvent("REVEAL", new GameEvent.Reveal(correctOption, Live.counts(answers)));
 				afterCommit(() -> messaging.convertAndSend(topic(state.gameId), reveal));
-				publishHostState(state.gameId, lobby, state.answers.keySet());
 			} else {
 				afterCommit(() -> schedule(NEXT_QUESTION_DELAY_MS, () -> autoAdvance(state)));
 			}
@@ -314,7 +323,12 @@ public class GameEngine {
 
 	/** Solo pacing: the next question a few seconds after the result. */
 	private void autoAdvance(Live state) {
-		tx.executeWithoutResult(status -> advance(games.findById(state.gameId).orElseThrow(), state));
+		tx.executeWithoutResult(status -> {
+			var game = games.findById(state.gameId).orElseThrow();
+			if (game.getStatus() != Game.Status.FINISHED) {   // the Host ended the Game while this timer was pending
+				advance(game, state);
+			}
+		});
 	}
 
 	/** The next question of the Question Set, or the end of the Game after the last. */
@@ -330,7 +344,7 @@ public class GameEngine {
 	private void finish(Game game, Live state) {
 		game.finish(Instant.now());
 		GameEvent.GameOver ending;
-		if (game.getMode() == Game.Mode.BATTLE) {
+		if (game.isBattle()) {
 			ending = new GameEvent.GameOver(null, null, standings(game.getId(), state));
 		} else {
 			var player = players.findByGameIdOrderByJoinedAt(game.getId()).get(0);   // Solo: exactly one
@@ -382,7 +396,7 @@ public class GameEngine {
 			}
 			messaging.convertAndSend(topic(game.getId()), event);
 		});
-		if (game.getMode() == Game.Mode.BATTLE) {   // a fresh question, so nobody has answered it yet
+		if (game.isBattle()) {   // a fresh question, so nobody has answered it yet
 			publishHostState(game.getId(), players.findByGameIdOrderByJoinedAt(game.getId()), Set.of());
 		}
 	}

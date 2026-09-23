@@ -78,8 +78,9 @@ public class Game {
 		return id;
 	}
 
-	public Mode getMode() {
-		return mode;
+	/** Solo and Battle differ in pacing, in when a RESULT goes out, and in how the Game ends. */
+	public boolean isBattle() {
+		return mode == Mode.BATTLE;
 	}
 
 	public String getPin() {

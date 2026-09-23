@@ -21,8 +21,8 @@ const q1: QuestionStart = {
 };
 
 const standings: Standing[] = [
-  { playerId: "p1", name: "Ada", score: 1500, delta: 870 },
-  { playerId: "p2", name: "Bob", score: 300, delta: 0 },
+  { playerId: "p1", name: "Ada", score: 1500, points: 870 },
+  { playerId: "p2", name: "Bob", score: 300, points: 0 },
 ];
 
 const asked = reduceHost(LOBBY, { type: "QUESTION_START", payload: q1 });

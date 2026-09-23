@@ -31,11 +31,11 @@ public record GameEvent(String type, Object payload) {
 	}
 
 	/** Game topic, Battle: the question is over — the correct option and how many chose each, by option index. */
-	public record Reveal(int correctOption, int[] counts) {
+	public record Reveal(int correctOption, List<Integer> counts) {
 	}
 
 	/** One Player's place in the Standings: their Score, and what the question just played earned them. */
-	public record Standing(UUID playerId, String name, int score, int delta) {
+	public record Standing(UUID playerId, String name, int score, int points) {
 	}
 
 	/** Game topic, Battle between questions, as LEADERBOARD (the spec's name): the Standings, best first. */

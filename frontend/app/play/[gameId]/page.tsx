@@ -6,7 +6,7 @@ import { useEffect, useReducer, useRef, useState, useSyncExternalStore } from "r
 import { AnswerGrid } from "@/components/AnswerGrid";
 import { Timer } from "@/components/Timer";
 import { noSubscribe } from "@/lib/api";
-import { connectToGame, podiumRevealMs, Result, Standing, stored } from "@/lib/game";
+import { connectToGame, podiumRevealedMs, Result, Standing, stored } from "@/lib/game";
 import { reducePlayer, WAITING } from "@/lib/player";
 
 export default function PlayGame() {
@@ -157,31 +157,34 @@ function ResultBanner({ result: { correct, points, streak, score }, answered }: 
 const PLACES = ["1st", "2nd", "3rd", "4th"];
 
 /**
- * The end of a Battle on the phone (#9): the Player's own place, held back until the big screen has revealed it —
- * both run the same schedule off the one GAME_OVER. Only their own place, so a 4th place can't read out the winner.
+ * The end of a Battle on the phone (#9): the Player's own place, held back until the big screen has finished
+ * revealing it — both run the same schedule off the one GAME_OVER. Only their own place, so a 4th place can't read
+ * out the winner. A phone that lost its `player:<gameId>` has no row to wait for and says so at once.
  */
 function MyPlace({ podium, playerId }: { podium: Standing[]; playerId: string | null }) {
   const place = podium.findIndex((entry) => entry.playerId === playerId) + 1; // 0: this phone lost track of its Player
+  const you = podium[place - 1];
   const [revealed, setRevealed] = useState(false);
   useEffect(() => {
-    const timer = setTimeout(() => setRevealed(true), podiumRevealMs(place));
+    if (!you) return;
+    const timer = setTimeout(() => setRevealed(true), podiumRevealedMs(place));
     return () => clearTimeout(timer);
-  }, [place]);
+  }, [place, you]);
 
+  if (!you) {
+    return <h1 className="text-3xl font-bold text-gold-500">Game over</h1>;
+  }
   if (!revealed) {
     return <p className="text-2xl text-cream/80">Look at the big screen…</p>;
   }
-  const you = podium[place - 1];
   return (
     <>
-      <h1 className="text-6xl font-bold text-gold-500">{you ? PLACES[place - 1] : "Game over"}</h1>
-      {you && (
-        <p className="text-lg">
-          Your Score
-          <br />
-          <span className="text-6xl font-bold tabular-nums">{you.score}</span>
-        </p>
-      )}
+      <h1 className="text-6xl font-bold text-gold-500">{PLACES[place - 1]}</h1>
+      <p className="text-lg">
+        Your Score
+        <br />
+        <span className="text-6xl font-bold tabular-nums">{you.score}</span>
+      </p>
       <p className="text-cream/80">of {podium.length} players</p>
     </>
   );

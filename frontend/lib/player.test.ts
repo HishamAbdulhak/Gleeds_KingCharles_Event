@@ -98,7 +98,7 @@ test("the reveal on the big screen leaves the personal result alone", () => {
 
 test("LEADERBOARD sends the phone to the big screen until the next question", () => {
   const result = reducePlayer(locked, { type: "RESULT", payload: won });
-  const standings = [{ playerId: "p1", name: "Ada", score: 1500, delta: 870 }];
+  const standings = [{ playerId: "p1", name: "Ada", score: 1500, points: 870 }];
   assert.deepEqual(reducePlayer(result, { type: "LEADERBOARD", payload: { players: standings } }), {
     phase: "between",
   });
@@ -106,8 +106,8 @@ test("LEADERBOARD sends the phone to the big screen until the next question", ()
 
 test("GAME_OVER in a Battle carries the Podium instead of a Score", () => {
   const podium = [
-    { playerId: "p1", name: "Ada", score: 1500, delta: 870 },
-    { playerId: "p2", name: "Bob", score: 300, delta: 0 },
+    { playerId: "p1", name: "Ada", score: 1500, points: 870 },
+    { playerId: "p2", name: "Bob", score: 300, points: 0 },
   ];
   const over = { score: null, rank: null, podium };
   const between = reducePlayer(WAITING, { type: "LEADERBOARD", payload: { players: podium } });
