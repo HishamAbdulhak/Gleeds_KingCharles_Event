@@ -30,10 +30,6 @@ public record GameEvent(String type, Object payload) {
 	public record Result(boolean correct, int points, int streak, int score, int correctOption) {
 	}
 
-	/** Game topic, Battle: how many Players are in on the open question, after every accepted Answer. */
-	public record AnswerCount(int answered, int total) {
-	}
-
 	/** Game topic, Battle: the question is over — the correct option and how many chose each, by option index. */
 	public record Reveal(int correctOption, int[] counts) {
 	}
@@ -59,14 +55,6 @@ public record GameEvent(String type, Object payload) {
 	 * every Player ranked, which is the same Standings the leaderboard between questions shows.
 	 */
 	public record GameOver(Integer score, Integer rank, List<Standing> podium) {
-
-		static GameOver solo(int score, Integer rank) {
-			return new GameOver(score, rank, null);
-		}
-
-		static GameOver battle(List<Standing> podium) {
-			return new GameOver(null, null, podium);
-		}
 	}
 
 	/** Leaderboard topic, as DAY_LEADERBOARD: the top of the Day Leaderboard whenever a Game finishes or a Reset happens. */

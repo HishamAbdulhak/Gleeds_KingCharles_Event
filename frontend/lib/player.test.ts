@@ -90,10 +90,6 @@ test("the first QUESTION_START replaces the lobby", () => {
 
 // --- Battle: the phone follows the big screen between questions (#9) ---
 
-test("the count of who has answered is the big screen's business, not the phone's", () => {
-  assert.equal(reducePlayer(locked, { type: "ANSWER_COUNT", payload: { answered: 1, total: 4 } }), locked);
-});
-
 test("the reveal on the big screen leaves the personal result alone", () => {
   const result = reducePlayer(locked, { type: "RESULT", payload: won });
   assert.equal(reducePlayer(result, { type: "REVEAL", payload: { correctOption: 2, counts: [0, 1, 1, 0] } }), result);

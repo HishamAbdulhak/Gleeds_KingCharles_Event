@@ -13,8 +13,9 @@ import { HostScreen, LOBBY, reduceHost } from "@/lib/host";
 const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 4;
 
-/** The big button each screen ends with; the lobby's Start and the Podium's way out are their own. */
+/** The big button each screen ends with; only the Podium has none, because the Game is already over. */
 const ACTIONS = {
+  lobby: { label: "Start", command: "start" },
   question: { label: "Reveal", command: "reveal" },
   reveal: { label: "Next", command: "next" },
   standings: { label: "Next", command: "next" },
@@ -44,27 +45,23 @@ export default function HostGame() {
     }
   }
 
-  const action = screen.phase === "lobby" || screen.phase === "podium" ? null : ACTIONS[screen.phase];
+  const action = screen.phase === "podium" ? null : ACTIONS[screen.phase];
+  // the lobby's Start is the one command with a bar to clear (spec stories 28–29), and says so until it is
+  const tooFew = screen.phase === "lobby" && screen.players.length < MIN_PLAYERS;
 
   return (
     <main className="flex flex-1 flex-col gap-8 p-10">
       <div className="flex min-h-0 flex-1 gap-12">
         <Screen screen={screen} />
       </div>
-      <footer className="flex items-center justify-between gap-8">
-        {error ? (
-          <p role="alert" className="text-xl text-red-300">
+      <footer className="flex items-center justify-end gap-8">
+        {error && (
+          <p role="alert" className="mr-auto text-xl text-red-300">
             {error}
           </p>
-        ) : (
-          <span />
         )}
-        {screen.phase === "podium" ? (
-          <Link href="/host" className={`${buttonClass} bg-gold-500 text-royal-900`}>
-            Back to leaderboard
-          </Link>
-        ) : (
-          <div className="flex items-center gap-8">
+        {action ? (
+          <>
             <button
               type="button"
               onClick={() => run("end")}
@@ -73,28 +70,19 @@ export default function HostGame() {
             >
               End Battle
             </button>
-            {screen.phase === "lobby" ? (
-              <button
-                type="button"
-                onClick={() => run("start")}
-                disabled={busy || screen.players.length < MIN_PLAYERS}
-                className={`${buttonClass} bg-gold-500 text-royal-900 disabled:opacity-40`}
-              >
-                {screen.players.length < MIN_PLAYERS ? `${MIN_PLAYERS}–${MAX_PLAYERS} players` : "Start"}
-              </button>
-            ) : (
-              action && (
-                <button
-                  type="button"
-                  onClick={() => run(action.command)}
-                  disabled={busy}
-                  className={`${buttonClass} bg-gold-500 text-royal-900 disabled:opacity-40`}
-                >
-                  {action.label}
-                </button>
-              )
-            )}
-          </div>
+            <button
+              type="button"
+              onClick={() => run(action.command)}
+              disabled={busy || tooFew}
+              className={`${buttonClass} bg-gold-500 text-royal-900 disabled:opacity-40`}
+            >
+              {tooFew ? `${MIN_PLAYERS}–${MAX_PLAYERS} players` : action.label}
+            </button>
+          </>
+        ) : (
+          <Link href="/host" className={`${buttonClass} bg-gold-500 text-royal-900`}>
+            Back to leaderboard
+          </Link>
         )}
       </footer>
     </main>
@@ -108,7 +96,7 @@ function Screen({ screen }: { screen: HostScreen }) {
     case "lobby":
       return <Lobby pin={screen.pin} players={screen.players} />;
     case "question":
-      return <Asked question={screen.question} answered={screen.answered} roster={screen.roster} />;
+      return <Asked question={screen.question} roster={screen.roster} />;
     case "reveal":
       return <Revealed question={screen.question} reveal={screen.reveal} />;
     case "standings":
@@ -151,11 +139,9 @@ function Lobby({ pin, players }: { pin: string | null; players: LobbyUpdate["pla
 /** Spec stories 30–31: the question big enough to read from a distance, and how many Players are in. */
 function Asked({
   question,
-  answered,
   roster,
 }: {
   question: QuestionStart;
-  answered: number;
   roster: { id: string; name: string; answered: boolean; score: number }[];
 }) {
   return (
@@ -168,7 +154,7 @@ function Asked({
           <Timer question={question} />
         </div>
         <span className="tabular-nums">
-          {answered} of {roster.length} answered
+          {roster.filter((player) => player.answered).length} of {roster.length} answered
         </span>
       </header>
       <h1 className="text-[clamp(2rem,4vw,4.5rem)] font-bold leading-tight">{question.text}</h1>

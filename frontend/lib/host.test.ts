@@ -33,12 +33,7 @@ test("LOBBY_UPDATE shows the PIN and who has joined", () => {
 });
 
 test("QUESTION_START puts the question up with nobody answered yet", () => {
-  assert.deepEqual(asked, { phase: "question", question: q1, answered: 0, roster: [] });
-});
-
-test("ANSWER_COUNT counts the Players who are in", () => {
-  const screen = reduceHost(asked, { type: "ANSWER_COUNT", payload: { answered: 1, total: 2 } });
-  assert.deepEqual(screen, { ...asked, answered: 1 });
+  assert.deepEqual(asked, { phase: "question", question: q1, roster: [] });
 });
 
 test("HOST_STATE names who is in and what they have scored", () => {

@@ -42,7 +42,6 @@ export function reducePlayer(state: PlayerState, action: PlayerAction): PlayerSt
       return { phase: "between" };
     case "GAME_OVER":
       return { phase: "over", gameOver: action.payload };
-    case "ANSWER_COUNT":
     case "REVEAL":
     case "HOST_STATE":
       return state; // the big screen's, not the phone's

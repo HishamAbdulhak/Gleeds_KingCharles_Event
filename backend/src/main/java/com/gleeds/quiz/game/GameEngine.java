@@ -202,7 +202,7 @@ public class GameEngine {
 	 * a negative ANSWER_ACK when the question isn't the open one, the deadline has passed or the Player already
 	 * answered (in memory; the answer table's unique constraint is the backstop). Otherwise the Answer is stored and
 	 * the Player's Score and Streak updated. A Solo Player gets their RESULT at once; a Battle's waits for the reveal,
-	 * so one phone cannot show the group the correct option, and the Game topic gets the ANSWER_COUNT instead.
+	 * so one phone cannot show the group the correct option, and the Host topic gets the fresh roster instead.
 	 */
 	public void answer(UUID gameId, UUID playerId, int questionIndex, int option) {
 		long receiptNanos = System.nanoTime();
@@ -245,8 +245,6 @@ public class GameEngine {
 					// Solo has nobody to wait for; a Battle Answer that landed as the question ended has missed the reveal
 					afterCommit(() -> toPlayer(playerId, new GameEvent("RESULT", result)));
 				} else {
-					var count = new GameEvent("ANSWER_COUNT", new GameEvent.AnswerCount(state.answers.size(), lobby.size()));
-					afterCommit(() -> messaging.convertAndSend(topic(gameId), count));
 					publishHostState(gameId, lobby, state.answers.keySet());
 				}
 				return state.answers.size() == lobby.size();
@@ -333,10 +331,10 @@ public class GameEngine {
 		game.finish(Instant.now());
 		GameEvent.GameOver ending;
 		if (game.getMode() == Game.Mode.BATTLE) {
-			ending = GameEvent.GameOver.battle(standings(game.getId(), state));
+			ending = new GameEvent.GameOver(null, null, standings(game.getId(), state));
 		} else {
 			var player = players.findByGameIdOrderByJoinedAt(game.getId()).get(0);   // Solo: exactly one
-			ending = GameEvent.GameOver.solo(player.getScore(), leaderboard.rankOf(player.getEmail()).orElse(null));
+			ending = new GameEvent.GameOver(player.getScore(), leaderboard.rankOf(player.getEmail()).orElse(null), null);
 		}
 		var over = new GameEvent("GAME_OVER", ending);
 		var board = new GameEvent("DAY_LEADERBOARD", new GameEvent.Board(leaderboard.top()));

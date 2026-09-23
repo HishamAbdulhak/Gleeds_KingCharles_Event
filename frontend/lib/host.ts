@@ -3,8 +3,8 @@ import type { GameEvent, HostState, LobbyUpdate, QuestionStart, Reveal, Standing
 /** What the big screen shows, driven by the Game topic and the Host-only topic. */
 export type HostScreen =
   | { phase: "lobby"; pin: string | null; players: LobbyUpdate["players"] }
-  /** `roster` is filled by the HOST_STATE the server sends with every question */
-  | { phase: "question"; question: QuestionStart; answered: number; roster: HostState["players"] }
+  /** `roster` is filled by the HOST_STATE the server sends with every question, and says who is already in */
+  | { phase: "question"; question: QuestionStart; roster: HostState["players"] }
   | { phase: "reveal"; question: QuestionStart; reveal: Reveal }
   | { phase: "standings"; standings: Standing[] }
   | { phase: "podium"; podium: Standing[] };
@@ -17,9 +17,7 @@ export function reduceHost(screen: HostScreen, event: GameEvent): HostScreen {
     case "LOBBY_UPDATE":
       return { phase: "lobby", pin: event.payload.pin, players: event.payload.players };
     case "QUESTION_START":
-      return { phase: "question", question: event.payload, answered: 0, roster: [] };
-    case "ANSWER_COUNT":
-      return screen.phase === "question" ? { ...screen, answered: event.payload.answered } : screen;
+      return { phase: "question", question: event.payload, roster: [] };
     case "HOST_STATE":
       return screen.phase === "question" ? { ...screen, roster: event.payload.players } : screen;
     case "REVEAL":

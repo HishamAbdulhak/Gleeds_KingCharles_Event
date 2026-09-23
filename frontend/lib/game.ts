@@ -24,9 +24,6 @@ export type AnswerAck = { accepted: boolean; reason: string | null };
 /** Personal queue: what the Answer (or timeout) earned and the running Score. */
 export type Result = { correct: boolean; points: number; streak: number; score: number; correctOption: number };
 
-/** Game topic, Battle: how many Players are in on the open question, after every accepted Answer. */
-export type AnswerCount = { answered: number; total: number };
-
 /** Game topic, Battle: the question is over — the correct option and how many chose each, by option index. */
 export type Reveal = { correctOption: number; counts: number[] };
 
@@ -55,7 +52,6 @@ export type GameEvent =
   | { type: "LOBBY_UPDATE"; payload: LobbyUpdate }
   | { type: "QUESTION_START"; payload: QuestionStart }
   | { type: "ANSWER_ACK"; payload: AnswerAck }
-  | { type: "ANSWER_COUNT"; payload: AnswerCount }
   | { type: "RESULT"; payload: Result }
   | { type: "REVEAL"; payload: Reveal }
   | { type: "LEADERBOARD"; payload: Standings }
@@ -86,11 +82,9 @@ export const joinBattle = (pin: string, req: JoinRequest) =>
 
 export const createBattle = () => api<{ gameId: string; pin: string }>("/api/games", { method: "POST" });
 
-export type GameStatus = "LOBBY" | "QUESTION" | "REVEAL" | "LEADERBOARD" | "FINISHED";
-
-/** Every Host command is idempotent and answers with the Game's new status. `start` is 409 below 2 Players. */
+/** Every Host command is idempotent; the screen follows the events it publishes. `start` is 409 below 2 Players. */
 export const hostCommand = (gameId: string, command: "start" | "reveal" | "next" | "end") =>
-  api<{ status: GameStatus }>(`/api/games/${gameId}/${command}`, { method: "POST" });
+  api<void>(`/api/games/${gameId}/${command}`, { method: "POST" });
 
 /**
  * Per-tab storage: the Seat (session token per Game, so a refresh reconnects) and the Lead (so "Play again" prefills).

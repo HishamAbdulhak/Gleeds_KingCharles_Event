@@ -161,19 +161,21 @@ class BattleGameTest {
 		var gameId = createBattle();
 		var ada = join(gameId, "Ada");
 		var bob = join(gameId, "Bob");
+		var screen = bigScreen(gameId);
 		start(gameId, ada, bob);
+		assertThat(answered(Stomp.next(screen.host(), "HOST_STATE"))).as("a fresh question: nobody in yet").isZero();
 
 		ada.answer(0, CORRECT);
 
 		assertThat(Stomp.next(ada.queue(), "ANSWER_ACK")).containsEntry("accepted", true);
-		assertThat(Stomp.next(ada.topic(), "ANSWER_COUNT")).containsEntry("answered", 1).containsEntry("total", 2);
+		assertThat(answered(Stomp.next(screen.host(), "HOST_STATE"))).isEqualTo(1);
 		assertThat(ada.queue().poll(500, TimeUnit.MILLISECONDS))
 				.as("the RESULT waits for the reveal, so one phone can't show the group the answer").isNull();
 
 		bob.answer(0, WRONG);
 
 		assertThat(Stomp.next(bob.queue(), "ANSWER_ACK")).containsEntry("accepted", true);
-		assertThat(Stomp.next(ada.topic(), "ANSWER_COUNT")).containsEntry("answered", 2).containsEntry("total", 2);
+		assertThat(answered(Stomp.next(screen.host(), "HOST_STATE"))).isEqualTo(2);
 		var result = Stomp.next(ada.queue(), "RESULT");
 		assertThat(result).containsEntry("correct", true).containsEntry("streak", 1).containsEntry("correctOption", CORRECT);
 		assertThat((int) result.get("points")).isBetween(500, 1000);
@@ -187,12 +189,10 @@ class BattleGameTest {
 	/** Ada answers right and Bob wrong, which ends the question; returns the REVEAL both phones saw. */
 	Map<String, Object> bothAnswer(Phone ada, Phone bob, int index) throws Exception {
 		ada.answer(index, CORRECT);
-		Stomp.next(ada.queue(), "ANSWER_ACK");   // before Bob answers, so the two counts arrive in a known order
+		Stomp.next(ada.queue(), "ANSWER_ACK");   // before Bob answers, so Bob's is the one that closes the question
 		bob.answer(index, WRONG);
 		Stomp.next(bob.queue(), "ANSWER_ACK");
 		for (var phone : List.of(ada, bob)) {
-			assertThat(Stomp.next(phone.topic(), "ANSWER_COUNT")).containsEntry("answered", 1).containsEntry("total", 2);
-			assertThat(Stomp.next(phone.topic(), "ANSWER_COUNT")).containsEntry("answered", 2);
 			Stomp.next(phone.queue(), "RESULT");
 		}
 		Stomp.next(bob.topic(), "REVEAL");
@@ -202,6 +202,11 @@ class BattleGameTest {
 	@SuppressWarnings("unchecked")
 	static List<Map<String, Object>> rows(Map<String, Object> payload, String key) {
 		return (List<Map<String, Object>>) payload.get(key);
+	}
+
+	/** How many of the roster are in on the open question, as HOST_STATE reports them. */
+	static long answered(Map<String, Object> hostState) {
+		return rows(hostState, "players").stream().filter(row -> Boolean.TRUE.equals(row.get("answered"))).count();
 	}
 
 	/** Ticket #9's boundary test: two Players, three questions, the Host driving every step. */
@@ -271,7 +276,6 @@ class BattleGameTest {
 		start(gameId, ada, bob);
 		ada.answer(0, CORRECT);
 		Stomp.next(ada.queue(), "ANSWER_ACK");
-		Stomp.next(ada.topic(), "ANSWER_COUNT");
 
 		assertThat(command(gameId, "reveal")).isEqualTo("REVEAL");
 
@@ -372,8 +376,8 @@ class BattleGameTest {
 		bob.answer(1, CORRECT);
 		Stomp.next(bob.queue(), "ANSWER_ACK");
 
-		assertThat(Stomp.next(bob.topic(), "ANSWER_COUNT")).as("the Battle carries on without her")
-				.containsEntry("answered", 1).containsEntry("total", 2);
+		assertThat(bob.topic().poll(500, TimeUnit.MILLISECONDS))
+				.as("one Answer of two does not end the question: the Battle still counts Ada, gone or not").isNull();
 		assertThat(command(gameId, "reveal")).isEqualTo("REVEAL");
 		Stomp.next(bob.queue(), "RESULT");
 		Stomp.next(bob.topic(), "REVEAL");
