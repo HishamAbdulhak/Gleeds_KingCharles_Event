@@ -26,16 +26,13 @@ export type QuestionStart = {
   startedAt: string; // ISO instant
 };
 
-/** A Game's status, as the backend's `game.status` spells it. */
-export type GameStatus = "LOBBY" | "QUESTION" | "REVEAL" | "LEADERBOARD" | "FINISHED";
-
 /**
  * Personal queue, the answer to `ready` once a Game is past its lobby — a reopened page, a reconnected socket
  * (docs/adr/0004). `question` only while this Player can still answer it; `startedAt` and `timeLimitSec` while a
  * question is on. What it can't carry — a missed RESULT, the Host's screen, GAME_OVER — follows on the same queue.
  */
 export type Sync = {
-  status: GameStatus;
+  status: "LOBBY" | "QUESTION" | "REVEAL" | "LEADERBOARD" | "FINISHED";
   questionIndex: number;
   question?: QuestionStart;
   startedAt?: string;

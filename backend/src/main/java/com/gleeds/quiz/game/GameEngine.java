@@ -14,6 +14,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -186,9 +187,6 @@ public class GameEngine {
 				if (player != null) {
 					events.add(bestScore(player));
 				}
-			}
-			case LOBBY -> {
-				// answered by ready itself
 			}
 		}
 		if (player == null && game.isBattle() && status != Game.Status.FINISHED) {
@@ -421,14 +419,12 @@ public class GameEngine {
 		game.finish(Instant.now());
 		var lobby = players.findByGameIdOrderByJoinedAt(game.getId());
 		var over = ending(game, lobby, state);
-		var best = lobby.stream().map(this::bestScore).toList();
+		var best = lobby.stream().collect(Collectors.toMap(Player::getId, this::bestScore));
 		var top = leaderboard.top();
 		afterCommit(() -> {
 			live.remove(game.getId());
 			messaging.convertAndSend(topic(game.getId()), over);
-			for (int i = 0; i < lobby.size(); i++) {
-				toPlayer(lobby.get(i).getId(), best.get(i));
-			}
+			best.forEach(this::toPlayer);
 			leaderboard.push(top);
 		});
 	}
