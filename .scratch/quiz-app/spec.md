@@ -91,7 +91,7 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 
 - Backend: Spring Boot 3, Java 21, Spring Security (stateless JWT), Spring WebSocket with STOMP over a raw WebSocket endpoint and the built-in simple broker. Single instance; all live Game state in memory, persisted to Postgres as it happens. (Deliberate: one server for one day. A broker relay is the upgrade if that ever changes.)
 - Frontend: Next.js App Router, TypeScript, Tailwind, `@stomp/stompjs`. QR code rendered client-side from the public base URL.
-- Database: PostgreSQL 16 via Spring Data JPA, schema managed by Flyway.
+- Database: PostgreSQL 18 via Spring Data JPA, schema managed by Flyway (16 until the deploy: Railway created the database on 18, which cannot go back to 16 in place).
 - Host commands and all Admin operations are plain REST with a Bearer JWT. Only the latency-sensitive Player Answer travels over STOMP.
 
 ### Domain model / schema
