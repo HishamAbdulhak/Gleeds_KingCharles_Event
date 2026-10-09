@@ -8,7 +8,7 @@ Three surfaces, three densities:
 | --- | --- | --- | --- |
 | Player | `/play`, `/join`, `/play/[gameId]` | a phone in the hand, 360 px wide | one task per screen, thumb-sized targets, immediate feedback |
 | Host | `/host`, `/host/[gameId]` | a 1920×1080 screen, 5 m away | readability over density; nothing under `text-2xl` |
-| Admin | `/admin/**` | a desktop | dense is fine; `text-sm` body |
+| Admin | `/admin/**` | a desktop | dense is fine; `text-sm` body; quieter than the Host: regular-weight titles, one primary per page |
 
 ## Colour
 
@@ -33,12 +33,12 @@ Proportion, as in the guidelines: obsidian and marble carry each screen; yellow 
 
 - **Titles are marble.** Headlines take a primary colour, so yellow is kept for key data.
 - **Sentence case** everywhere, never all caps (Gleeds: the brandmark is lowercase, so are we).
-- **Bold is for reading distance, not decoration.** Host text is bold so it carries 5 m. Player titles and numbers are bold. Admin body copy is regular.
+- **Bold is for reading distance, not decoration.** Host text is bold so it carries 5 m. Player titles and numbers are bold. Admin is read at a desk, so its titles and body are regular (the guidelines' headline is 55 Roman); bold there marks only the correct-answer letter in the Question Bank.
 - **Numbers** that change or line up (scores, ranks, timer, PIN, counts) are `tabular-nums`. Scores are grouped the British way (`formatNumber` in `lib/game.ts`: 12,345) on the phone and the big screen alike.
 
 | Role | Player | Host | Admin |
 | --- | --- | --- | --- |
-| Screen title | `text-4xl font-bold` | `text-6xl font-bold`; Reveal's is the `text-4xl` "Correct answer" label, because the tile under it is the headline | `text-2xl font-bold` |
+| Screen title | `text-4xl font-bold` | `text-6xl font-bold`; Reveal's is the `text-4xl` "Correct answer" label, because the tile under it is the headline | `text-2xl`; panel and dialog titles `text-lg` |
 | Question | `text-2xl font-bold leading-snug` | `text-[clamp(2rem,4vw,4.5rem)] font-bold leading-tight` | — |
 | Key data | `text-4xl`–`text-6xl font-bold tabular-nums`: yellow for the one figure that matters most on the screen (timer, Battle place, Best today), marble for the rest (Your score, Rank today, Result points) | PIN `clamp(5rem,11vw,14rem)` yellow; leaderboard rows `text-5xl`; Standings rows by place: 1st `text-6xl`, 2nd–3rd `text-5xl`, the rest `text-4xl` | — |
 | Ranks, counters | `text-marble/80` | `text-marble/60` ranks, `/80` counters | table headers `text-marble/60` |
@@ -52,7 +52,7 @@ Proportion, as in the guidelines: obsidian and marble carry each screen; yellow 
 - Top left. Centre it only where it is the focus.
 - At least 100 px wide (`w-25`). The Host uses `w-32`.
 - Clear space all round of at least its own height (0.37 × width). The caller's padding provides it: 40 px for `w-25`, 48 px for `w-32`.
-- Shown on the join forms (`/play`, `/join`), `/admin/login`, `/host` and `/host/[gameId]`. It stays off the in-game phone screens, where the question needs the room.
+- Shown on the join forms (`/play`, `/join`), `/admin/login`, every Admin page's header, `/host` and `/host/[gameId]`. It stays off the in-game phone screens, where the question needs the room.
 
 ## Space, radius, depth
 
@@ -81,6 +81,8 @@ One primary per screen. A destructive in-row action is `text-danger-fg underline
 2. **Panel** (`.panel`): obsidian + `marble/15` hairline, `rounded-xl`, `p-6`. Used for dialogs, and on the phone for the Game-over card, the error screen and the reopened "Answer locked in" status.
 3. **Tile**: a solid colour that *is* the content: answer options, the result banner (`success` / `danger`), the QR plate (marble). The phone's answer tile is a row: `min-h-20 px-5 py-4 text-xl font-bold`, the shape in a fixed `w-8` column, `gap-4` between tiles, one column below `sm` and two above.
 
+Admin pages share one header (`app/(authed)/admin/layout.tsx`): the brandmark, the nav with the current page as plain marble text (`aria-current`), the rest `.link`, and Log out on the right. The dashboard is a grid of panels (Question Bank, Games, Day Leaderboard, Host screen) showing only what the API already returns.
+
 No section lines (a coloured rule along a panel's or row's leading edge): the user found them unprofessional, on the phone and on the big screen. Emphasis comes from size, weight and yellow on key data.
 
 ## States
@@ -99,7 +101,10 @@ No section lines (a coloured rule along a panel's or row's leading edge): the us
 | Waiting | The phone's waits are one screen: a `text-4xl` "Look at the big screen" over a `marble/80` line saying what is coming ("The standings are up", "Your place is coming up…"). A Result says "Next question coming up…", or "That was the last question" after the last one. |
 | Urgent | the timer turns `danger` for the last 5 s; on the phone its pill also pulses (`motion-safe:animate-pulse`), the big screen stays still |
 | Offline | `Reconnecting…` bar, `danger`, fixed to the top. The phone adds "Stay on this page. It reconnects by itself." and dims its answer tiles, which can't be tapped until it's back |
-| Invalid field | `.field-lg` takes a 2 px `danger` border once the visitor has left it invalid (`user-invalid`); the browser's own message says why. Errors in words are `.alert` (`danger-fg` text); a form error also carries `role="alert"` |
+| Status | Admin's Active / Inactive: `.chip` (`chip-on` filled marble for Active, a `marble/30` outline for Inactive), never green, since green means correct. An inactive row drops to `text-marble/60`. |
+| Confirm | `ConfirmDialog` (`components/ConfirmDialog.tsx`) before anything destructive (Reset, Delete question): a title asking the question, what will happen in plain words, Cancel (`btn-secondary`, focused, so Enter and Esc never destroy) beside the `btn-danger` confirm naming the action. Never the browser's `confirm()`. |
+| Import result | A file's outcome under the import form, naming the file: all in (`success-fg` ✓ "Imported 12 questions"), partly in ("Imported 10 questions. 2 rows were skipped and need fixing:" then the rows), nothing in (`danger-fg` "Import … failed. No questions were imported." plus the rows or the server's reason). An unreachable server says the import may not have run. |
+| Invalid field | `.field` takes a 2 px `danger` border once the visitor has left it invalid (`user-invalid`) or the page marks it `aria-invalid`; the browser's message, or the Admin's own line under the field (`danger-fg`, tied by `aria-describedby`), says why. Errors in words are `.alert` (`danger-fg` text); a form error also carries `role="alert"` |
 
 ## Motion
 

@@ -56,12 +56,13 @@
     @apply bg-danger text-black not-disabled:hover:bg-danger-fg;
   }
 
+  /* a danger border once the visitor has left a field invalid (the browser, or the field's own message, says why) */
   .field {
-    @apply rounded-lg bg-marble px-3 py-2 text-obsidian placeholder:text-obsidian/60;
+    @apply rounded-lg border-2 border-transparent bg-marble px-3 py-2 text-obsidian placeholder:text-obsidian/60 user-invalid:border-danger aria-invalid:border-danger;
   }
-  /* Player forms: thumb height, and a danger border once the visitor has left a field invalid (the browser says why) */
+  /* Player forms: thumb height */
   .field-lg {
-    @apply min-h-14 border-2 border-transparent p-3 text-lg font-normal user-invalid:border-danger;
+    @apply min-h-14 p-3 text-lg font-normal;
   }
 
   .alert {
@@ -70,6 +71,14 @@
 
   .link {
     @apply text-yellow underline underline-offset-4 hover:text-marble;
+  }
+
+  /* Admin status: filled marble when on, a marble/30 outline when off (the Host's answered / waiting chip) */
+  .chip {
+    @apply inline-block rounded-full border border-marble/30 px-2 py-0.5 text-xs whitespace-nowrap;
+  }
+  .chip-on {
+    @apply border-marble bg-marble text-obsidian;
   }
 
   .panel {
