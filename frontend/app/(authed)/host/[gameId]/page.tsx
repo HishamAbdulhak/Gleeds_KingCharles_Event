@@ -27,7 +27,7 @@ const MAX_PLAYERS = 4;
 
 /** The big button each screen ends with; only the Podium has none, because the Game is already over. */
 const ACTIONS = {
-  lobby: { label: "Start", command: "start" },
+  lobby: { label: "Start Battle", command: "start" },
   question: { label: "Reveal", command: "reveal" },
   reveal: { label: "Next", command: "next" },
   standings: { label: "Next", command: "next" },
@@ -60,14 +60,18 @@ export default function HostGame() {
   }
 
   const action = screen.phase === "podium" ? null : ACTIONS[screen.phase];
-  // the lobby's Start is the one command with a bar to clear (spec stories 28–29), and says so until it is
+  // Start Battle is the one command with a bar to clear (spec stories 28–29); the lobby says how far off it is
   const tooFew = screen.phase === "lobby" && screen.players.length < MIN_PLAYERS;
 
   return (
     <main className="flex flex-1 flex-col gap-8 p-12">
       <Reconnecting online={online} />
       <Brandmark className="mb-4 w-32" />
-      <div className="flex min-h-0 flex-1 gap-12">
+      {/* a new key per screen (and per question) replays the fade, so each change of state enters rather than snaps */}
+      <div
+        key={screen.phase === "question" ? `question-${screen.question.index}` : screen.phase}
+        className="screen-in flex min-h-0 flex-1 gap-12"
+      >
         <Screen screen={screen} />
       </div>
       <footer className="flex items-center justify-end gap-8">
@@ -87,7 +91,7 @@ export default function HostGame() {
               disabled={busy || tooFew}
               className="btn btn-primary btn-xl"
             >
-              {tooFew ? `${MIN_PLAYERS}–${MAX_PLAYERS} players` : action.label}
+              {action.label}
             </button>
           </>
         ) : (
@@ -115,29 +119,34 @@ function Screen({ screen }: { screen: HostScreen }) {
   }
 }
 
-/** Spec stories 26–27: the PIN legible from 5 m, and Players appearing as they arrive. */
+/** Spec stories 26–29: the PIN legible from 5 m, Players appearing as they arrive, and whether Start Battle is open. */
 function Lobby({ pin, players }: { pin: string | null; players: LobbyUpdate["players"] }) {
+  const missing = MIN_PLAYERS - players.length;
   return (
     <>
       <section className="flex min-w-0 flex-1 flex-col justify-center gap-6 text-center">
-        <p className="text-4xl text-marble/80">Go to {publicUrl("/join")} and enter</p>
+        <p className="text-3xl font-bold text-marble/80">Join at {publicUrl("/join")} with the Battle PIN</p>
         {/* six digits at ~0.9 em each with tracking: fills two thirds of the width on any screen */}
         <p className="text-[clamp(5rem,11vw,14rem)] font-bold leading-none tracking-[0.15em] tabular-nums text-yellow">
           {pin ?? "······"}
         </p>
       </section>
-      <aside className="flex w-1/3 flex-col gap-6">
-        <h1 className="text-4xl font-bold">
-          Players{" "}
-          <span className="text-marble/60">
-            {players.length} / {MAX_PLAYERS}
-          </span>
+      <aside className="panel flex w-1/3 flex-col gap-8">
+        <h1 className="text-6xl font-bold tabular-nums">
+          {players.length} / {MAX_PLAYERS} players
         </h1>
-        <ol className="flex flex-1 flex-col gap-3 text-5xl font-bold">
+        <p role="status" className={`text-3xl font-bold ${missing > 0 ? "text-marble/80" : "text-success-fg"}`}>
+          {missing > 0 ? `Waiting for ${missing} more player${missing === 1 ? "" : "s"}` : "Ready to start"}
+        </p>
+        <ol className="flex flex-col gap-3 text-4xl font-bold">
+          {/* keyed by id, so only a newcomer runs the entrance */}
           {players.map((p) => (
-            <li key={p.id} className="truncate">
+            <li key={p.id} className="reveal truncate rounded-xl bg-marble/10 px-6 py-4">
               {p.name}
             </li>
+          ))}
+          {Array.from({ length: MAX_PLAYERS - players.length }, (_, i) => (
+            <li key={`open-${i}`} aria-hidden className="min-h-18 rounded-xl border-2 border-dashed border-marble/20" />
           ))}
         </ol>
       </aside>
@@ -145,91 +154,137 @@ function Lobby({ pin, players }: { pin: string | null; players: LobbyUpdate["pla
   );
 }
 
-/** Spec stories 30–31: the question big enough to read from a distance, and how many Players are in. */
+/** Spec stories 30–31: which question, the question itself, the time left, the options and how many are in. No scores. */
 function Asked({ question, roster }: { question: QuestionStart; roster: HostState["players"] }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-8">
-      <header className="flex items-center gap-8 text-3xl text-marble/80">
-        <span className="tabular-nums">
-          {question.index + 1} / {question.total}
-        </span>
-        <div className="flex-1">
-          <Timer question={question} big />
-        </div>
-        <span className="tabular-nums">
-          {roster.filter((player) => player.answered).length} of {roster.length} answered
-        </span>
-      </header>
-      <h1 className="text-[clamp(2rem,4vw,4.5rem)] font-bold leading-tight">{question.text}</h1>
-      <Options options={question.options} />
-      <ul className="flex flex-wrap gap-4 text-2xl">
-        {roster.map((player) => (
-          <li
-            key={player.id}
-            className={`rounded-full px-5 py-2 font-bold ${player.answered ? "bg-success" : "bg-marble/15 text-marble/70"}`}
-          >
-            {player.name} <span className="tabular-nums">{player.score}</span>
-          </li>
+      <p className="text-3xl font-bold tabular-nums text-marble/80">
+        Question {question.index + 1} of {question.total}
+      </p>
+      {/* ponytail: stepped down by length so the timer, options and buttons stay on a 1080 px screen (measured: 72 px holds
+          3 lines, ~110 characters; 48 px holds 4, ~280). The Question Bank has no length limit, so one past ~600
+          characters still pushes them down: cap the text in the bank if a question that long ever turns up */}
+      <h1
+        className={`font-bold leading-tight ${question.text.length > 280 ? "text-4xl" : question.text.length > 110 ? "text-5xl" : "text-[clamp(2rem,4vw,4.5rem)]"}`}
+      >
+        {question.text}
+      </h1>
+      <Timer question={question} big />
+      <div className="grid flex-1 grid-cols-2 gap-6">
+        {question.options.map((option, i) => (
+          <div key={i} className={`flex items-center gap-4 rounded-xl p-6 text-4xl font-bold ${OPTION_COLOURS[i]}`}>
+            <span aria-hidden>{OPTION_SHAPES[i]}</span>
+            {option}
+          </div>
         ))}
-      </ul>
+      </div>
+      <div className="flex items-center gap-8">
+        <p className="text-4xl font-bold tabular-nums">
+          {roster.filter((player) => player.answered).length} of {roster.length} answered
+        </p>
+        <ul className="flex flex-wrap gap-4 text-2xl font-bold">
+          {roster.map((player) => (
+            <li
+              key={player.id}
+              className={`rounded-full px-5 py-2 transition duration-150 ${player.answered ? "bg-success" : "bg-marble/15 text-marble/70"}`}
+            >
+              {player.name}
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
 
-/** Spec story 32: the correct option, and how many chose each. */
+/** Spec story 32: the correct option, unmistakable without its colour (label, ring, size, ✓), then how many chose each. */
 function Revealed({ question, reveal }: { question: QuestionStart; reveal: Reveal }) {
+  const correct = reveal.correctOption;
+  const most = Math.max(1, ...reveal.counts);
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-8">
-      <h1 className="text-[clamp(2rem,4vw,4.5rem)] font-bold leading-tight">{question.text}</h1>
-      <Options options={question.options} reveal={reveal} />
-    </div>
-  );
-}
-
-/** The four options as the room sees them; after the reveal, the correct one stands out and each carries its count. */
-function Options({ options, reveal }: { options: string[]; reveal?: Reveal }) {
-  const most = Math.max(1, ...(reveal?.counts ?? []));
-  return (
-    <div className="grid flex-1 grid-cols-2 gap-6">
-      {options.map((option, i) => (
-        <div
-          key={i}
-          className={`flex flex-col justify-center gap-3 rounded-xl p-6 text-4xl font-bold ${OPTION_COLOURS[i]} ${reveal && i !== reveal.correctOption ? "opacity-40" : ""}`}
+      <section className="flex flex-col gap-4">
+        {/* the screen's title is this label; the tile under it is the headline */}
+        <h1 className="text-4xl font-bold">
+          <span aria-hidden>✓ </span>Correct answer
+        </h1>
+        <p
+          className={`flex items-center gap-6 rounded-xl p-8 text-6xl font-bold ring-4 ring-marble ring-offset-4 ring-offset-obsidian ${OPTION_COLOURS[correct]}`}
         >
-          <span className="flex items-center gap-4">
-            <span aria-hidden className="text-4xl">
+          <span aria-hidden>{OPTION_SHAPES[correct]}</span>
+          <span className="flex-1">{question.options[correct]}</span>
+          <span aria-hidden>✓</span>
+        </p>
+      </section>
+      <ol className="flex flex-1 flex-col justify-center gap-4 text-3xl font-bold">
+        {question.options.map((option, i) => (
+          <li key={i} className={`flex items-center gap-6 ${i === correct ? "" : "opacity-40"}`}>
+            <span
+              aria-hidden
+              className={`flex size-14 shrink-0 items-center justify-center rounded-lg ${OPTION_COLOURS[i]}`}
+            >
               {OPTION_SHAPES[i]}
             </span>
-            {option}
-            {reveal && i === reveal.correctOption && <span className="ml-auto text-4xl">✓</span>}
-          </span>
-          {reveal && (
-            <span className="flex items-center gap-3">
-              <span
-                className="h-4 rounded-full bg-current/80"
-                style={{ width: `${(reveal.counts[i] / most) * 70}%` }}
-              />
-              <span className="tabular-nums">{reveal.counts[i]}</span>
+            <span className="w-2/5 truncate">
+              {option}
+              {i === correct && " ✓"}
             </span>
-          )}
-        </div>
-      ))}
+            <span className="flex-1" aria-hidden>
+              <span
+                className={`block h-8 rounded-full ${OPTION_COLOURS[i]}`}
+                style={{ width: `${(reveal.counts[i] / most) * 100}%` }}
+              />
+            </span>
+            <span className="w-16 text-right tabular-nums">{reveal.counts[i]}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="text-3xl font-bold tabular-nums text-marble/80">
+        {reveal.counts.reduce((sum, n) => sum + n, 0)} answered · {reveal.counts[correct]} correct
+      </p>
     </div>
   );
 }
 
-/** Spec story 33: where everyone stands between questions, with what the last question earned. */
+const POINTS_COLUMN = "w-48 text-right";
+const SCORE_COLUMN = "w-56 text-right";
+/** By place: 1st carries the section line and a yellow rank, the top three read bigger than the rest. */
+const STANDING_PLACES = [
+  { row: "border-l-4 border-l-yellow text-6xl", rank: "text-yellow" },
+  { row: "text-5xl", rank: "text-marble/60" },
+  { row: "text-5xl", rank: "text-marble/60" },
+];
+const STANDING_REST = { row: "text-4xl", rank: "text-marble/60" };
+
+/** Spec story 33: where everyone stands between questions, with what the last question earned; 1st gets the section line. */
 function Standings({ standings }: { standings: Standing[] }) {
   return (
     <section className="flex flex-1 flex-col gap-6">
       <h1 className="text-6xl font-bold">Standings</h1>
+      {/* the rows say what each number is to a screen reader themselves (sr-only), so the header is for the eye */}
+      <div aria-hidden className="flex gap-8 px-8 text-2xl font-bold text-marble/60">
+        <span className="flex-1" />
+        <span className={POINTS_COLUMN}>Points</span>
+        <span className={SCORE_COLUMN}>Score</span>
+      </div>
       <ol className="flex flex-col gap-4">
         {standings.map((entry, i) => (
-          <li key={entry.playerId} className="flex items-baseline gap-8 text-5xl font-bold">
-            <span className="w-16 text-right tabular-nums text-marble/60">{i + 1}</span>
+          <li
+            key={entry.playerId}
+            style={{ animationDelay: `${i * 80}ms` }} // a quick top-down cascade, done well inside the Host's next tap
+            className={`reveal flex items-baseline gap-8 rounded-xl border border-marble/15 px-8 py-5 font-bold ${(STANDING_PLACES[i] ?? STANDING_REST).row}`}
+          >
+            <span className={`w-16 text-right tabular-nums ${(STANDING_PLACES[i] ?? STANDING_REST).rank}`}>
+              {i + 1}
+            </span>
             <span className="flex-1 truncate">{entry.name}</span>
-            <span className="text-3xl text-success-fg tabular-nums">+{entry.points}</span>
-            <span className="tabular-nums">{entry.score}</span>
+            <span className={`${POINTS_COLUMN} text-4xl text-success-fg tabular-nums`}>
+              <span className="sr-only">Points </span>+{entry.points}
+            </span>
+            <span className={`${SCORE_COLUMN} tabular-nums`}>
+              <span className="sr-only">Score </span>
+              {entry.score}
+            </span>
           </li>
         ))}
       </ol>
@@ -238,26 +293,40 @@ function Standings({ standings }: { standings: Standing[] }) {
 }
 
 const MEDALS = ["🥇", "🥈", "🥉"];
-const PODIUM_SIZES = ["text-8xl", "text-7xl", "text-6xl"];
+/** By place: 2nd, 1st, 3rd from the left as a podium stands, while the DOM keeps 1st first for screen readers. */
+const PODIUM_STEPS = [
+  { order: "order-2", plinth: "h-72 border-t-4 border-yellow", name: "text-6xl" },
+  { order: "order-1", plinth: "h-52", name: "text-5xl" },
+  { order: "order-3", plinth: "h-36", name: "text-5xl" },
+];
 
 /** The Podium (#9), revealed from the bottom up: 3rd, then 2nd, then 1st, a beat apart. */
 function Podium({ podium }: { podium: Standing[] }) {
   return (
-    <section className="flex flex-1 flex-col items-center justify-center gap-8">
-      <ol className="flex w-full max-w-4xl flex-col gap-6">
+    <section className="flex flex-1 flex-col items-center justify-end gap-8">
+      {/* empty when End Battle closed the lobby before anyone played */}
+      <h1 className="text-6xl font-bold">{podium.length > 0 ? "Final podium" : "Battle ended"}</h1>
+      <ol className="flex w-full max-w-6xl items-end justify-center gap-8">
         {podium.slice(0, REVEALED_PLACES).map((entry, i) => (
           <li
             key={entry.playerId}
             style={{ animationDelay: `${podiumRevealMs(i + 1)}ms` }}
-            className={`reveal flex items-baseline gap-8 font-bold ${PODIUM_SIZES[i]}`}
+            className={`reveal flex w-1/3 flex-col items-center gap-4 font-bold ${PODIUM_STEPS[i].order}`}
           >
-            <span aria-hidden>{MEDALS[i]}</span>
-            <span className="flex-1 truncate">{entry.name}</span>
-            <span className="tabular-nums text-yellow">{entry.score}</span>
+            <span aria-hidden className="text-7xl">
+              {MEDALS[i]}
+            </span>
+            <span className={`max-w-full truncate ${PODIUM_STEPS[i].name}`}>{entry.name}</span>
+            <span className="text-5xl tabular-nums text-yellow">{entry.score}</span>
+            <span
+              className={`flex w-full justify-center rounded-t-xl bg-marble/15 pt-6 text-6xl tabular-nums text-marble/60 ${PODIUM_STEPS[i].plinth}`}
+            >
+              {i + 1}
+            </span>
           </li>
         ))}
       </ol>
-      <ol className="flex w-full max-w-4xl flex-col gap-3 text-3xl">
+      <ol className="flex w-full max-w-xl flex-col gap-3 text-3xl">
         {podium.slice(REVEALED_PLACES).map((entry, i) => (
           <li key={entry.playerId} className="flex items-baseline gap-8">
             <span className="w-16 text-right tabular-nums text-marble/60">{i + REVEALED_PLACES + 1}</span>

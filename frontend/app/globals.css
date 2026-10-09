@@ -90,6 +90,11 @@
   animation: reveal 400ms ease-out backwards;
 }
 
+/* each Host screen fades in; short, so the next tap is never waiting on it */
+.screen-in {
+  animation: fade 200ms ease-out backwards;
+}
+
 /* still one place at a time, without the movement */
 @media (prefers-reduced-motion: reduce) {
   .reveal {

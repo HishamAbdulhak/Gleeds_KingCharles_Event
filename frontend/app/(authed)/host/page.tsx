@@ -23,7 +23,7 @@ export default function Host() {
     return watchLeaderboard(setTop, setOnline);
   }, []);
 
-  async function newBattle() {
+  async function hostBattle() {
     setError(null);
     try {
       const { gameId } = await createBattle();
@@ -57,13 +57,15 @@ export default function Host() {
           )}
         </section>
         <aside className="flex flex-col items-center justify-center gap-6 text-center">
-          <h2 className="text-4xl font-bold">Scan to play</h2>
-          <div className="rounded-xl bg-marble p-4">
-            <QRCodeSVG value={playUrl} size={360} bgColor="var(--color-marble)" fgColor="var(--color-obsidian)" />
+          {/* the instruction and the code are one object, the screen's call to action; Host a Battle is secondary to it */}
+          <div className="flex flex-col items-center gap-6 rounded-xl bg-marble p-8 text-obsidian">
+            <h2 className="text-6xl font-bold">Scan to play</h2>
+            {/* 440 px: the largest that fits a 1080 px screen with the title above it and the URL and button below */}
+            <QRCodeSVG value={playUrl} size={440} bgColor="var(--color-marble)" fgColor="var(--color-obsidian)" />
           </div>
-          <p className="text-2xl text-marble/80">{playUrl}</p>
-          <button type="button" onClick={newBattle} className="btn btn-primary btn-xl mt-6">
-            New Battle
+          <p className="text-2xl font-bold text-marble/60">{playUrl}</p>
+          <button type="button" onClick={hostBattle} className="btn btn-secondary btn-xl mt-6">
+            Host a Battle
           </button>
           {error && (
             <p role="alert" className="text-xl text-danger-fg">
