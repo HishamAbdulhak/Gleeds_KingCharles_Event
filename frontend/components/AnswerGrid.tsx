@@ -19,28 +19,62 @@ type Props = {
   onSelect?: (option: number) => void;
 };
 
-/** Four big thumb-friendly option buttons. Disables on the first tap; the caller re-enables by passing onSelect again. */
+/**
+ * Four big thumb-friendly option rows. Disables on the first tap; the caller re-enables by passing onSelect again.
+ * Each state has a cue besides colour: the Player's tile keeps a ring and says "Locked" until RESULT, which marks the
+ * correct tile ✓ and a wrong pick ✕ (a timeout has no pick, so only the ✓).
+ */
 export function AnswerGrid({ options, selected, correctOption, onSelect }: Props) {
+  const revealed = correctOption !== undefined;
   return (
-    <div className="grid flex-1 grid-cols-1 gap-3 sm:grid-cols-2">
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       {options.map((option, i) => {
-        const dim = correctOption !== undefined ? i !== correctOption : selected !== null && i !== selected;
+        const mine = selected === i;
+        const opacity = revealed
+          ? i === correctOption
+            ? ""
+            : mine
+              ? "opacity-70"
+              : "opacity-40"
+          : (selected === null && !onSelect) || (selected !== null && !mine) // offline, or another tile is locked
+            ? "opacity-40"
+            : "";
         return (
           <button
             key={i}
             type="button"
             disabled={!onSelect}
             onClick={() => onSelect?.(i)}
-            aria-pressed={selected === i}
-            className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl p-3 text-lg font-semibold transition duration-150 enabled:active:scale-[0.98] ${OPTION_COLOURS[i]} ${dim ? "opacity-40" : ""} ${selected === i ? "ring-4 ring-marble ring-offset-4 ring-offset-obsidian" : ""}`}
+            aria-pressed={mine}
+            className={`flex min-h-20 items-center gap-4 rounded-xl px-5 py-4 text-left text-xl font-bold transition duration-150 enabled:active:scale-[0.97] disabled:cursor-not-allowed ${OPTION_COLOURS[i]} ${opacity} ${mine ? "ring-4 ring-marble ring-offset-4 ring-offset-obsidian" : ""}`}
           >
-            <span aria-hidden className="text-2xl">
+            <span aria-hidden className="w-8 shrink-0 text-center text-3xl">
               {OPTION_SHAPES[i]}
             </span>
-            {option}
+            <span className="flex-1">{option}</span>
+            <Badge revealed={revealed} correct={i === correctOption} mine={mine} />
           </button>
         );
       })}
     </div>
   );
+}
+
+const BADGE = "flex shrink-0 items-center justify-center rounded-full bg-obsidian font-bold text-marble";
+
+function Badge({ revealed, correct, mine }: { revealed: boolean; correct: boolean; mine: boolean }) {
+  if (revealed && (correct || mine)) {
+    return (
+      <span className={`${BADGE} size-10 text-2xl`}>
+        <span aria-hidden>{correct ? "✓" : "✕"}</span>
+        <span className="sr-only">
+          {correct ? (mine ? "Correct answer, your answer" : "Correct answer") : "Your answer, wrong"}
+        </span>
+      </span>
+    );
+  }
+  if (!revealed && mine) {
+    return <span className={`${BADGE} px-3 py-1 text-base`}>Locked</span>;
+  }
+  return null;
 }

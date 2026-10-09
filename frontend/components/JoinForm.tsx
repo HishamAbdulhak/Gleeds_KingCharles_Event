@@ -14,12 +14,15 @@ import { JoinRequest, Seat, stored } from "@/lib/game";
  */
 export function JoinForm({
   title,
+  lead,
   submitLabel,
   join,
   children,
   footer,
 }: {
   title: string;
+  /** one line under the title: what this screen is for */
+  lead: string;
   submitLabel: string;
   join: (req: JoinRequest, form: FormData) => Promise<Seat>;
   children?: ReactNode;
@@ -61,11 +64,15 @@ export function JoinForm({
       <form
         key={storedName ? "prefilled" : "blank"}
         onSubmit={onSubmit}
-        className="my-auto flex w-full max-w-sm flex-col gap-4"
+        className="my-auto flex w-full max-w-sm flex-col gap-6"
       >
-        <h1 className="text-3xl font-bold">{title}</h1>
+        <header className="flex flex-col gap-2">
+          <p className="text-lg text-marble/80">King Charles quiz</p>
+          <h1 className="text-4xl font-bold">{title}</h1>
+          <p className="text-lg">{lead}</p>
+        </header>
         {children}
-        <label className="flex flex-col gap-1 text-lg">
+        <label className="flex flex-col gap-2 text-lg font-bold">
           Name
           <input
             name="name"
@@ -76,7 +83,7 @@ export function JoinForm({
             className="field field-lg"
           />
         </label>
-        <label className="flex flex-col gap-1 text-lg">
+        <label className="flex flex-col gap-2 text-lg font-bold">
           Email
           <input
             name="email"
@@ -88,18 +95,20 @@ export function JoinForm({
           />
         </label>
         {/* placeholder until Gleeds approves the wording (docs/adr/0003) */}
-        <p className="text-lg text-marble/80">
+        <p className="-mt-2 text-base text-marble/80">
           Your email is only used to identify you for today&apos;s prize, and is deleted after the event.
         </p>
         {error && (
-          <p role="alert" className="text-lg text-danger-fg">
+          <p role="alert" className="alert">
             {error}
           </p>
         )}
-        <button type="submit" disabled={busy} className="btn btn-primary btn-lg">
-          {busy ? "One moment…" : submitLabel}
-        </button>
-        {footer}
+        <div className="flex flex-col gap-4">
+          <button type="submit" disabled={busy} className="btn btn-primary btn-lg">
+            {busy ? "One moment…" : submitLabel}
+          </button>
+          {footer}
+        </div>
       </form>
     </main>
   );

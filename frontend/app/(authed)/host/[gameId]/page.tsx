@@ -248,15 +248,15 @@ function Revealed({ question, reveal }: { question: QuestionStart; reveal: Revea
 
 const POINTS_COLUMN = "w-48 text-right";
 const SCORE_COLUMN = "w-56 text-right";
-/** By place: 1st carries the section line and a yellow rank, the top three read bigger than the rest. */
+/** By place: 1st has a yellow rank, the top three read bigger than the rest. */
 const STANDING_PLACES = [
-  { row: "border-l-4 border-l-yellow text-6xl", rank: "text-yellow" },
+  { row: "text-6xl", rank: "text-yellow" },
   { row: "text-5xl", rank: "text-marble/60" },
   { row: "text-5xl", rank: "text-marble/60" },
 ];
 const STANDING_REST = { row: "text-4xl", rank: "text-marble/60" };
 
-/** Spec story 33: where everyone stands between questions, with what the last question earned; 1st gets the section line. */
+/** Spec story 33: where everyone stands between questions, with what the last question earned. */
 function Standings({ standings }: { standings: Standing[] }) {
   return (
     <section className="flex flex-1 flex-col gap-6">
@@ -295,7 +295,7 @@ function Standings({ standings }: { standings: Standing[] }) {
 const MEDALS = ["🥇", "🥈", "🥉"];
 /** By place: 2nd, 1st, 3rd from the left as a podium stands, while the DOM keeps 1st first for screen readers. */
 const PODIUM_STEPS = [
-  { order: "order-2", plinth: "h-72 border-t-4 border-yellow", name: "text-6xl" },
+  { order: "order-2", plinth: "h-72", name: "text-6xl" },
   { order: "order-1", plinth: "h-52", name: "text-5xl" },
   { order: "order-3", plinth: "h-36", name: "text-5xl" },
 ];

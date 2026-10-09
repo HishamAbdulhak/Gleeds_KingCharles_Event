@@ -9,6 +9,7 @@ export default function Play() {
   return (
     <JoinForm
       title="Play"
+      lead="Answer against the clock: quicker answers score more."
       submitLabel="Start"
       join={startSolo}
       footer={
