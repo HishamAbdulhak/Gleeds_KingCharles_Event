@@ -7,10 +7,20 @@ import { AnswerGrid } from "@/components/AnswerGrid";
 import { Reconnecting } from "@/components/Reconnecting";
 import { Timer } from "@/components/Timer";
 import { noSubscribe } from "@/lib/api";
-import { BestScore, connectToGame, podiumRevealedMs, Result, Standing, stored } from "@/lib/game";
+import {
+  BestScore,
+  connectToGame,
+  formatNumber,
+  MAX_PLAYERS,
+  MEDALS,
+  MIN_PLAYERS,
+  PLACES,
+  podiumRevealedMs,
+  Result,
+  Standing,
+  stored,
+} from "@/lib/game";
 import { reducePlayer, WAITING } from "@/lib/player";
-
-const formatNumber = (n: number) => n.toLocaleString("en-GB");
 
 export default function PlayGame() {
   const { gameId } = useParams<{ gameId: string }>();
@@ -65,6 +75,7 @@ export default function PlayGame() {
 
   if (state.phase === "lobby") {
     const me = state.players.find((p) => p.id === playerId);
+    const missing = MIN_PLAYERS - state.players.length;
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
         {reconnecting}
@@ -77,8 +88,9 @@ export default function PlayGame() {
           )}
         </header>
         <section className="flex w-full max-w-sm flex-col gap-2">
-          {/* a Battle is 2–4 Players (CONTEXT.md → Lobby) */}
-          <h2 className="text-lg text-marble/80 tabular-nums">{state.players.length} of 4 players</h2>
+          <h2 className="text-lg text-marble/80 tabular-nums">
+            {state.players.length} of {MAX_PLAYERS} players
+          </h2>
           <ul className="flex flex-col gap-2">
             {state.players.map((p) => (
               <li key={p.id} className="reveal rounded-xl border border-marble/15 px-4 py-3 text-xl font-bold">
@@ -88,7 +100,21 @@ export default function PlayGame() {
             ))}
           </ul>
         </section>
-        <p className="text-lg text-marble/80">Waiting for the Host to start…</p>
+        {/* what the big screen says, in its colour; keyed so "Battle ready" enters rather than snaps */}
+        <div key={String(missing > 0)} role="status" className="reveal flex flex-col items-center gap-1 text-center">
+          {missing > 0 ? (
+            <p className="text-lg text-marble/80">
+              Waiting for {missing} more player{missing === 1 ? "" : "s"}…
+            </p>
+          ) : (
+            <>
+              <p className="text-2xl font-bold text-success-fg">
+                <span aria-hidden>✓ </span>Battle ready
+              </p>
+              <p className="text-lg text-marble/80">The Host starts it from the big screen.</p>
+            </>
+          )}
+        </div>
       </main>
     );
   }
@@ -98,7 +124,7 @@ export default function PlayGame() {
       <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
         {reconnecting}
         <h1 className="text-4xl font-bold">Look at the big screen</h1>
-        <p className="text-lg text-marble/80">Next question coming up…</p>
+        <p className="text-lg text-marble/80">The standings are up</p>
       </main>
     );
   }
@@ -163,7 +189,13 @@ export default function PlayGame() {
           </>
         )}
         {state.phase === "question" && state.notice && <p className="alert">{state.notice}</p>}
-        {state.phase === "result" && <p className="text-lg text-marble/80">Next question coming up…</p>}
+        {state.phase === "result" && (
+          <p className="text-lg text-marble/80">
+            {question && question.index + 1 === question.total
+              ? "That was the last question"
+              : "Next question coming up…"}
+          </p>
+        )}
       </div>
     </main>
   );
@@ -240,8 +272,6 @@ function PrizeProof({ score, rank = null, best }: { score: number | null; rank?:
   );
 }
 
-const PLACES = ["1st", "2nd", "3rd", "4th"];
-
 /**
  * The end of a Battle on the phone (#9): the Player's own place, held back until the big screen has finished
  * revealing it — both run the same schedule off the one GAME_OVER. Only their own place, so a 4th place can't read
@@ -260,11 +290,22 @@ function MyPlace({ podium, playerId, best }: { podium: Standing[]; playerId: str
 
   if (!you) return <PrizeProof score={null} best={best} />;
   if (!revealed) {
-    return <p className="text-2xl font-bold">Look at the big screen…</p>;
+    return (
+      <header className="flex flex-col items-center gap-4 text-center">
+        <h1 className="text-4xl font-bold">Look at the big screen</h1>
+        <p className="text-lg text-marble/80">Your place is coming up…</p>
+      </header>
+    );
   }
   return (
     <>
       <p className="reveal text-center">
+        {/* the medal over the big screen's plinth, so both name the place the same way */}
+        {MEDALS[place - 1] && (
+          <span aria-hidden className="block text-6xl">
+            {MEDALS[place - 1]}
+          </span>
+        )}
         <span className="block text-6xl font-bold text-yellow">{PLACES[place - 1]}</span>
         <span className="text-lg text-marble/80">of {podium.length} players</span>
       </p>

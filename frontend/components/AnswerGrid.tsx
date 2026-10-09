@@ -60,7 +60,8 @@ export function AnswerGrid({ options, selected, correctOption, onSelect }: Props
   );
 }
 
-const BADGE = "flex shrink-0 items-center justify-center rounded-full bg-obsidian font-bold text-marble";
+/** The ✓ / ✕ / Locked mark; the big screen's Reveal puts the same ✓ on its correct tile. */
+export const BADGE = "flex shrink-0 items-center justify-center rounded-full bg-obsidian font-bold text-marble";
 
 function Badge({ revealed, correct, mine }: { revealed: boolean; correct: boolean; mine: boolean }) {
   if (revealed && (correct || mine)) {

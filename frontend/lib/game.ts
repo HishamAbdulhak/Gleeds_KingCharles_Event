@@ -112,6 +112,17 @@ export const podiumRevealMs = (rank: number) => Math.max(0, REVEALED_PLACES + 1 
 /** When a phone may show its own place: `REVEAL_MARGIN_MS` after the big screen's row is due to have settled. */
 export const podiumRevealedMs = (rank: number) => podiumRevealMs(rank) + REVEAL_MS + REVEAL_MARGIN_MS;
 
+/** A place in words and, for the Podium's three, its medal: the big screen and the phone name a place the same way. */
+export const PLACES = ["1st", "2nd", "3rd", "4th"];
+export const MEDALS = ["🥇", "🥈", "🥉"];
+
+/** Spec stories 28–29, as BattleController has them: Start Battle opens at 2 Players, the door closes at 4. */
+export const MIN_PLAYERS = 2;
+export const MAX_PLAYERS = 4;
+
+/** Scores and counts, grouped the British way on every screen (12,345). */
+export const formatNumber = (n: number) => n.toLocaleString("en-GB");
+
 /** What a Player gives to join any Game (backend JoinRequest). The email only tells Players apart (docs/adr/0003). */
 export type JoinRequest = { name: string; email: string };
 

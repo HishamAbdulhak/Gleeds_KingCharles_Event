@@ -3,15 +3,20 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useReducer, useState } from "react";
-import { OPTION_COLOURS, OPTION_SHAPES } from "@/components/AnswerGrid";
+import { BADGE, OPTION_COLOURS, OPTION_SHAPES } from "@/components/AnswerGrid";
 import { Brandmark } from "@/components/Brandmark";
 import { Reconnecting } from "@/components/Reconnecting";
 import { Timer } from "@/components/Timer";
 import { publicUrl } from "@/lib/api";
 import {
+  formatNumber,
   hostCommand,
   HostState,
   LobbyUpdate,
+  MAX_PLAYERS,
+  MEDALS,
+  MIN_PLAYERS,
+  PLACES,
   podiumRevealMs,
   QuestionStart,
   REVEALED_PLACES,
@@ -20,10 +25,6 @@ import {
   watchGame,
 } from "@/lib/game";
 import { HostScreen, LOBBY, reduceHost } from "@/lib/host";
-
-/** Spec stories 28–29, as BattleController has them. */
-const MIN_PLAYERS = 2;
-const MAX_PLAYERS = 4;
 
 /** The big button each screen ends with; only the Podium has none, because the Game is already over. */
 const ACTIONS = {
@@ -133,10 +134,21 @@ function Lobby({ pin, players }: { pin: string | null; players: LobbyUpdate["pla
       </section>
       <aside className="panel flex w-1/3 flex-col gap-8">
         <h1 className="text-6xl font-bold tabular-nums">
-          {players.length} / {MAX_PLAYERS} players
+          {players.length} of {MAX_PLAYERS} players
         </h1>
-        <p role="status" className={`text-3xl font-bold ${missing > 0 ? "text-marble/80" : "text-success-fg"}`}>
-          {missing > 0 ? `Waiting for ${missing} more player${missing === 1 ? "" : "s"}` : "Ready to start"}
+        {/* keyed on readiness, so "Battle ready" enters rather than snaps; the phones say the same, in the same colour */}
+        <p
+          key={String(missing > 0)}
+          role="status"
+          className={`reveal text-3xl font-bold ${missing > 0 ? "text-marble/80" : "text-success-fg"}`}
+        >
+          {missing > 0 ? (
+            `Waiting for ${missing} more player${missing === 1 ? "" : "s"}`
+          ) : (
+            <>
+              <span aria-hidden>✓ </span>Battle ready
+            </>
+          )}
         </p>
         <ol className="flex flex-col gap-3 text-4xl font-bold">
           {/* keyed by id, so only a newcomer runs the entrance */}
@@ -186,7 +198,7 @@ function Asked({ question, roster }: { question: QuestionStart; roster: HostStat
           {roster.map((player) => (
             <li
               key={player.id}
-              className={`rounded-full px-5 py-2 transition duration-150 ${player.answered ? "bg-success" : "bg-marble/15 text-marble/70"}`}
+              className={`rounded-full border-2 px-5 py-2 transition duration-150 ${player.answered ? "border-marble bg-marble text-obsidian" : "border-marble/30 text-marble/70"}`}
             >
               {player.name}
             </li>
@@ -213,7 +225,10 @@ function Revealed({ question, reveal }: { question: QuestionStart; reveal: Revea
         >
           <span aria-hidden>{OPTION_SHAPES[correct]}</span>
           <span className="flex-1">{question.options[correct]}</span>
-          <span aria-hidden>✓</span>
+          {/* the phone's correct tile carries the same badge */}
+          <span aria-hidden className={`${BADGE} size-16 text-4xl`}>
+            ✓
+          </span>
         </p>
       </section>
       <ol className="flex flex-1 flex-col justify-center gap-4 text-3xl font-bold">
@@ -279,11 +294,11 @@ function Standings({ standings }: { standings: Standing[] }) {
             </span>
             <span className="flex-1 truncate">{entry.name}</span>
             <span className={`${POINTS_COLUMN} text-4xl text-success-fg tabular-nums`}>
-              <span className="sr-only">Points </span>+{entry.points}
+              <span className="sr-only">Points </span>+{formatNumber(entry.points)}
             </span>
             <span className={`${SCORE_COLUMN} tabular-nums`}>
               <span className="sr-only">Score </span>
-              {entry.score}
+              {formatNumber(entry.score)}
             </span>
           </li>
         ))}
@@ -292,7 +307,6 @@ function Standings({ standings }: { standings: Standing[] }) {
   );
 }
 
-const MEDALS = ["🥇", "🥈", "🥉"];
 /** By place: 2nd, 1st, 3rd from the left as a podium stands, while the DOM keeps 1st first for screen readers. */
 const PODIUM_STEPS = [
   { order: "order-2", plinth: "h-72", name: "text-6xl" },
@@ -317,11 +331,11 @@ function Podium({ podium }: { podium: Standing[] }) {
               {MEDALS[i]}
             </span>
             <span className={`max-w-full truncate ${PODIUM_STEPS[i].name}`}>{entry.name}</span>
-            <span className="text-5xl tabular-nums text-yellow">{entry.score}</span>
+            <span className="text-5xl tabular-nums text-yellow">{formatNumber(entry.score)}</span>
             <span
               className={`flex w-full justify-center rounded-t-xl bg-marble/15 pt-6 text-6xl tabular-nums text-marble/60 ${PODIUM_STEPS[i].plinth}`}
             >
-              {i + 1}
+              {PLACES[i]}
             </span>
           </li>
         ))}
@@ -331,7 +345,7 @@ function Podium({ podium }: { podium: Standing[] }) {
           <li key={entry.playerId} className="flex items-baseline gap-8">
             <span className="w-16 text-right tabular-nums text-marble/60">{i + REVEALED_PLACES + 1}</span>
             <span className="flex-1 truncate">{entry.name}</span>
-            <span className="tabular-nums">{entry.score}</span>
+            <span className="tabular-nums">{formatNumber(entry.score)}</span>
           </li>
         ))}
       </ol>
