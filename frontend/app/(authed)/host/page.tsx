@@ -17,6 +17,7 @@ export default function Host() {
   const [top, setTop] = useState<LeaderboardEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [online, setOnline] = useState<boolean | null>(null);
+  const [busy, setBusy] = useState(false);
 
   useEffect(() => {
     void fetchLeaderboard().then(setTop); // once; the topic keeps it current from here
@@ -24,12 +25,14 @@ export default function Host() {
   }, []);
 
   async function hostBattle() {
+    setBusy(true); // a second tap would open a second Battle
     setError(null);
     try {
       const { gameId } = await createBattle();
       router.push(`/host/${gameId}`);
     } catch (err) {
       setError((err as Error).message); // e.g. the Question Bank is too small for a Game
+      setBusy(false);
     }
   }
 
@@ -71,11 +74,11 @@ export default function Host() {
             />
           </div>
           <p className="text-2xl font-bold wrap-anywhere text-marble/60">{playUrl}</p>
-          <button type="button" onClick={hostBattle} className="btn btn-secondary btn-xl mt-6">
-            Host a Battle
+          <button type="button" onClick={hostBattle} disabled={busy} className="btn btn-secondary btn-xl mt-6">
+            {busy ? "Creating…" : "Host a Battle"}
           </button>
           {error && (
-            <p role="alert" className="text-xl text-danger-fg">
+            <p role="alert" className="text-2xl text-danger-fg">
               {error}
             </p>
           )}
