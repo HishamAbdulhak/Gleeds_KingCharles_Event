@@ -3,7 +3,6 @@ package com.gleeds.quiz.game;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -446,13 +445,17 @@ public class GameEngine {
 
 	/**
 	 * The Standings: every Player by Score, with what the question just played earned them (0 once the Game is over and
-	 * its live state gone: the Podium shows Scores only). Ties keep join order.
+	 * its live state gone: the Podium shows Scores only). Ties break on the faster total response time, then on who
+	 * joined first (#47). Questions not played yet add their full time limit to everyone alike, so the whole Question
+	 * Set's total ranks the same as the total so far.
 	 */
 	private List<GameEvent.Standing> standings(UUID gameId, Live state) {
-		return players.findByGameIdOrderByJoinedAt(gameId).stream()
-				.map(p -> new GameEvent.Standing(p.getId(), p.getName(), p.getScore(), state == null ? 0 : state.points(p.getId())))
-				.sorted(Comparator.comparingInt(GameEvent.Standing::score).reversed())
-				.toList();
+		var sql = "SELECT p.id, p.name, p.score FROM player p WHERE p.game_id = ? ORDER BY p.score DESC, "
+				+ DayLeaderboard.TOTAL_MS + ", p.joined_at";
+		return jdbc.query(sql, (rs, row) -> {
+			var id = rs.getObject("id", UUID.class);
+			return new GameEvent.Standing(id, rs.getString("name"), rs.getInt("score"), state == null ? 0 : state.points(id));
+		}, gameId);
 	}
 
 	/** A scheduled task that throws would otherwise vanish into the future: log it, so a stuck Game is at least visible. */
