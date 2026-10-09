@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
+import { Brandmark } from "@/components/Brandmark";
 import { login } from "@/lib/api";
 
 export default function AdminLogin() {
@@ -26,9 +27,10 @@ export default function AdminLogin() {
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center p-8">
-      <form onSubmit={onSubmit} className="flex w-full max-w-sm flex-col gap-4">
-        <h1 className="text-2xl font-bold text-gold-500">Admin login</h1>
+    <main className="flex flex-1 flex-col items-center gap-8 p-8">
+      <Brandmark className="m-2 w-25 self-start" />
+      <form onSubmit={onSubmit} className="my-auto flex w-full max-w-sm flex-col gap-4">
+        <h1 className="text-2xl font-bold">Admin login</h1>
         <label className="flex flex-col gap-1 text-sm">
           Email
           <input name="email" type="email" required autoComplete="username" className="field" />

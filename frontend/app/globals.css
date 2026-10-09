@@ -1,33 +1,36 @@
 @import "tailwindcss";
 
 /*
- * The design system (docs/design-system.md): event palette from the spec (royal purple + gold, Saudi green accent),
- * type and restraint from the Gleeds brand guidelines. Single dark look — the app lives on phones and a big screen in
- * a lit room.
+ * The design system (docs/design-system.md): the Gleeds brand guidelines (July 2024) — palette, type and restraint.
+ * Single dark look — the app lives on phones and a big screen in a lit room.
  */
 @theme {
   /* Gleeds' primary font, then its system font (brand guidelines p. 24–25) */
   --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
 
-  --color-royal-900: #1e0b3b; /* page */
-  --color-royal-800: #2b1454; /* panel: one step up from the page */
-  --color-gold-500: #d4a017; /* the one accent: primary action, titles, the PIN */
-  --color-gold-300: #f0c75e; /* gold text on royal, links, focus ring */
-  --color-cream: #f8f4e8; /* text; /80 secondary, /60 tertiary */
-  --color-saudi: #006c35; /* success fill — the flag's green: 6.6:1 under white text (#11) */
-  --color-danger: #b91c1c; /* danger fill under cream text: wrong, urgent, reconnecting, destructive */
-  --color-danger-fg: #fca5a5; /* error text on royal */
+  /* The palette (p. 21); tints are the colour mixed with white, as the guidelines print them */
+  --color-obsidian: #3c3c3c; /* primary: page, text on yellow and marble */
+  --color-marble: #f5f5f5; /* primary: text; /80 secondary, /60 tertiary, /10–/40 borders and tracks */
+  --color-yellow: #f7c400; /* brand, used sparingly: primary action, key data, links, focus — 100% only */
+  --color-copper: #da4f27; /* secondary */
+  --color-patina: #3d792c; /* secondary */
+  --color-titanium: #001366; /* secondary */
+
+  --color-success: #3d792c; /* patina fill, marble text 4.9:1 */
+  --color-success-fg: #9ebc96; /* patina 50%: success text on obsidian */
+  --color-danger: #da4f27; /* copper fill, black text 5.1:1 (marble is 3.8:1) */
+  --color-danger-fg: #eca793; /* copper 50%: error text on obsidian */
 }
 
 @layer base {
   body {
-    background: var(--color-royal-900);
-    color: var(--color-cream);
+    background: var(--color-obsidian);
+    color: var(--color-marble);
   }
 
-  /* one focus ring everywhere, visible on royal and on every option colour */
+  /* one focus ring everywhere, visible on obsidian and on every option colour */
   :focus-visible {
-    outline: 3px solid var(--color-gold-300);
+    outline: 3px solid var(--color-yellow);
     outline-offset: 3px;
   }
 }
@@ -44,28 +47,28 @@
     @apply px-10 py-5 text-3xl;
   }
   .btn-primary {
-    @apply bg-gold-500 text-royal-900 not-disabled:hover:bg-gold-300;
+    @apply bg-yellow text-obsidian not-disabled:hover:bg-marble;
   }
   .btn-secondary {
-    @apply border-2 border-cream/40 text-cream not-disabled:hover:bg-cream/10;
+    @apply border-2 border-marble/40 text-marble not-disabled:hover:bg-marble/10;
   }
   .btn-danger {
-    @apply bg-danger text-cream not-disabled:hover:bg-red-600;
+    @apply bg-danger text-black not-disabled:hover:bg-danger-fg;
   }
 
   .field {
-    @apply rounded-lg bg-cream px-3 py-2 text-royal-900 placeholder:text-royal-900/50;
+    @apply rounded-lg bg-marble px-3 py-2 text-obsidian placeholder:text-obsidian/60;
   }
   .field-lg {
     @apply p-3 text-lg;
   }
 
   .link {
-    @apply text-gold-300 underline underline-offset-4 hover:text-gold-500;
+    @apply text-yellow underline underline-offset-4 hover:text-marble;
   }
 
   .panel {
-    @apply rounded-xl border border-cream/10 bg-royal-800 p-6;
+    @apply rounded-xl border border-marble/15 bg-obsidian p-6;
   }
 }
 

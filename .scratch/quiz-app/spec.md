@@ -83,7 +83,7 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 47. As Gleeds, I want one Day Leaderboard across Solo and Battle, so that there is one prize and one winner.
 48. As Gleeds, I want ties broken by faster total response time, so that the winner is unambiguous.
 49. As Gleeds, I want every Game to have the same number of questions, so that Scores are comparable.
-50. As Gleeds, I want the app to look on-theme (royal purple/gold with Saudi green accents), so that it fits the stand.
+50. As Gleeds, I want the app to follow the Gleeds brand guidelines (palette, type and brandmark; `docs/adr/0005`), so that it fits the stand.
 
 ## Implementation Decisions
 

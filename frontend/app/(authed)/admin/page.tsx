@@ -7,8 +7,8 @@ export default function AdminHome() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-8">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gold-500">Admin</h1>
-        <button type="button" onClick={logout} className="text-sm text-cream/80 underline">
+        <h1 className="text-2xl font-bold">Admin</h1>
+        <button type="button" onClick={logout} className="text-sm text-marble/80 underline">
           Log out
         </button>
       </header>

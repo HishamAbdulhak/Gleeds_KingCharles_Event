@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useReducer, useState } from "react";
 import { OPTION_COLOURS, OPTION_SHAPES } from "@/components/AnswerGrid";
+import { Brandmark } from "@/components/Brandmark";
 import { Reconnecting } from "@/components/Reconnecting";
 import { Timer } from "@/components/Timer";
 import { publicUrl } from "@/lib/api";
@@ -63,8 +64,9 @@ export default function HostGame() {
   const tooFew = screen.phase === "lobby" && screen.players.length < MIN_PLAYERS;
 
   return (
-    <main className="flex flex-1 flex-col gap-8 p-10">
+    <main className="flex flex-1 flex-col gap-8 p-12">
       <Reconnecting online={online} />
+      <Brandmark className="mb-4 w-32" />
       <div className="flex min-h-0 flex-1 gap-12">
         <Screen screen={screen} />
       </div>
@@ -118,16 +120,16 @@ function Lobby({ pin, players }: { pin: string | null; players: LobbyUpdate["pla
   return (
     <>
       <section className="flex min-w-0 flex-1 flex-col justify-center gap-6 text-center">
-        <p className="text-4xl text-cream/80">Go to {publicUrl("/join")} and enter</p>
+        <p className="text-4xl text-marble/80">Go to {publicUrl("/join")} and enter</p>
         {/* six digits at ~0.9 em each with tracking: fills two thirds of the width on any screen */}
-        <p className="text-[clamp(5rem,11vw,14rem)] font-bold leading-none tracking-[0.15em] tabular-nums text-gold-500">
+        <p className="text-[clamp(5rem,11vw,14rem)] font-bold leading-none tracking-[0.15em] tabular-nums text-yellow">
           {pin ?? "······"}
         </p>
       </section>
       <aside className="flex w-1/3 flex-col gap-6">
         <h1 className="text-4xl font-bold">
           Players{" "}
-          <span className="text-cream/60">
+          <span className="text-marble/60">
             {players.length} / {MAX_PLAYERS}
           </span>
         </h1>
@@ -147,7 +149,7 @@ function Lobby({ pin, players }: { pin: string | null; players: LobbyUpdate["pla
 function Asked({ question, roster }: { question: QuestionStart; roster: HostState["players"] }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-8">
-      <header className="flex items-center gap-8 text-3xl text-gold-300">
+      <header className="flex items-center gap-8 text-3xl text-marble/80">
         <span className="tabular-nums">
           {question.index + 1} / {question.total}
         </span>
@@ -164,7 +166,7 @@ function Asked({ question, roster }: { question: QuestionStart; roster: HostStat
         {roster.map((player) => (
           <li
             key={player.id}
-            className={`rounded-full px-5 py-2 font-bold ${player.answered ? "bg-saudi" : "bg-cream/15 text-cream/70"}`}
+            className={`rounded-full px-5 py-2 font-bold ${player.answered ? "bg-success" : "bg-marble/15 text-marble/70"}`}
           >
             {player.name} <span className="tabular-nums">{player.score}</span>
           </li>
@@ -203,7 +205,10 @@ function Options({ options, reveal }: { options: string[]; reveal?: Reveal }) {
           </span>
           {reveal && (
             <span className="flex items-center gap-3">
-              <span className="h-4 rounded-full bg-white/80" style={{ width: `${(reveal.counts[i] / most) * 70}%` }} />
+              <span
+                className="h-4 rounded-full bg-current/80"
+                style={{ width: `${(reveal.counts[i] / most) * 70}%` }}
+              />
               <span className="tabular-nums">{reveal.counts[i]}</span>
             </span>
           )}
@@ -217,13 +222,13 @@ function Options({ options, reveal }: { options: string[]; reveal?: Reveal }) {
 function Standings({ standings }: { standings: Standing[] }) {
   return (
     <section className="flex flex-1 flex-col gap-6">
-      <h1 className="text-6xl font-bold text-gold-500">Standings</h1>
+      <h1 className="text-6xl font-bold">Standings</h1>
       <ol className="flex flex-col gap-4">
         {standings.map((entry, i) => (
           <li key={entry.playerId} className="flex items-baseline gap-8 text-5xl font-bold">
-            <span className="w-16 text-right tabular-nums text-gold-300">{i + 1}</span>
+            <span className="w-16 text-right tabular-nums text-marble/60">{i + 1}</span>
             <span className="flex-1 truncate">{entry.name}</span>
-            <span className="text-3xl text-gold-300 tabular-nums">+{entry.points}</span>
+            <span className="text-3xl text-success-fg tabular-nums">+{entry.points}</span>
             <span className="tabular-nums">{entry.score}</span>
           </li>
         ))}
@@ -248,14 +253,14 @@ function Podium({ podium }: { podium: Standing[] }) {
           >
             <span aria-hidden>{MEDALS[i]}</span>
             <span className="flex-1 truncate">{entry.name}</span>
-            <span className="tabular-nums text-gold-300">{entry.score}</span>
+            <span className="tabular-nums text-yellow">{entry.score}</span>
           </li>
         ))}
       </ol>
       <ol className="flex w-full max-w-4xl flex-col gap-3 text-3xl">
         {podium.slice(REVEALED_PLACES).map((entry, i) => (
           <li key={entry.playerId} className="flex items-baseline gap-8">
-            <span className="w-16 text-right tabular-nums text-cream/60">{i + REVEALED_PLACES + 1}</span>
+            <span className="w-16 text-right tabular-nums text-marble/60">{i + REVEALED_PLACES + 1}</span>
             <span className="flex-1 truncate">{entry.name}</span>
             <span className="tabular-nums">{entry.score}</span>
           </li>

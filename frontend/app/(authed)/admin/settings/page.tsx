@@ -48,8 +48,8 @@ export default function SettingsPage() {
   return (
     <main className="flex flex-1 flex-col gap-8 p-8">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gold-500">Settings</h1>
-        <Link href="/admin" className="text-sm text-cream/80 underline">
+        <h1 className="text-2xl font-bold">Settings</h1>
+        <Link href="/admin" className="text-sm text-marble/80 underline">
           Admin home
         </Link>
       </header>
@@ -60,7 +60,7 @@ export default function SettingsPage() {
         </p>
       ) : null}
       {notice ? (
-        <p role="status" className="text-sm text-gold-300">
+        <p role="status" className="text-sm text-success-fg">
           {notice}
         </p>
       ) : null}
@@ -84,13 +84,13 @@ export default function SettingsPage() {
               Save
             </button>
           </form>
-          <p className="text-xs text-cream/60">A Game already running keeps the questions it drew.</p>
+          <p className="text-xs text-marble/60">A Game already running keeps the questions it drew.</p>
         </section>
       ) : null}
 
       <section className="flex flex-col items-start gap-2">
         <h2 className="text-lg font-semibold">Day Leaderboard</h2>
-        <p className="text-sm text-cream/80">Empty it before doors open, so a test run can&apos;t win the prize.</p>
+        <p className="text-sm text-marble/80">Empty it before doors open, so a test run can&apos;t win the prize.</p>
         <button type="button" onClick={reset} className="btn btn-danger">
           Reset
         </button>
