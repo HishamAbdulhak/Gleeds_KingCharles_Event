@@ -55,19 +55,15 @@ export default function Host() {
       </section>
       <aside className="flex flex-col items-center justify-center gap-6 text-center">
         <h2 className="text-4xl font-bold">Scan to play</h2>
-        <div className="rounded-lg bg-cream p-4">
+        <div className="rounded-xl bg-cream p-4">
           <QRCodeSVG value={playUrl} size={360} bgColor="var(--color-cream)" fgColor="var(--color-royal-900)" />
         </div>
         <p className="text-2xl text-cream/80">{playUrl}</p>
-        <button
-          type="button"
-          onClick={newBattle}
-          className="mt-6 rounded bg-gold-500 px-10 py-5 text-3xl font-bold text-royal-900"
-        >
+        <button type="button" onClick={newBattle} className="btn btn-primary btn-xl mt-6">
           New Battle
         </button>
         {error && (
-          <p role="alert" className="text-xl text-red-300">
+          <p role="alert" className="text-xl text-danger-fg">
             {error}
           </p>
         )}

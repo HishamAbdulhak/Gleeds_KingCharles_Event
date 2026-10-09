@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { inputClass, JoinForm } from "@/components/JoinForm";
+import { JoinForm } from "@/components/JoinForm";
 import { joinBattle } from "@/lib/game";
 
 /** The server's 409 codes (BattleController.join) in the visitor's words; a 404 already reads as one. */
@@ -22,7 +22,7 @@ export default function Join() {
         })
       }
       footer={
-        <Link href="/play" className="text-center text-lg text-gold-300 underline">
+        <Link href="/play" className="link text-center text-lg">
           No PIN? Play solo
         </Link>
       }
@@ -37,7 +37,7 @@ export default function Join() {
           required
           autoComplete="off"
           placeholder="6 digits"
-          className={`${inputClass} text-center text-3xl tracking-[0.4em]`}
+          className="field field-lg text-center text-3xl tracking-[0.4em]"
         />
       </label>
     </JoinForm>

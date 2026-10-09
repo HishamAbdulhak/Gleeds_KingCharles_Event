@@ -38,10 +38,10 @@ export default function PlayGame() {
   if (error || seat === null) {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
-        <p role="alert" className="text-lg text-red-300">
+        <p role="alert" className="text-lg text-danger-fg">
           {error ?? "No seat for this Game on this phone."}
         </p>
-        <Link href="/play" className="text-lg text-gold-300 underline">
+        <Link href="/play" className="link text-lg">
           Start again
         </Link>
       </main>
@@ -101,7 +101,7 @@ export default function PlayGame() {
             <PrizeProof best={state.best} />
           </>
         )}
-        <Link href="/play" className="rounded bg-gold-500 px-8 py-4 text-xl font-bold text-royal-900">
+        <Link href="/play" className="btn btn-primary btn-lg">
           Play again
         </Link>
       </main>
@@ -150,7 +150,7 @@ export default function PlayGame() {
 /** RESULT: right / wrong / out of time, Points earned, Streak (on fire from 2) and running Score. */
 function ResultBanner({ result: { correct, points, streak, score }, answered }: { result: Result; answered: boolean }) {
   return (
-    <section className={`rounded-lg p-4 text-center ${correct ? "bg-saudi" : "bg-red-700"}`}>
+    <section className={`rounded-lg p-4 text-center ${correct ? "bg-saudi" : "bg-danger"}`}>
       <h2 className="text-3xl font-bold">{correct ? "Correct!" : answered ? "Wrong" : "Time's up"}</h2>
       <p className="text-2xl font-bold tabular-nums">+{points}</p>
       <p className="flex justify-center gap-4 text-lg">

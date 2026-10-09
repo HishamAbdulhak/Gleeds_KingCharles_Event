@@ -70,31 +70,26 @@ export default function HostGame() {
       </div>
       <footer className="flex items-center justify-end gap-8">
         {error && (
-          <p role="alert" className="mr-auto text-xl text-red-300">
+          <p role="alert" className="mr-auto text-xl text-danger-fg">
             {error}
           </p>
         )}
         {action ? (
           <>
-            <button
-              type="button"
-              onClick={() => run("end")}
-              disabled={busy}
-              className={`${buttonClass} border-2 border-cream/40 text-cream/80`}
-            >
+            <button type="button" onClick={() => run("end")} disabled={busy} className="btn btn-secondary btn-xl">
               End Battle
             </button>
             <button
               type="button"
               onClick={() => run(action.command)}
               disabled={busy || tooFew}
-              className={`${buttonClass} bg-gold-500 text-royal-900 disabled:opacity-40`}
+              className="btn btn-primary btn-xl"
             >
               {tooFew ? `${MIN_PLAYERS}–${MAX_PLAYERS} players` : action.label}
             </button>
           </>
         ) : (
-          <Link href="/host" className={`${buttonClass} bg-gold-500 text-royal-900`}>
+          <Link href="/host" className="btn btn-primary btn-xl">
             Back to leaderboard
           </Link>
         )}
@@ -102,8 +97,6 @@ export default function HostGame() {
     </main>
   );
 }
-
-const buttonClass = "rounded px-10 py-5 text-3xl font-bold";
 
 function Screen({ screen }: { screen: HostScreen }) {
   switch (screen.phase) {

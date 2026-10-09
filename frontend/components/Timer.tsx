@@ -23,13 +23,13 @@ export function Timer({ question, big = false }: { question: QuestionStart; big?
     <div className="flex items-center gap-3">
       <div className={`${big ? "h-6" : "h-3"} flex-1 overflow-hidden rounded-full bg-cream/20`} aria-hidden>
         <div
-          className={`h-full ${urgent ? "bg-red-500" : "bg-gold-500"}`}
+          className={`h-full ${urgent ? "bg-danger" : "bg-gold-500"}`}
           style={{ width: `${(msLeft / (question.timeLimitSec * 1000)) * 100}%` }}
         />
       </div>
       <span
         aria-live="polite"
-        className={`min-w-14 rounded-full px-3 py-1 text-center font-bold tabular-nums ${big ? "text-6xl" : "text-2xl"} ${urgent ? "bg-red-600 text-cream" : "bg-gold-500 text-royal-900"}`}
+        className={`min-w-14 rounded-full px-3 py-1 text-center font-bold tabular-nums ${big ? "text-6xl" : "text-2xl"} ${urgent ? "bg-danger text-cream" : "bg-gold-500 text-royal-900"}`}
       >
         {seconds}
       </span>

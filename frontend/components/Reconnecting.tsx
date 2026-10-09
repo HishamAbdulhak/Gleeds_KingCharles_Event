@@ -5,7 +5,7 @@
 export function Reconnecting({ online }: { online: boolean | null }) {
   if (online !== false) return null;
   return (
-    <p role="status" className="fixed inset-x-0 top-0 z-10 bg-red-700 p-2 text-center text-xl font-bold text-cream">
+    <p role="status" className="fixed inset-x-0 top-0 z-10 bg-danger p-2 text-center text-xl font-bold text-cream">
       Reconnecting…
     </p>
   );
