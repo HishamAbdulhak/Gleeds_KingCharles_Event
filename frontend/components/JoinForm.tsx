@@ -5,8 +5,6 @@ import { FormEvent, ReactNode, useState, useSyncExternalStore } from "react";
 import { noSubscribe } from "@/lib/api";
 import { JoinRequest, Seat, stored } from "@/lib/game";
 
-export const inputClass = "rounded bg-cream p-3 text-lg text-royal-900";
-
 /**
  * The form every Game starts with (name, email, and what the email is for), for Solo start and Battle join. Native
  * validation gives the inline messages; what `join` throws is shown below. Prefills the name and email this phone
@@ -73,7 +71,7 @@ export function JoinForm({
             maxLength={80}
             autoComplete="name"
             defaultValue={storedName}
-            className={inputClass}
+            className="field field-lg"
           />
         </label>
         <label className="flex flex-col gap-1 text-lg">
@@ -84,7 +82,7 @@ export function JoinForm({
             required
             autoComplete="email"
             defaultValue={storedEmail}
-            className={inputClass}
+            className="field field-lg"
           />
         </label>
         {/* placeholder until Gleeds approves the wording (docs/adr/0003) */}
@@ -92,15 +90,11 @@ export function JoinForm({
           Your email is only used to identify you for today&apos;s prize, and is deleted after the event.
         </p>
         {error && (
-          <p role="alert" className="text-lg text-red-300">
+          <p role="alert" className="text-lg text-danger-fg">
             {error}
           </p>
         )}
-        <button
-          type="submit"
-          disabled={busy}
-          className="rounded bg-gold-500 p-4 text-xl font-bold text-royal-900 disabled:opacity-50"
-        >
+        <button type="submit" disabled={busy} className="btn btn-primary btn-lg">
           {busy ? "One moment…" : submitLabel}
         </button>
         {footer}

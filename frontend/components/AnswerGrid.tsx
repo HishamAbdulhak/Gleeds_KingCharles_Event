@@ -32,7 +32,7 @@ export function AnswerGrid({ options, selected, correctOption, onSelect }: Props
             disabled={!onSelect}
             onClick={() => onSelect?.(i)}
             aria-pressed={selected === i}
-            className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-lg p-3 text-lg font-semibold ${OPTION_COLOURS[i]} ${dim ? "opacity-40" : ""} ${selected === i ? "ring-4 ring-cream" : ""}`}
+            className={`flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl p-3 text-lg font-semibold transition duration-150 enabled:active:scale-[0.98] ${OPTION_COLOURS[i]} ${dim ? "opacity-40" : ""} ${selected === i ? "ring-4 ring-cream ring-offset-4 ring-offset-royal-900" : ""}`}
           >
             <span aria-hidden className="text-2xl">
               {OPTION_SHAPES[i]}

@@ -20,6 +20,10 @@ Default five labels (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for
 
 Driving a Game by hand against the dev servers (Seat, one-question Games, admin login): `docs/agents/browser-check.md`.
 
+### Design system
+
+UI work uses the tokens and classes in `frontend/app/globals.css`, as `docs/design-system.md` assigns them.
+
 ### Domain docs
 
 Single-context: `CONTEXT.md` + `docs/adr/` at repo root. See `docs/agents/domain.md`.

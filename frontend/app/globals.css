@@ -1,17 +1,72 @@
 @import "tailwindcss";
 
-/* Theme: royal purple + gold, Saudi green accent. Single dark look — the app lives on phones and a big screen in a lit room. */
+/*
+ * The design system (docs/design-system.md): event palette from the spec (royal purple + gold, Saudi green accent),
+ * type and restraint from the Gleeds brand guidelines. Single dark look — the app lives on phones and a big screen in
+ * a lit room.
+ */
 @theme {
-  --color-royal-900: #1e0b3b;
-  --color-gold-500: #d4a017;
-  --color-gold-300: #f0c75e;
-  --color-saudi: #006c35; /* the flag's green: 6.6:1 under white text (#11) */
-  --color-cream: #f8f4e8;
+  /* Gleeds' primary font, then its system font (brand guidelines p. 24–25) */
+  --font-sans: "Helvetica Neue", Helvetica, Arial, sans-serif;
+
+  --color-royal-900: #1e0b3b; /* page */
+  --color-royal-800: #2b1454; /* panel: one step up from the page */
+  --color-gold-500: #d4a017; /* the one accent: primary action, titles, the PIN */
+  --color-gold-300: #f0c75e; /* gold text on royal, links, focus ring */
+  --color-cream: #f8f4e8; /* text; /80 secondary, /60 tertiary */
+  --color-saudi: #006c35; /* success fill — the flag's green: 6.6:1 under white text (#11) */
+  --color-danger: #b91c1c; /* danger fill under cream text: wrong, urgent, reconnecting, destructive */
+  --color-danger-fg: #fca5a5; /* error text on royal */
 }
 
-body {
-  background: var(--color-royal-900);
-  color: var(--color-cream);
+@layer base {
+  body {
+    background: var(--color-royal-900);
+    color: var(--color-cream);
+  }
+
+  /* one focus ring everywhere, visible on royal and on every option colour */
+  :focus-visible {
+    outline: 3px solid var(--color-gold-300);
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  /* Buttons: .btn plus one colour (primary | secondary | danger) and, off the admin, one size (lg phone | xl Host). */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-bold transition duration-150 not-disabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40;
+  }
+  .btn-lg {
+    @apply min-h-14 px-8 py-4 text-xl;
+  }
+  .btn-xl {
+    @apply px-10 py-5 text-3xl;
+  }
+  .btn-primary {
+    @apply bg-gold-500 text-royal-900 not-disabled:hover:bg-gold-300;
+  }
+  .btn-secondary {
+    @apply border-2 border-cream/40 text-cream not-disabled:hover:bg-cream/10;
+  }
+  .btn-danger {
+    @apply bg-danger text-cream not-disabled:hover:bg-red-600;
+  }
+
+  .field {
+    @apply rounded-lg bg-cream px-3 py-2 text-royal-900 placeholder:text-royal-900/50;
+  }
+  .field-lg {
+    @apply p-3 text-lg;
+  }
+
+  .link {
+    @apply text-gold-300 underline underline-offset-4 hover:text-gold-500;
+  }
+
+  .panel {
+    @apply rounded-xl border border-cream/10 bg-royal-800 p-6;
+  }
 }
 
 /* The Podium is revealed a place at a time (#9): each row waits out its own delay, then fades up. */
@@ -22,6 +77,19 @@ body {
   }
 }
 
+@keyframes fade {
+  from {
+    opacity: 0;
+  }
+}
+
 .reveal {
   animation: reveal 400ms ease-out backwards;
+}
+
+/* still one place at a time, without the movement */
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation-name: fade;
+  }
 }

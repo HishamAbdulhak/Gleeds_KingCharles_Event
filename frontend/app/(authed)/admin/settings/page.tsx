@@ -55,7 +55,7 @@ export default function SettingsPage() {
       </header>
 
       {error ? (
-        <p role="alert" className="text-sm text-red-300">
+        <p role="alert" className="text-sm text-danger-fg">
           {error}
         </p>
       ) : null}
@@ -77,10 +77,10 @@ export default function SettingsPage() {
                 max={50}
                 required
                 defaultValue={settings.questionsPerGame}
-                className="w-24 rounded bg-cream p-2 text-royal-900"
+                className="field w-24"
               />
             </label>
-            <button type="submit" className="rounded bg-gold-500 px-3 py-1 font-semibold text-royal-900">
+            <button type="submit" className="btn btn-primary">
               Save
             </button>
           </form>
@@ -91,7 +91,7 @@ export default function SettingsPage() {
       <section className="flex flex-col items-start gap-2">
         <h2 className="text-lg font-semibold">Day Leaderboard</h2>
         <p className="text-sm text-cream/80">Empty it before doors open, so a test run can&apos;t win the prize.</p>
-        <button type="button" onClick={reset} className="rounded bg-red-300 px-3 py-1 font-semibold text-royal-900">
+        <button type="button" onClick={reset} className="btn btn-danger">
           Reset
         </button>
       </section>

@@ -22,10 +22,6 @@ type ImportResult = { imported: number; errors: { row: number; message: string }
 const LETTERS = ["A", "B", "C", "D"] as const;
 const OPTION_KEYS = ["optionA", "optionB", "optionC", "optionD"] as const;
 
-const inputClass = "rounded bg-cream p-2 text-royal-900";
-const buttonClass = "rounded bg-gold-500 px-3 py-1 font-semibold text-royal-900 disabled:opacity-50";
-const linkButtonClass = "text-gold-300 underline";
-
 export default function QuestionBank() {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [editing, setEditing] = useState<Partial<Question> | null>(null); // null = dialog closed, {} = new
@@ -103,7 +99,7 @@ export default function QuestionBank() {
   }
 
   const errorAlert = (
-    <p role="alert" className="text-sm text-red-300">
+    <p role="alert" className="text-sm text-danger-fg">
       {error}
     </p>
   );
@@ -125,7 +121,7 @@ export default function QuestionBank() {
             Import CSV or XLSX{" "}
             <input name="file" type="file" accept=".csv,.xlsx" required className="text-sm text-cream/80" />
           </label>
-          <button type="submit" className={buttonClass}>
+          <button type="submit" className="btn btn-primary">
             Upload
           </button>
           <span className="text-xs text-cream/60">Columns: text, a, b, c, d, correct (A–D), time_limit, category</span>
@@ -137,7 +133,7 @@ export default function QuestionBank() {
               {importResult.errors.length > 0 ? ` ${importResult.errors.length} row(s) skipped:` : ""}
             </p>
             {importResult.errors.length > 0 ? (
-              <ul className="list-disc pl-6 text-red-300">
+              <ul className="list-disc pl-6 text-danger-fg">
                 {importResult.errors.map((err) => (
                   <li key={err.row}>
                     Row {err.row}: {err.message}
@@ -150,7 +146,7 @@ export default function QuestionBank() {
       </section>
 
       <div>
-        <button type="button" onClick={() => setEditing({})} className={buttonClass}>
+        <button type="button" onClick={() => setEditing({})} className="btn btn-primary">
           Add question
         </button>
       </div>
@@ -178,13 +174,13 @@ export default function QuestionBank() {
                 <td className="p-2">{q.category ?? "—"}</td>
                 <td className="p-2">{q.active ? "Yes" : "No"}</td>
                 <td className="flex gap-3 p-2 whitespace-nowrap">
-                  <button type="button" onClick={() => setEditing(q)} className={linkButtonClass}>
+                  <button type="button" onClick={() => setEditing(q)} className="link">
                     Edit
                   </button>
-                  <button type="button" onClick={() => setActive(q, !q.active)} className={linkButtonClass}>
+                  <button type="button" onClick={() => setActive(q, !q.active)} className="link">
                     {q.active ? "Deactivate" : "Activate"}
                   </button>
-                  <button type="button" onClick={() => remove(q)} className="text-red-300 underline">
+                  <button type="button" onClick={() => remove(q)} className="text-danger-fg underline">
                     Delete
                   </button>
                 </td>
@@ -207,24 +203,24 @@ export default function QuestionBank() {
           setEditing(null);
           setError(null);
         }}
-        className="m-auto w-full max-w-lg rounded bg-royal-900 p-6 text-cream backdrop:bg-black/60"
+        className="panel m-auto w-full max-w-lg text-cream backdrop:bg-black/60"
       >
         {editing ? (
           <form key={editing.id ?? "new"} onSubmit={save} className="flex flex-col gap-3">
             <h2 className="text-xl font-bold text-gold-500">{editing.id ? "Edit question" : "New question"}</h2>
             <label className="flex flex-col gap-1 text-sm">
               Question
-              <textarea name="text" required defaultValue={editing.text} className={inputClass} />
+              <textarea name="text" required defaultValue={editing.text} className="field" />
             </label>
             {OPTION_KEYS.map((key, i) => (
               <label key={key} className="flex flex-col gap-1 text-sm">
                 Option {LETTERS[i]}
-                <input name={key} required defaultValue={editing[key]} className={inputClass} />
+                <input name={key} required defaultValue={editing[key]} className="field" />
               </label>
             ))}
             <label className="flex flex-col gap-1 text-sm">
               Correct answer
-              <select name="correctOption" defaultValue={editing.correctOption ?? 0} className={inputClass}>
+              <select name="correctOption" defaultValue={editing.correctOption ?? 0} className="field">
                 {LETTERS.map((letter, i) => (
                   <option key={letter} value={i}>
                     {letter}
@@ -241,19 +237,19 @@ export default function QuestionBank() {
                 max={120}
                 required
                 defaultValue={editing.timeLimitSec ?? 20}
-                className={inputClass}
+                className="field"
               />
             </label>
             <label className="flex flex-col gap-1 text-sm">
               Category (optional)
-              <input name="category" defaultValue={editing.category ?? ""} className={inputClass} />
+              <input name="category" defaultValue={editing.category ?? ""} className="field" />
             </label>
             {error ? errorAlert : null}
             <div className="flex justify-end gap-3">
               <button type="button" onClick={() => setEditing(null)} className="text-cream/80 underline">
                 Cancel
               </button>
-              <button type="submit" className={buttonClass}>
+              <button type="submit" className="btn btn-primary">
                 Save
               </button>
             </div>

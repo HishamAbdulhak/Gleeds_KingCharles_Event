@@ -13,13 +13,13 @@ export default function AdminHome() {
         </button>
       </header>
       <nav className="flex flex-col gap-2">
-        <Link href="/admin/questions" className="text-gold-300 underline">
+        <Link href="/admin/questions" className="link">
           Question Bank
         </Link>
-        <Link href="/admin/settings" className="text-gold-300 underline">
+        <Link href="/admin/settings" className="link">
           Settings
         </Link>
-        <Link href="/host" className="text-gold-300 underline">
+        <Link href="/host" className="link">
           Host screen
         </Link>
       </nav>

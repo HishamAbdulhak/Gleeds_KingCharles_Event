@@ -12,7 +12,7 @@ export default function Play() {
       submitLabel="Start"
       join={startSolo}
       footer={
-        <Link href="/join" className="text-center text-lg text-gold-300 underline">
+        <Link href="/join" className="link text-center text-lg">
           Have a PIN?
         </Link>
       }
