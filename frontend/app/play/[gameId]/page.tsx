@@ -48,6 +48,8 @@ export default function PlayGame() {
   }, [gameId, seat]);
 
   const reconnecting = <Reconnecting online={online} detail="Stay on this page. It reconnects by itself." />;
+  // the fixed Reconnecting… bar would otherwise cover the top of the screen
+  const offline = online === false ? "pt-24" : "";
 
   if (error || seat === null) {
     return (
@@ -66,7 +68,7 @@ export default function PlayGame() {
 
   if (state.phase === "waiting") {
     return (
-      <main className="flex flex-1 items-center justify-center p-6 text-2xl font-bold">
+      <main className={`flex flex-1 items-center justify-center p-6 text-2xl font-bold ${offline}`}>
         {reconnecting}
         Get ready…
       </main>
@@ -77,7 +79,7 @@ export default function PlayGame() {
     const me = state.players.find((p) => p.id === playerId);
     const missing = MIN_PLAYERS - state.players.length;
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
+      <main className={`flex flex-1 flex-col items-center justify-center gap-6 p-6 ${offline}`}>
         {reconnecting}
         <header className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-4xl font-bold">You&apos;re in!</h1>
@@ -124,7 +126,7 @@ export default function PlayGame() {
 
   if (state.phase === "between") {
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
+      <main className={`flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center ${offline}`}>
         {reconnecting}
         <h1 className="text-4xl font-bold">Look at the big screen</h1>
         <p className="text-lg text-marble/80">The standings are up</p>
@@ -134,17 +136,24 @@ export default function PlayGame() {
 
   if (state.phase === "over") {
     const { podium, score, rank } = state.gameOver;
+    const playAgain = (
+      <Link href="/play" className="btn btn-primary btn-lg w-full max-w-sm">
+        Play again
+      </Link>
+    );
     return (
-      <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6">
+      <main className={`flex flex-1 flex-col items-center justify-center gap-6 p-6 ${offline}`}>
         {reconnecting}
         {podium ? (
-          <MyPlace podium={podium} playerId={playerId} best={state.best} />
+          <MyPlace podium={podium} playerId={playerId} best={state.best}>
+            {playAgain}
+          </MyPlace>
         ) : (
-          <PrizeProof score={score} rank={rank} best={state.best} />
+          <>
+            <PrizeProof score={score} rank={rank} best={state.best} />
+            {playAgain}
+          </>
         )}
-        <Link href="/play" className="btn btn-primary btn-lg w-full max-w-sm">
-          Play again
-        </Link>
       </main>
     );
   }
@@ -152,7 +161,7 @@ export default function PlayGame() {
   const { question } = state;
 
   return (
-    <main className={`flex flex-1 flex-col gap-4 p-4 ${online === false ? "pt-24" : ""}`}>
+    <main className={`flex flex-1 flex-col gap-4 p-4 ${offline}`}>
       {reconnecting}
       {state.phase === "result" && <ResultBanner result={state.result} answered={state.answered} />}
       {question && (
@@ -288,7 +297,18 @@ function PrizeProof({ score, rank = null, best }: { score: number | null; rank?:
  * out the winner, then the prize proof. A phone that lost its `player:<gameId>` has no row to wait for: it says so at
  * once, and still shows the proof, which comes on its own queue.
  */
-function MyPlace({ podium, playerId, best }: { podium: Standing[]; playerId: string | null; best?: BestScore }) {
+function MyPlace({
+  podium,
+  playerId,
+  best,
+  children,
+}: {
+  podium: Standing[];
+  playerId: string | null;
+  best?: BestScore;
+  /** Play again: held back with the place, so it never tempts the Player off the reveal */
+  children: ReactNode;
+}) {
   const place = podium.findIndex((entry) => entry.playerId === playerId) + 1; // 0: this phone lost track of its Player
   const you = podium[place - 1];
   const [revealed, setRevealed] = useState(false);
@@ -298,7 +318,13 @@ function MyPlace({ podium, playerId, best }: { podium: Standing[]; playerId: str
     return () => clearTimeout(timer);
   }, [place, you]);
 
-  if (!you) return <PrizeProof score={null} best={best} />;
+  if (!you)
+    return (
+      <>
+        <PrizeProof score={null} best={best} />
+        {children}
+      </>
+    );
   if (!revealed) {
     return (
       <header className="flex flex-col items-center gap-4 text-center">
@@ -320,6 +346,7 @@ function MyPlace({ podium, playerId, best }: { podium: Standing[]; playerId: str
         <span className="text-lg text-marble/80">of {podium.length} players</span>
       </p>
       <PrizeProof score={you.score} best={best} />
+      {children}
     </>
   );
 }

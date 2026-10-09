@@ -139,7 +139,14 @@ export default function QuestionBank() {
         <form onSubmit={importFile} className="flex flex-wrap items-center gap-3">
           <label className="flex flex-wrap items-center gap-2">
             CSV or XLSX file
-            <input name="file" type="file" accept=".csv,.xlsx" required className="text-marble/80" />
+            {/* preflight strips the browser's button: give it btn-secondary's look, or it reads as plain text */}
+            <input
+              name="file"
+              type="file"
+              accept=".csv,.xlsx"
+              required
+              className="text-marble/80 file:mr-3 file:cursor-pointer file:rounded-lg file:border-2 file:border-marble/40 file:px-4 file:py-2 file:font-bold file:text-marble file:transition file:duration-150 hover:file:bg-marble/10"
+            />
           </label>
           <button type="submit" disabled={importing} className="btn btn-secondary">
             {importing ? "Importing…" : "Import"}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { FormEvent, ReactNode, useState, useSyncExternalStore } from "react";
+import { FormEvent, ReactNode, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Brandmark } from "@/components/Brandmark";
 import { noSubscribe } from "@/lib/api";
 import { JoinRequest, Seat, stored } from "@/lib/game";
@@ -31,6 +31,11 @@ export function JoinForm({
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const errorLine = useRef<HTMLParagraphElement>(null);
+  // a wrong PIN, sent from the PIN field with the phone's keyboard up, would otherwise land below the fold
+  useEffect(() => {
+    if (error) errorLine.current?.scrollIntoView({ block: "nearest" });
+  }, [error]);
   const saved = useSyncExternalStore(
     noSubscribe,
     () => stored.get("joinForm"),
@@ -99,7 +104,7 @@ export function JoinForm({
           Your email is only used to identify you for today&apos;s prize, and is deleted after the event.
         </p>
         {error && (
-          <p role="alert" className="alert">
+          <p ref={errorLine} role="alert" className="alert">
             {error}
           </p>
         )}

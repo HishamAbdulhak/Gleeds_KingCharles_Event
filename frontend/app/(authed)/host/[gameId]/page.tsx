@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useReducer, useState } from "react";
 import { BADGE, OPTION_COLOURS, OPTION_SHAPES } from "@/components/AnswerGrid";
 import { Brandmark } from "@/components/Brandmark";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Reconnecting } from "@/components/Reconnecting";
 import { Timer } from "@/components/Timer";
 import { publicUrl } from "@/lib/api";
@@ -45,6 +46,7 @@ export default function HostGame() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [online, setOnline] = useState<boolean | null>(null);
+  const [ending, setEnding] = useState(false);
 
   useEffect(() => watchGame(gameId, dispatch, setOnline), [gameId]);
 
@@ -77,13 +79,13 @@ export default function HostGame() {
       </div>
       <footer className="flex items-center justify-end gap-8">
         {error && (
-          <p role="alert" className="mr-auto text-xl text-danger-fg">
+          <p role="alert" className="mr-auto text-2xl text-danger-fg">
             {error}
           </p>
         )}
         {action ? (
           <>
-            <button type="button" onClick={() => run("end")} disabled={busy} className="btn btn-secondary btn-xl">
+            <button type="button" onClick={() => setEnding(true)} disabled={busy} className="btn btn-secondary btn-xl">
               End Battle
             </button>
             <button
@@ -101,6 +103,21 @@ export default function HostGame() {
           </Link>
         )}
       </footer>
+      <ConfirmDialog
+        open={ending}
+        title="End this Battle?"
+        confirmLabel="End Battle"
+        busyLabel="Ending…"
+        busy={busy}
+        onConfirm={async () => {
+          await run("end");
+          setEnding(false);
+        }}
+        onCancel={() => setEnding(false)}
+      >
+        <p>The Battle stops for every phone and goes straight to the final podium.</p>
+        <p className="text-marble">You can&apos;t undo this.</p>
+      </ConfirmDialog>
     </main>
   );
 }
@@ -200,7 +217,7 @@ function Asked({ question, roster }: { question: QuestionStart; roster: HostStat
           {roster.map((player) => (
             <li
               key={player.id}
-              className={`max-w-full truncate rounded-full border-2 px-5 py-2 transition duration-150 ${player.answered ? "border-marble bg-marble text-obsidian" : "border-marble/30 text-marble/70"}`}
+              className={`max-w-full truncate rounded-full border-2 px-5 py-2 transition duration-150 ${player.answered ? "border-marble bg-marble text-obsidian" : "border-marble/30 text-marble/80"}`}
             >
               {player.name}
             </li>
