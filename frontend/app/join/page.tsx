@@ -15,6 +15,7 @@ export default function Join() {
   return (
     <JoinForm
       title="Join a Battle"
+      lead="Enter the PIN from the big screen."
       submitLabel="Join"
       join={(req, form) =>
         joinBattle(String(form.get("pin")), req).catch((err: Error) => {
@@ -27,7 +28,7 @@ export default function Join() {
         </Link>
       }
     >
-      <label className="flex flex-col gap-1 text-lg">
+      <label className="flex flex-col gap-2 text-lg font-bold">
         PIN
         <input
           name="pin"
@@ -35,10 +36,16 @@ export default function Join() {
           pattern="[0-9]{6}"
           maxLength={6}
           required
+          autoFocus
           autoComplete="off"
-          placeholder="6 digits"
-          className="field field-lg text-center text-3xl tracking-[0.4em]"
+          enterKeyHint="next"
+          title="6 digits"
+          aria-describedby="pin-hint"
+          className="field field-lg min-h-20 text-center text-5xl font-bold tabular-nums tracking-[0.3em]"
         />
+        <span id="pin-hint" className="text-base font-normal text-marble/80">
+          The 6 digits on the big screen
+        </span>
       </label>
     </JoinForm>
   );

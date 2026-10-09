@@ -59,8 +59,13 @@
   .field {
     @apply rounded-lg bg-marble px-3 py-2 text-obsidian placeholder:text-obsidian/60;
   }
+  /* Player forms: thumb height, and a danger border once the visitor has left a field invalid (the browser says why) */
   .field-lg {
-    @apply p-3 text-lg;
+    @apply min-h-14 border-2 border-transparent p-3 text-lg font-normal user-invalid:border-danger;
+  }
+
+  .alert {
+    @apply text-lg text-danger-fg;
   }
 
   .link {

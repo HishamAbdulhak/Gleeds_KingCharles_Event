@@ -21,7 +21,7 @@ The guidelines' palette only. A tint is the colour mixed with white (50% = halfw
 | `yellow` `#F7C400` | Gleeds yellow, the one accent, used sparingly: primary action, key data (PIN, timer, place, best score, podium scores), links, the focus ring | tints; titles; more than a few yellow things on one screen |
 | `success` (patina) | correct, answered: fill under marble text | — |
 | `success-fg` (patina 50%) | success text on obsidian (saved, points gained) | as a fill |
-| `danger` (copper) | wrong / time's up, the urgent timer, Reconnecting…, destructive buttons: fill under **black** text (marble on copper is 3.8:1) | marble text on it |
+| `danger` (copper) | wrong / time's up, the urgent timer, Reconnecting…, destructive buttons: fill under **black** text (marble on copper is 3.8:1); the border of an invalid Player field | marble text on it |
 | `danger-fg` (copper 50%) | error text on obsidian | as a fill |
 | `copper`, `titanium`, `yellow`, `patina` | the four answer options (`OPTION_COLOURS` in `AnswerGrid.tsx`) | anywhere else, outside the status roles above |
 
@@ -38,11 +38,11 @@ Proportion, as in the guidelines: obsidian and marble carry each screen; yellow 
 
 | Role | Player | Host | Admin |
 | --- | --- | --- | --- |
-| Screen title | `text-3xl font-bold` | `text-6xl font-bold`; Reveal's is the `text-4xl` "Correct answer" label, because the tile under it is the headline | `text-2xl font-bold` |
+| Screen title | `text-4xl font-bold` | `text-6xl font-bold`; Reveal's is the `text-4xl` "Correct answer" label, because the tile under it is the headline | `text-2xl font-bold` |
 | Question | `text-2xl font-bold leading-snug` | `text-[clamp(2rem,4vw,4.5rem)] font-bold leading-tight` | — |
-| Key data | `text-4xl`–`text-6xl font-bold tabular-nums text-yellow` | PIN `clamp(5rem,11vw,14rem)` yellow; leaderboard rows `text-5xl`; Standings rows by place: 1st `text-6xl`, 2nd–3rd `text-5xl`, the rest `text-4xl` | — |
+| Key data | `text-4xl`–`text-6xl font-bold tabular-nums`: yellow for the one figure that matters most on the screen (timer, Battle place, Best today), marble for the rest (Your score, Rank today, Result points) | PIN `clamp(5rem,11vw,14rem)` yellow; leaderboard rows `text-5xl`; Standings rows by place: 1st `text-6xl`, 2nd–3rd `text-5xl`, the rest `text-4xl` | — |
 | Ranks, counters | `text-marble/80` | `text-marble/60` ranks, `/80` counters | table headers `text-marble/60` |
-| Body | `text-lg`, secondary `text-marble/80` | `text-2xl`–`text-4xl` | `text-sm`, hints `text-xs text-marble/60` |
+| Body | `text-lg`, secondary `text-marble/80`; hints and stat labels `text-base text-marble/80` | `text-2xl`–`text-4xl` | `text-sm`, hints `text-xs text-marble/60` |
 
 ## Brandmark
 
@@ -78,10 +78,10 @@ One primary per screen. A destructive in-row action is `text-danger-fg underline
 ## Cards
 
 1. **Page**: obsidian.
-2. **Panel** (`.panel`): obsidian + `marble/15` hairline, `rounded-xl`, `p-6`. Used for dialogs now, and later for grouping on the admin and the Host.
-3. **Tile**: a solid colour that *is* the content: answer options, the result banner (`success` / `danger`), the QR plate (marble).
+2. **Panel** (`.panel`): obsidian + `marble/15` hairline, `rounded-xl`, `p-6`. Used for dialogs, and on the phone for the Game-over card, the error screen and the reopened "Answer locked in" status.
+3. **Tile**: a solid colour that *is* the content: answer options, the result banner (`success` / `danger`), the QR plate (marble). The phone's answer tile is a row: `min-h-20 px-5 py-4 text-xl font-bold`, the shape in a fixed `w-8` column, `gap-4` between tiles, one column below `sm` and two above.
 
-Pull-out data (a score, a place, the PIN) can take the Gleeds **section line**: a yellow rule along its leading edge. The Host's Standings give it to 1st place on the left (`border-l-4 border-l-yellow`), and the Podium's 1st plinth carries it on top (`border-t-4`), where a plinth's leading edge is: emphasis without adding colour.
+No section lines (a coloured rule along a panel's or row's leading edge): the user found them unprofessional, on the phone and on the big screen. Emphasis comes from size, weight and yellow on key data.
 
 ## States
 
@@ -89,12 +89,13 @@ Pull-out data (a score, a place, the PIN) can take the Gleeds **section line**: 
 | --- | --- |
 | Focus | 3 px yellow outline, 3 px offset, on every focusable element (global `:focus-visible`) |
 | Hover | primary turns marble; secondary gets a `marble/10` wash; links turn marble. Tailwind limits hover to pointer devices. |
-| Pressed | `scale-[0.98]` on buttons and answer tiles. This is the phone's instant "got it" before the server answers. |
-| Selected | `ring-4 ring-marble ring-offset-4 ring-offset-obsidian`. The offset keeps the ring legible on every tile; the unselected tiles dim to `opacity-40`. |
+| Pressed | `scale-[0.98]` on buttons, `scale-[0.97]` on answer tiles. This is the phone's instant "got it" before the server answers. |
+| Selected | `ring-4 ring-marble ring-offset-4 ring-offset-obsidian`. The offset keeps the ring legible on every tile; the unselected tiles dim to `opacity-40`. On the phone one tap is the Answer, so Selected is Locked: the tile also carries an obsidian "Locked" pill, and the status line says "Answer locked in". |
 | Disabled | `opacity-40`, `cursor-not-allowed`, no hover or press |
-| Correct / wrong | `success` fill with marble text / `danger` fill with black text. The correct tile stays full strength, the rest dim. On the Host's Reveal the correct option keeps its own colour and takes the Selected ring plus a ✓ and the "Correct answer" label, so it never rests on colour alone; no Player selects on the big screen, so the ring can't be misread. |
-| Urgent | the timer turns `danger` for the last 5 s |
-| Offline | `Reconnecting…` bar, `danger`, fixed to the top |
+| Correct / wrong | `success` fill with marble text / `danger` fill with black text. The correct tile stays full strength, the rest dim. On the Host's Reveal the correct option keeps its own colour and takes the Selected ring plus a ✓ and the "Correct answer" label, so it never rests on colour alone; no Player selects on the big screen, so the ring can't be misread. On the phone the Result banner is the fill; in the grid the correct tile gets an obsidian ✓ badge and a wrong pick keeps its ring, an ✕ badge and `opacity-70`. A timeout has no pick: only the ✓. |
+| Urgent | the timer turns `danger` for the last 5 s; on the phone its pill also pulses (`motion-safe:animate-pulse`), the big screen stays still |
+| Offline | `Reconnecting…` bar, `danger`, fixed to the top. The phone adds "Stay on this page. It reconnects by itself." and dims its answer tiles, which can't be tapped until it's back |
+| Invalid field | `.field-lg` takes a 2 px `danger` border once the visitor has left it invalid (`user-invalid`); the browser's own message says why. Errors in words are `.alert` (`danger-fg` text); a form error also carries `role="alert"` |
 
 ## Motion
 
