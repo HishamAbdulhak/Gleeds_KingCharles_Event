@@ -50,7 +50,7 @@ export default function PlayGame() {
 
   if (state.phase === "waiting") {
     return (
-      <main className="flex flex-1 items-center justify-center p-6 text-lg text-cream/80">
+      <main className="flex flex-1 items-center justify-center p-6 text-lg text-marble/80">
         <Reconnecting online={online} />
         Get ready…
       </main>
@@ -61,8 +61,8 @@ export default function PlayGame() {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-6 p-6 text-center">
         <Reconnecting online={online} />
-        <h1 className="text-3xl font-bold text-gold-500">You&apos;re in!</h1>
-        <p className="text-lg text-cream/80">Waiting for the Host to start…</p>
+        <h1 className="text-3xl font-bold">You&apos;re in!</h1>
+        <p className="text-lg text-marble/80">Waiting for the Host to start…</p>
         <ul className="flex flex-col gap-2 text-2xl font-bold">
           {state.players.map((p) => (
             <li key={p.id}>{p.name}</li>
@@ -76,8 +76,8 @@ export default function PlayGame() {
     return (
       <main className="flex flex-1 flex-col items-center justify-center gap-4 p-6 text-center">
         <Reconnecting online={online} />
-        <h1 className="text-3xl font-bold text-gold-500">Look at the big screen</h1>
-        <p className="text-lg text-cream/80">Next question coming up…</p>
+        <h1 className="text-3xl font-bold">Look at the big screen</h1>
+        <p className="text-lg text-marble/80">Next question coming up…</p>
       </main>
     );
   }
@@ -91,13 +91,13 @@ export default function PlayGame() {
           <MyPlace podium={podium} playerId={playerId} best={state.best} />
         ) : (
           <>
-            <h1 className="text-3xl font-bold text-gold-500">Game over</h1>
+            <h1 className="text-3xl font-bold">Game over</h1>
             <p className="text-lg">
               Your Score
               <br />
               <span className="text-6xl font-bold tabular-nums">{score}</span>
             </p>
-            {rank !== null && <p className="text-2xl font-bold text-gold-300">You&apos;re #{rank} today</p>}
+            {rank !== null && <p className="text-2xl font-bold text-yellow">You&apos;re #{rank} today</p>}
             <PrizeProof best={state.best} />
           </>
         )}
@@ -114,7 +114,7 @@ export default function PlayGame() {
     <main className="flex flex-1 flex-col gap-4 p-4">
       <Reconnecting online={online} />
       {question && (
-        <header className="flex flex-col gap-2 text-gold-300">
+        <header className="flex flex-col gap-2 text-marble/80">
           <span className="text-lg">
             {question.index + 1} / {question.total}
           </span>
@@ -138,7 +138,7 @@ export default function PlayGame() {
           }
         />
       )}
-      <p role="status" aria-live="polite" className="min-h-6 text-center text-lg text-cream/80">
+      <p role="status" aria-live="polite" className="min-h-6 text-center text-lg text-marble/80">
         {state.phase === "locked" && "Locked in…"}
         {state.phase === "question" && state.notice}
         {state.phase === "result" && "Next question coming up…"}
@@ -150,7 +150,7 @@ export default function PlayGame() {
 /** RESULT: right / wrong / out of time, Points earned, Streak (on fire from 2) and running Score. */
 function ResultBanner({ result: { correct, points, streak, score }, answered }: { result: Result; answered: boolean }) {
   return (
-    <section className={`rounded-lg p-4 text-center ${correct ? "bg-saudi" : "bg-danger"}`}>
+    <section className={`rounded-lg p-4 text-center ${correct ? "bg-success" : "bg-danger text-black"}`}>
       <h2 className="text-3xl font-bold">{correct ? "Correct!" : answered ? "Wrong" : "Time's up"}</h2>
       <p className="text-2xl font-bold tabular-nums">+{points}</p>
       <p className="flex justify-center gap-4 text-lg">
@@ -175,10 +175,10 @@ function PrizeProof({ best }: { best?: BestScore }) {
         <p className="text-lg">
           Best today
           <br />
-          <span className="text-4xl font-bold tabular-nums text-gold-300">{best.score}</span>
+          <span className="text-4xl font-bold tabular-nums text-yellow">{best.score}</span>
         </p>
       )}
-      <p className="text-lg text-cream/80">Keep this screen open to claim your prize</p>
+      <p className="text-lg text-marble/80">Keep this screen open to claim your prize</p>
     </>
   );
 }
@@ -205,18 +205,18 @@ function MyPlace({ podium, playerId, best }: { podium: Standing[]; playerId: str
   if (!you) {
     return (
       <>
-        <h1 className="text-3xl font-bold text-gold-500">Game over</h1>
+        <h1 className="text-3xl font-bold">Game over</h1>
         <PrizeProof best={best} />
       </>
     );
   }
   if (!revealed) {
-    return <p className="text-2xl text-cream/80">Look at the big screen…</p>;
+    return <p className="text-2xl text-marble/80">Look at the big screen…</p>;
   }
   return (
     <>
-      <h1 className="text-6xl font-bold text-gold-500">{PLACES[place - 1]}</h1>
-      <p className="text-lg text-cream/80">of {podium.length} players</p>
+      <h1 className="text-6xl font-bold text-yellow">{PLACES[place - 1]}</h1>
+      <p className="text-lg text-marble/80">of {podium.length} players</p>
       <PrizeProof best={best} />
     </>
   );

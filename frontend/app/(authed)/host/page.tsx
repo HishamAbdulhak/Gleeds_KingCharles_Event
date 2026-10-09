@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { QRCodeSVG } from "qrcode.react";
 import { useEffect, useState } from "react";
+import { Brandmark } from "@/components/Brandmark";
 import { Reconnecting } from "@/components/Reconnecting";
 import { publicUrl } from "@/lib/api";
 import { createBattle, fetchLeaderboard, LeaderboardEntry, watchLeaderboard } from "@/lib/game";
@@ -35,39 +36,42 @@ export default function Host() {
   const playUrl = publicUrl("/play"); // client-only page (authed layout), so window exists
 
   return (
-    <main className="flex flex-1 gap-16 p-12">
+    <main className="flex flex-1 flex-col gap-12 p-12">
       <Reconnecting online={online} />
-      <section className="flex flex-1 flex-col gap-8">
-        <h1 className="text-6xl font-bold text-gold-500">Today&apos;s leaderboard</h1>
-        {top.length === 0 ? (
-          <p className="text-4xl text-cream/80">No Games yet — scan to be first!</p>
-        ) : (
-          <ol className="flex flex-col gap-3">
-            {top.map((entry) => (
-              <li key={entry.rank} className="flex items-baseline gap-8 text-5xl font-bold">
-                <span className="w-20 text-right tabular-nums text-gold-300">{entry.rank}</span>
-                <span className="flex-1 truncate">{entry.name}</span>
-                <span className="tabular-nums">{entry.score}</span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </section>
-      <aside className="flex flex-col items-center justify-center gap-6 text-center">
-        <h2 className="text-4xl font-bold">Scan to play</h2>
-        <div className="rounded-xl bg-cream p-4">
-          <QRCodeSVG value={playUrl} size={360} bgColor="var(--color-cream)" fgColor="var(--color-royal-900)" />
-        </div>
-        <p className="text-2xl text-cream/80">{playUrl}</p>
-        <button type="button" onClick={newBattle} className="btn btn-primary btn-xl mt-6">
-          New Battle
-        </button>
-        {error && (
-          <p role="alert" className="text-xl text-danger-fg">
-            {error}
-          </p>
-        )}
-      </aside>
+      <Brandmark className="w-32" />
+      <div className="flex flex-1 gap-16">
+        <section className="flex flex-1 flex-col gap-8">
+          <h1 className="text-6xl font-bold">Today&apos;s leaderboard</h1>
+          {top.length === 0 ? (
+            <p className="text-4xl text-marble/80">No Games yet — scan to be first!</p>
+          ) : (
+            <ol className="flex flex-col gap-3">
+              {top.map((entry) => (
+                <li key={entry.rank} className="flex items-baseline gap-8 text-5xl font-bold">
+                  <span className="w-20 text-right tabular-nums text-marble/60">{entry.rank}</span>
+                  <span className="flex-1 truncate">{entry.name}</span>
+                  <span className="tabular-nums">{entry.score}</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </section>
+        <aside className="flex flex-col items-center justify-center gap-6 text-center">
+          <h2 className="text-4xl font-bold">Scan to play</h2>
+          <div className="rounded-xl bg-marble p-4">
+            <QRCodeSVG value={playUrl} size={360} bgColor="var(--color-marble)" fgColor="var(--color-obsidian)" />
+          </div>
+          <p className="text-2xl text-marble/80">{playUrl}</p>
+          <button type="button" onClick={newBattle} className="btn btn-primary btn-xl mt-6">
+            New Battle
+          </button>
+          {error && (
+            <p role="alert" className="text-xl text-danger-fg">
+              {error}
+            </p>
+          )}
+        </aside>
+      </div>
     </main>
   );
 }

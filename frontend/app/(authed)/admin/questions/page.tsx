@@ -107,8 +107,8 @@ export default function QuestionBank() {
   return (
     <main className="flex flex-1 flex-col gap-6 p-8">
       <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gold-500">Question Bank</h1>
-        <Link href="/admin" className="text-sm text-cream/80 underline">
+        <h1 className="text-2xl font-bold">Question Bank</h1>
+        <Link href="/admin" className="text-sm text-marble/80 underline">
           Admin home
         </Link>
       </header>
@@ -119,12 +119,12 @@ export default function QuestionBank() {
         <form onSubmit={importFile} className="flex flex-wrap items-center gap-3">
           <label className="text-sm">
             Import CSV or XLSX{" "}
-            <input name="file" type="file" accept=".csv,.xlsx" required className="text-sm text-cream/80" />
+            <input name="file" type="file" accept=".csv,.xlsx" required className="text-sm text-marble/80" />
           </label>
           <button type="submit" className="btn btn-primary">
             Upload
           </button>
-          <span className="text-xs text-cream/60">Columns: text, a, b, c, d, correct (A–D), time_limit, category</span>
+          <span className="text-xs text-marble/60">Columns: text, a, b, c, d, correct (A–D), time_limit, category</span>
         </form>
         {importResult ? (
           <div className="text-sm">
@@ -153,7 +153,7 @@ export default function QuestionBank() {
 
       <div className="overflow-x-auto">
         <table className="w-full text-left text-sm">
-          <thead className="text-gold-300">
+          <thead className="text-marble/60">
             <tr>
               <th className="p-2">Text</th>
               <th className="p-2">Correct answer</th>
@@ -165,7 +165,7 @@ export default function QuestionBank() {
           </thead>
           <tbody>
             {questions.map((q) => (
-              <tr key={q.id} className={`border-t border-cream/10 ${q.active ? "" : "text-cream/50"}`}>
+              <tr key={q.id} className={`border-t border-marble/10 ${q.active ? "" : "text-marble/50"}`}>
                 <td className="p-2">{q.text}</td>
                 <td className="p-2">
                   {LETTERS[q.correctOption]}: {q[OPTION_KEYS[q.correctOption]]}
@@ -188,7 +188,7 @@ export default function QuestionBank() {
             ))}
             {questions.length === 0 ? (
               <tr>
-                <td colSpan={6} className="p-2 text-cream/60">
+                <td colSpan={6} className="p-2 text-marble/60">
                   No questions yet. Add one or upload the client&apos;s sheet.
                 </td>
               </tr>
@@ -203,11 +203,11 @@ export default function QuestionBank() {
           setEditing(null);
           setError(null);
         }}
-        className="panel m-auto w-full max-w-lg text-cream backdrop:bg-black/60"
+        className="panel m-auto w-full max-w-lg text-marble backdrop:bg-black/60"
       >
         {editing ? (
           <form key={editing.id ?? "new"} onSubmit={save} className="flex flex-col gap-3">
-            <h2 className="text-xl font-bold text-gold-500">{editing.id ? "Edit question" : "New question"}</h2>
+            <h2 className="text-xl font-bold">{editing.id ? "Edit question" : "New question"}</h2>
             <label className="flex flex-col gap-1 text-sm">
               Question
               <textarea name="text" required defaultValue={editing.text} className="field" />
@@ -246,7 +246,7 @@ export default function QuestionBank() {
             </label>
             {error ? errorAlert : null}
             <div className="flex justify-end gap-3">
-              <button type="button" onClick={() => setEditing(null)} className="text-cream/80 underline">
+              <button type="button" onClick={() => setEditing(null)} className="text-marble/80 underline">
                 Cancel
               </button>
               <button type="submit" className="btn btn-primary">

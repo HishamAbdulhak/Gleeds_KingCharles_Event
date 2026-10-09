@@ -6,8 +6,8 @@ export const metadata: Metadata = {
   description: "Gleeds trivia — King Charles & UK–Saudi relations",
 };
 
-// royal-900 (globals.css): the phone's browser bar runs into the page
-export const viewport: Viewport = { themeColor: "#1e0b3b" };
+// obsidian (globals.css): the phone's browser bar runs into the page
+export const viewport: Viewport = { themeColor: "#3c3c3c" };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (

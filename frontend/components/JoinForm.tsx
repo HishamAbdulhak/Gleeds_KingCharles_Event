@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { FormEvent, ReactNode, useState, useSyncExternalStore } from "react";
+import { Brandmark } from "@/components/Brandmark";
 import { noSubscribe } from "@/lib/api";
 import { JoinRequest, Seat, stored } from "@/lib/game";
 
@@ -54,14 +55,15 @@ export function JoinForm({
   }
 
   return (
-    <main className="flex flex-1 items-center justify-center p-6">
+    <main className="flex flex-1 flex-col items-center gap-6 p-6">
+      <Brandmark className="m-4 w-25 self-start" />
       {/* key: remount when the stored name and email appear after hydration, so defaultValue takes effect */}
       <form
         key={storedName ? "prefilled" : "blank"}
         onSubmit={onSubmit}
-        className="flex w-full max-w-sm flex-col gap-4"
+        className="my-auto flex w-full max-w-sm flex-col gap-4"
       >
-        <h1 className="text-3xl font-bold text-gold-500">{title}</h1>
+        <h1 className="text-3xl font-bold">{title}</h1>
         {children}
         <label className="flex flex-col gap-1 text-lg">
           Name
@@ -86,7 +88,7 @@ export function JoinForm({
           />
         </label>
         {/* placeholder until Gleeds approves the wording (docs/adr/0003) */}
-        <p className="text-lg text-cream/80">
+        <p className="text-lg text-marble/80">
           Your email is only used to identify you for today&apos;s prize, and is deleted after the event.
         </p>
         {error && (
