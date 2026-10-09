@@ -53,9 +53,9 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 
 24. As a Host, I want an idle screen that shows the Day Leaderboard and a QR code to the Solo join page, so that the stand attracts walk-ups with no staff action.
 25. As a Host, I want the Day Leaderboard to update live as Games finish, so that the screen is always current.
-26. As a Host, I want to tap "New Battle" and see a PIN, so that a group can join.
+26. As a Host, I want to tap "Host a Battle" and see a PIN, so that a group can join.
 27. As a Host, I want to see Players appear in the lobby in real time, so that I know when to start.
-28. As a Host, I want the Start button disabled until at least 2 Players have joined, so that a Battle can't start with one person.
+28. As a Host, I want the Start Battle button disabled until at least 2 Players have joined, so that a Battle can't start with one person.
 29. As a Host, I want the lobby capped at 4 Players, so that Battles stay quick and readable on screen.
 30. As a Host, I want each question shown big with the four options and a countdown, so that the group can read it from a distance.
 31. As a Host, I want to see how many Players have answered, so that I can end the question early when everyone's in.
@@ -144,7 +144,7 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 - `/play` — Solo join (name, email, and a one-line notice of what the email is for) and a "Have a PIN?" link.
 - `/join` — Battle join (PIN, name, email, and the same notice).
 - `/play/[gameId]` — Player view for both Modes (question, result, game-over).
-- `/host` — Host idle (Day Leaderboard + QR, "New Battle"); `/host/[gameId]` — Battle lobby / question / reveal / leaderboard / Podium.
+- `/host` — Host idle (Day Leaderboard + QR, "Host a Battle"); `/host/[gameId]` — Battle lobby / question / reveal / leaderboard / Podium.
 - `/admin/login`, `/admin/questions`, `/admin/settings` (questions per Game + Reset).
 
 ## Testing Decisions

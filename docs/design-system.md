@@ -81,7 +81,7 @@ One primary per screen. A destructive in-row action is `text-danger-fg underline
 2. **Panel** (`.panel`): obsidian + `marble/15` hairline, `rounded-xl`, `p-6`. Used for dialogs now, and later for grouping on the admin and the Host.
 3. **Tile**: a solid colour that *is* the content: answer options, the result banner (`success` / `danger`), the QR plate (marble).
 
-Pull-out data (a score, a place, the PIN) can take the Gleeds **section line**: a 2 px yellow left rule with `pl-4`. It isn't used yet; it's the next phase's way to make score screens feel premium without adding colour.
+Pull-out data (a score, a place, the PIN) can take the Gleeds **section line**: a yellow left rule. The Host's Standings give it to 1st place (`border-l-4 border-l-yellow`), and the Podium's 1st plinth carries it on top: emphasis without adding colour.
 
 ## States
 
@@ -99,7 +99,8 @@ Pull-out data (a score, a place, the PIN) can take the Gleeds **section line**: 
 ## Motion
 
 - **150 ms ease** for feedback (hover, press, dim). It should feel instant.
-- **400 ms ease-out** for entrances (`.reveal`), staggered by the caller (the Podium's `podiumRevealMs`).
+- **200 ms fade** (`.screen-in`) as each Host screen replaces the last; short enough that the next tap never waits on it.
+- **400 ms ease-out** for entrances (`.reveal`), staggered by the caller: the Podium's `podiumRevealMs`, 80 ms between Standings rows, and a Player's row in the lobby as they join.
 - Motion explains a change of state; it never decorates idle screens and never delays input.
 - `prefers-reduced-motion`: entrances fade without moving. Timing is unchanged, because the Podium's order *is* the suspense.
 
