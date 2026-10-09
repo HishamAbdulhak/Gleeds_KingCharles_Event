@@ -128,14 +128,21 @@ class DayLeaderboardTest {
 	}
 
 	/** Plays a one-question Solo Game for {@code email} to the end, answering right. */
-	@SuppressWarnings("unchecked")
 	Ending playSolo(String name, String email) throws Exception {
+		return playSolo(name, email, () -> {
+		});
+	}
+
+	/** As above, running {@code midGame} while the question is open. */
+	@SuppressWarnings("unchecked")
+	Ending playSolo(String name, String email, Runnable midGame) throws Exception {
 		var started = client.post().uri("/api/solo").body(Map.of("name", name, "email", email)).retrieve().body(Map.class);
 		var gameId = (String) started.get("gameId");
 		var session = Stomp.connectAsPlayer(port, (String) started.get("sessionToken"));
 		var queue = Stomp.subscribe(session, "/user/queue/player");
 		var topic = Stomp.ready(session, gameId);
 		Stomp.next(topic, "QUESTION_START");
+		midGame.run();
 		session.send("/app/game/" + gameId + "/answer", Map.of("questionIndex", 0, "option", 1));
 		var over = Stomp.next(topic, "GAME_OVER");
 		Stomp.next(queue, "ANSWER_ACK");
@@ -154,7 +161,18 @@ class DayLeaderboardTest {
 		var ending = playSolo("Ada Lovelace", "ADA@example.com");
 
 		assertThat((int) ending.gameOver().get("score")).isBetween(1, 1000);
-		assertThat(ending.bestScore()).isEqualTo(Map.of("name", "Ada Lovelace", "score", 9000));
+		assertThat(ending.bestScore()).isEqualTo(Map.of("name", "Ada Lovelace", "score", 9000, "rank", 1));
+	}
+
+	/** A Reset mid-Game: the Game started before it, so it never counts, and the phone has no Score or rank today. */
+	@Test
+	void aResetMidGameLeavesTheBestScoreWithoutScoreOrRank() throws Exception {
+		jdbc.update("UPDATE settings SET questions_per_game = 1");
+
+		var ending = playSolo("Ada", "ada@example.com", () -> client.post().uri("/api/admin/reset")
+				.header("Authorization", "Bearer " + Fixtures.adminToken(port)).retrieve().toBodilessEntity());
+
+		assertThat(ending.bestScore()).containsEntry("name", "Ada").containsEntry("score", null).containsEntry("rank", null);
 	}
 
 	/** Bob played earlier with a lower Score, so only the Score (never Game order) can put Ada first. */

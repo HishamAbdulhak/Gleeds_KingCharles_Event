@@ -71,11 +71,11 @@ public record GameEvent(String type, Object payload) {
 	}
 
 	/**
-	 * Personal queue, right after GAME_OVER, both Modes: the Player's name and best Score today (the Day Leaderboard's
-	 * Score for their email, which may be an earlier Game's) — what the phone shows to claim the prize, never the email
-	 * (docs/adr/0003). {@code score} is null only when a Reset happened mid-Game.
+	 * Personal queue, right after GAME_OVER, both Modes: the Player's name, best Score today (the Day Leaderboard's
+	 * Score for their email, which may be an earlier Game's) and that entry's rank — what the phone shows to claim the
+	 * prize, never the email (docs/adr/0003). {@code score} and {@code rank} are null only when a Reset happened mid-Game.
 	 */
-	public record BestScore(String name, Integer score) {
+	public record BestScore(String name, Integer score, Integer rank) {
 	}
 
 	/** Leaderboard topic, as DAY_LEADERBOARD: the top of the Day Leaderboard whenever a Game finishes or a Reset happens. */

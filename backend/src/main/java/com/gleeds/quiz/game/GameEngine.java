@@ -437,10 +437,11 @@ public class GameEngine {
 		return new GameEvent("GAME_OVER", new GameEvent.GameOver(player.getScore(), rank, null));
 	}
 
-	/** BEST_SCORE: the Player's name and their email's best Score today; the email stays here (docs/adr/0003). */
+	/** BEST_SCORE: the Player's name and their email's best Score and rank today; the email stays here (docs/adr/0003). */
 	private GameEvent bestScore(Player player) {
-		var score = leaderboard.bestOf(player.getEmail()).map(DayLeaderboard.Entry::score).orElse(null);
-		return new GameEvent("BEST_SCORE", new GameEvent.BestScore(player.getName(), score));
+		var entry = leaderboard.bestOf(player.getEmail());
+		return new GameEvent("BEST_SCORE", new GameEvent.BestScore(player.getName(),
+				entry.map(DayLeaderboard.Entry::score).orElse(null), entry.map(DayLeaderboard.Entry::rank).orElse(null)));
 	}
 
 	/**

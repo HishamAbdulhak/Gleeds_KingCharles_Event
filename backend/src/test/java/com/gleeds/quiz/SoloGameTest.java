@@ -178,7 +178,7 @@ class SoloGameTest {
 		var over = seat.onTopic("GAME_OVER");
 		assertThat(over).containsEntry("score", score);
 		assertThat(seat.onQueue("BEST_SCORE")).as("the prize proof: this email's first Game is its best today")
-				.isEqualTo(Map.of("name", "Ada", "score", score));
+				.isEqualTo(Map.of("name", "Ada", "score", score, "rank", 1));
 
 		assertThat(jdbc.queryForMap("SELECT status, score FROM game g JOIN player p ON p.game_id = g.id WHERE g.id = ?", seat.gameId()))
 				.containsEntry("status", "FINISHED").containsEntry("score", score);
