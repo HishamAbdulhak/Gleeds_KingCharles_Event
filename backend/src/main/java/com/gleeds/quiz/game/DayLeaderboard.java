@@ -26,16 +26,24 @@ public class DayLeaderboard {
 	public record Entry(int rank, String name, int score) {
 	}
 
+	/**
+	 * Player {@code p}'s total response time over their Game's Question Set, a question never answered counting as its
+	 * full time limit: the tie-break after Score here and on the Standings (#47).
+	 */
+	static final String TOTAL_MS = """
+			(SELECT sum(coalesce(a.response_ms, q.time_limit_sec * 1000))
+			   FROM game_question gq
+			   JOIN question q ON q.id = gq.question_id
+			   LEFT JOIN answer a ON a.player_id = p.id AND a.question_id = gq.question_id
+			  WHERE gq.game_id = p.game_id)""";
+
 	// ponytail: the whole board is ranked for every read — hundreds of rows for one day; index/paginate if it ever isn't.
 	// The email is what the board is keyed on; it never leaves the server.
 	private static final String BOARD = """
 			WITH best AS (
 			  SELECT DISTINCT ON (lower(p.email)) lower(p.email) AS email, p.name, p.score, g.created_at,
-			    (SELECT sum(coalesce(a.response_ms, q.time_limit_sec * 1000))
-			       FROM game_question gq
-			       JOIN question q ON q.id = gq.question_id
-			       LEFT JOIN answer a ON a.player_id = p.id AND a.question_id = gq.question_id
-			      WHERE gq.game_id = g.id) AS total_ms
+			""" + TOTAL_MS + """
+			 AS total_ms
 			  FROM player p
 			  JOIN game g ON g.id = p.game_id
 			  WHERE g.created_at >= (SELECT leaderboard_since FROM settings)

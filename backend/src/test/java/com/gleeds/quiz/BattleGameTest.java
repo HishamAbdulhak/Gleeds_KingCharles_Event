@@ -404,7 +404,7 @@ class BattleGameTest {
 		assertThat(scored).isPositive();
 	}
 
-	/** End works from the lobby too, and a tie on the Podium keeps join order — which the sort must not lose. */
+	/** End works from the lobby too; with no question played the times tie as well, so the Podium falls back to join order. */
 	@Test
 	void endFromTheLobbyFinishesWithATiedPodiumInJoinOrder() throws Exception {
 		var gameId = createBattle();
@@ -418,6 +418,49 @@ class BattleGameTest {
 		var podium = rows(afterLobby(ada, "GAME_OVER"), "podium");
 		assertThat(podium).extracting(row -> row.get("name")).containsExactly("Bob", "Ada");
 		assertThat(podium).allSatisfy(row -> assertThat(row).containsEntry("score", 0).containsEntry("points", 0));
+	}
+
+	/**
+	 * #47: equal Scores rank the faster total response time first, on the Standings and on the Podium, a question never
+	 * answered counting as its full time limit. Everyone answers wrong, so both stay on 0. Ada answers the first question
+	 * at once and the second after a second: ~1 s in all. Bob misses the first (its full 5 s) and answers the second at
+	 * once: ~5 s. Bob joined first, so join order says Bob, and so does counting a missed question as nothing.
+	 */
+	@Test
+	void tiedScoresRankTheFasterTotalResponseTimeFirstOnTheStandingsAndThePodium() throws Exception {
+		var gameId = createBattle();
+		var ada = join(gameId, "Ada");
+		var bob = join(gameId, "Bob");
+		jdbc.update("UPDATE player SET joined_at = joined_at - interval '1 minute' WHERE id = ?", bob.playerId());
+		start(gameId, ada, bob);
+
+		ada.answer(0, WRONG);
+		Stomp.next(ada.queue(), "ANSWER_ACK");
+		assertThat(command(gameId, "reveal")).isEqualTo("REVEAL");
+		Stomp.next(ada.queue(), "RESULT");
+		Stomp.next(bob.queue(), "RESULT");   // the timeout
+		Stomp.next(ada.topic(), "REVEAL");
+		assertThat(command(gameId, "next")).isEqualTo("LEADERBOARD");
+		Stomp.next(ada.topic(), "LEADERBOARD");
+		assertThat(command(gameId, "next")).isEqualTo("QUESTION");
+		Stomp.next(ada.topic(), "QUESTION_START");
+
+		bob.answer(1, WRONG);
+		Stomp.next(bob.queue(), "ANSWER_ACK");
+		Thread.sleep(1_000);
+		ada.answer(1, WRONG);   // the last Answer: it ends the question
+		Stomp.next(ada.queue(), "ANSWER_ACK");
+		Stomp.next(ada.topic(), "REVEAL");
+		assertThat(command(gameId, "next")).isEqualTo("LEADERBOARD");
+
+		assertThat(rows(Stomp.next(ada.topic(), "LEADERBOARD"), "players")).as("the Standings")
+				.allSatisfy(row -> assertThat(row).containsEntry("score", 0))
+				.extracting(row -> row.get("name")).containsExactly("Ada", "Bob");
+
+		assertThat(command(gameId, "end")).isEqualTo("FINISHED");
+
+		assertThat(rows(Stomp.next(ada.topic(), "GAME_OVER"), "podium")).as("the Podium")
+				.extracting(row -> row.get("name")).containsExactly("Ada", "Bob");
 	}
 
 	/** Ticket #9: End mid-question ends the question too, so the phones get their RESULT instead of jumping to the Podium. */
