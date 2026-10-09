@@ -125,14 +125,14 @@ function Lobby({ pin, players }: { pin: string | null; players: LobbyUpdate["pla
   return (
     <>
       <section className="flex min-w-0 flex-1 flex-col justify-center gap-6 text-center">
-        <p className="text-3xl text-marble/80">Join at {publicUrl("/join")} with the Battle PIN</p>
+        <p className="text-3xl font-bold text-marble/80">Join at {publicUrl("/join")} with the Battle PIN</p>
         {/* six digits at ~0.9 em each with tracking: fills two thirds of the width on any screen */}
         <p className="text-[clamp(5rem,11vw,14rem)] font-bold leading-none tracking-[0.15em] tabular-nums text-yellow">
           {pin ?? "······"}
         </p>
       </section>
-      <aside className="panel flex w-1/3 flex-col gap-6">
-        <h1 className="text-5xl font-bold tabular-nums">
+      <aside className="panel flex w-1/3 flex-col gap-8">
+        <h1 className="text-6xl font-bold tabular-nums">
           {players.length} / {MAX_PLAYERS} players
         </h1>
         <p role="status" className={`text-3xl font-bold ${missing > 0 ? "text-marble/80" : "text-success-fg"}`}>
@@ -157,11 +157,18 @@ function Lobby({ pin, players }: { pin: string | null; players: LobbyUpdate["pla
 /** Spec stories 30–31: which question, the question itself, the time left, the options and how many are in. No scores. */
 function Asked({ question, roster }: { question: QuestionStart; roster: HostState["players"] }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-6">
+    <div className="flex min-w-0 flex-1 flex-col gap-8">
       <p className="text-3xl font-bold tabular-nums text-marble/80">
         Question {question.index + 1} of {question.total}
       </p>
-      <h1 className="text-[clamp(2rem,4vw,4.5rem)] font-bold leading-tight">{question.text}</h1>
+      {/* ponytail: stepped down by length so the timer, options and buttons stay on a 1080 px screen (measured: 72 px holds
+          3 lines, ~110 characters; 48 px holds 4, ~280). The Question Bank has no length limit, so one past ~600
+          characters still pushes them down: cap the text in the bank if a question that long ever turns up */}
+      <h1
+        className={`font-bold leading-tight ${question.text.length > 280 ? "text-4xl" : question.text.length > 110 ? "text-5xl" : "text-[clamp(2rem,4vw,4.5rem)]"}`}
+      >
+        {question.text}
+      </h1>
       <Timer question={question} big />
       <div className="grid flex-1 grid-cols-2 gap-6">
         {question.options.map((option, i) => (
@@ -195,10 +202,12 @@ function Revealed({ question, reveal }: { question: QuestionStart; reveal: Revea
   const correct = reveal.correctOption;
   const most = Math.max(1, ...reveal.counts);
   return (
-    <div className="flex min-w-0 flex-1 flex-col gap-6">
-      <p className="line-clamp-2 text-3xl text-marble/80">{question.text}</p>
+    <div className="flex min-w-0 flex-1 flex-col gap-8">
       <section className="flex flex-col gap-4">
-        <h1 className="text-3xl font-bold">✓ Correct answer</h1>
+        {/* the screen's title is this label; the tile under it is the headline */}
+        <h1 className="text-4xl font-bold">
+          <span aria-hidden>✓ </span>Correct answer
+        </h1>
         <p
           className={`flex items-center gap-6 rounded-xl p-8 text-6xl font-bold ring-4 ring-marble ring-offset-4 ring-offset-obsidian ${OPTION_COLOURS[correct]}`}
         >
@@ -230,36 +239,52 @@ function Revealed({ question, reveal }: { question: QuestionStart; reveal: Revea
           </li>
         ))}
       </ol>
-      <p className="text-3xl tabular-nums text-marble/80">
+      <p className="text-3xl font-bold tabular-nums text-marble/80">
         {reveal.counts.reduce((sum, n) => sum + n, 0)} answered · {reveal.counts[correct]} correct
       </p>
     </div>
   );
 }
 
+const POINTS_COLUMN = "w-48 text-right";
+const SCORE_COLUMN = "w-56 text-right";
+/** By place: 1st carries the section line and a yellow rank, the top three read bigger than the rest. */
+const STANDING_PLACES = [
+  { row: "border-l-4 border-l-yellow text-6xl", rank: "text-yellow" },
+  { row: "text-5xl", rank: "text-marble/60" },
+  { row: "text-5xl", rank: "text-marble/60" },
+];
+const STANDING_REST = { row: "text-4xl", rank: "text-marble/60" };
+
 /** Spec story 33: where everyone stands between questions, with what the last question earned; 1st gets the section line. */
 function Standings({ standings }: { standings: Standing[] }) {
   return (
     <section className="flex flex-1 flex-col gap-6">
       <h1 className="text-6xl font-bold">Standings</h1>
-      <div aria-hidden className="flex gap-8 px-8 text-2xl text-marble/60">
+      {/* the rows say what each number is to a screen reader themselves (sr-only), so the header is for the eye */}
+      <div aria-hidden className="flex gap-8 px-8 text-2xl font-bold text-marble/60">
         <span className="flex-1" />
-        <span className="w-48 text-right">Points</span>
-        <span className="w-56 text-right">Score</span>
+        <span className={POINTS_COLUMN}>Points</span>
+        <span className={SCORE_COLUMN}>Score</span>
       </div>
       <ol className="flex flex-col gap-4">
         {standings.map((entry, i) => (
           <li
             key={entry.playerId}
-            style={{ animationDelay: `${i * 80}ms` }}
-            className={`reveal flex items-baseline gap-8 rounded-xl border border-marble/15 px-8 py-5 font-bold ${i === 0 ? "border-l-4 border-l-yellow text-6xl" : i < 3 ? "text-5xl" : "text-4xl"}`}
+            style={{ animationDelay: `${i * 80}ms` }} // a quick top-down cascade, done well inside the Host's next tap
+            className={`reveal flex items-baseline gap-8 rounded-xl border border-marble/15 px-8 py-5 font-bold ${(STANDING_PLACES[i] ?? STANDING_REST).row}`}
           >
-            <span className={`w-16 text-right tabular-nums ${i === 0 ? "text-yellow" : "text-marble/60"}`}>
+            <span className={`w-16 text-right tabular-nums ${(STANDING_PLACES[i] ?? STANDING_REST).rank}`}>
               {i + 1}
             </span>
             <span className="flex-1 truncate">{entry.name}</span>
-            <span className="w-48 text-right text-4xl text-success-fg tabular-nums">+{entry.points}</span>
-            <span className="w-56 text-right tabular-nums">{entry.score}</span>
+            <span className={`${POINTS_COLUMN} text-4xl text-success-fg tabular-nums`}>
+              <span className="sr-only">Points </span>+{entry.points}
+            </span>
+            <span className={`${SCORE_COLUMN} tabular-nums`}>
+              <span className="sr-only">Score </span>
+              {entry.score}
+            </span>
           </li>
         ))}
       </ol>

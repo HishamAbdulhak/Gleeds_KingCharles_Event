@@ -38,9 +38,9 @@ Proportion, as in the guidelines: obsidian and marble carry each screen; yellow 
 
 | Role | Player | Host | Admin |
 | --- | --- | --- | --- |
-| Screen title | `text-3xl font-bold` | `text-6xl font-bold` | `text-2xl font-bold` |
+| Screen title | `text-3xl font-bold` | `text-6xl font-bold`; Reveal's is the `text-4xl` "Correct answer" label, because the tile under it is the headline | `text-2xl font-bold` |
 | Question | `text-2xl font-bold leading-snug` | `text-[clamp(2rem,4vw,4.5rem)] font-bold leading-tight` | — |
-| Key data | `text-4xl`–`text-6xl font-bold tabular-nums text-yellow` | PIN `clamp(5rem,11vw,14rem)` yellow; rows `text-5xl` | — |
+| Key data | `text-4xl`–`text-6xl font-bold tabular-nums text-yellow` | PIN `clamp(5rem,11vw,14rem)` yellow; leaderboard rows `text-5xl`; Standings rows by place: 1st `text-6xl`, 2nd–3rd `text-5xl`, the rest `text-4xl` | — |
 | Ranks, counters | `text-marble/80` | `text-marble/60` ranks, `/80` counters | table headers `text-marble/60` |
 | Body | `text-lg`, secondary `text-marble/80` | `text-2xl`–`text-4xl` | `text-sm`, hints `text-xs text-marble/60` |
 
@@ -58,7 +58,7 @@ Proportion, as in the guidelines: obsidian and marble carry each screen; yellow 
 
 - **Spacing** is Tailwind's 4 px scale. Page gutter: Player `p-4`/`p-6`, Admin `p-8`, Host `p-12`. Gaps between stacked blocks: Player `gap-4`/`gap-6`, Host `gap-8`, Admin `gap-6`.
 - **Radius**: `rounded-lg` (8 px) on controls (buttons, fields), `rounded-xl` (12 px) on tiles and panels (answer tiles, result banner, QR plate, dialogs), `rounded-full` on pills and tracks (timer, roster chips).
-- **Depth** comes from a `marble/15` hairline, not shadows or lighter surfaces; the guidelines tint toward white, which would wash a panel out. The only overlay is the dialog backdrop (`black/60`).
+- **Depth** comes from a `marble/15` hairline, not shadows or lighter surfaces; the guidelines tint toward white, which would wash a panel out. The only overlay is the dialog backdrop (`black/60`). Two Host exceptions are solid shapes rather than panels: the lobby's name rows (`marble/10`) and the Podium plinths (`marble/15`), which need a body to read as places from 5 m.
 
 ## Buttons
 
@@ -67,7 +67,7 @@ Proportion, as in the guidelines: obsidian and marble carry each screen; yellow 
 | Class | Use |
 | --- | --- |
 | `btn-primary` | yellow, obsidian text: the one forward action on a screen (Start, Join, Reveal, Next, Save); hover turns marble |
-| `btn-secondary` | marble outline: the alternative beside it (End Battle) |
+| `btn-secondary` | marble outline: the alternative beside it (End Battle), or a staff action on a screen whose call to action isn't a button (Host a Battle, under the QR tile) |
 | `btn-danger` | copper, black text: destructive and irreversible (Reset the Day Leaderboard) |
 | `btn-lg` | Player: 56 px minimum height, full width in forms |
 | `btn-xl` | Host |
@@ -81,7 +81,7 @@ One primary per screen. A destructive in-row action is `text-danger-fg underline
 2. **Panel** (`.panel`): obsidian + `marble/15` hairline, `rounded-xl`, `p-6`. Used for dialogs now, and later for grouping on the admin and the Host.
 3. **Tile**: a solid colour that *is* the content: answer options, the result banner (`success` / `danger`), the QR plate (marble).
 
-Pull-out data (a score, a place, the PIN) can take the Gleeds **section line**: a yellow left rule. The Host's Standings give it to 1st place (`border-l-4 border-l-yellow`), and the Podium's 1st plinth carries it on top: emphasis without adding colour.
+Pull-out data (a score, a place, the PIN) can take the Gleeds **section line**: a yellow rule along its leading edge. The Host's Standings give it to 1st place on the left (`border-l-4 border-l-yellow`), and the Podium's 1st plinth carries it on top (`border-t-4`), where a plinth's leading edge is: emphasis without adding colour.
 
 ## States
 
@@ -92,7 +92,7 @@ Pull-out data (a score, a place, the PIN) can take the Gleeds **section line**: 
 | Pressed | `scale-[0.98]` on buttons and answer tiles. This is the phone's instant "got it" before the server answers. |
 | Selected | `ring-4 ring-marble ring-offset-4 ring-offset-obsidian`. The offset keeps the ring legible on every tile; the unselected tiles dim to `opacity-40`. |
 | Disabled | `opacity-40`, `cursor-not-allowed`, no hover or press |
-| Correct / wrong | `success` fill with marble text / `danger` fill with black text. The correct tile stays full strength, the rest dim. |
+| Correct / wrong | `success` fill with marble text / `danger` fill with black text. The correct tile stays full strength, the rest dim. On the Host's Reveal the correct option keeps its own colour and takes the Selected ring plus a ✓ and the "Correct answer" label, so it never rests on colour alone; no Player selects on the big screen, so the ring can't be misread. |
 | Urgent | the timer turns `danger` for the last 5 s |
 | Offline | `Reconnecting…` bar, `danger`, fixed to the top |
 
