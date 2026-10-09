@@ -19,8 +19,8 @@ The guidelines' palette only. A tint is the colour mixed with white (50% = halfw
 | `obsidian` `#3C3C3C` | page and panels; text on yellow and marble | — |
 | `marble` `#F5F5F5` | text; `/80` secondary, `/60` tertiary (4.8:1), `/10`–`/40` borders, tracks, chips; form fields | — |
 | `yellow` `#F7C400` | Gleeds yellow, the one accent, used sparingly: primary action, key data (PIN, timer, place, best score, podium scores), links, the focus ring | tints; titles; more than a few yellow things on one screen |
-| `success` (patina) | correct, answered: fill under marble text | — |
-| `success-fg` (patina 50%) | success text on obsidian (saved, points gained) | as a fill |
+| `success` (patina) | correct: fill under marble text | "answered" (that is marble: the phone's Locked ring, the Host's filled name chip), so green never reads as right before the Reveal |
+| `success-fg` (patina 50%) | success text on obsidian (saved, points gained, "Battle ready") | as a fill |
 | `danger` (copper) | wrong / time's up, the urgent timer, Reconnecting…, destructive buttons: fill under **black** text (marble on copper is 3.8:1); the border of an invalid Player field | marble text on it |
 | `danger-fg` (copper 50%) | error text on obsidian | as a fill |
 | `copper`, `titanium`, `yellow`, `patina` | the four answer options (`OPTION_COLOURS` in `AnswerGrid.tsx`) | anywhere else, outside the status roles above |
@@ -34,7 +34,7 @@ Proportion, as in the guidelines: obsidian and marble carry each screen; yellow 
 - **Titles are marble.** Headlines take a primary colour, so yellow is kept for key data.
 - **Sentence case** everywhere, never all caps (Gleeds: the brandmark is lowercase, so are we).
 - **Bold is for reading distance, not decoration.** Host text is bold so it carries 5 m. Player titles and numbers are bold. Admin body copy is regular.
-- **Numbers** that change or line up (scores, ranks, timer, PIN, counts) are `tabular-nums`.
+- **Numbers** that change or line up (scores, ranks, timer, PIN, counts) are `tabular-nums`. Scores are grouped the British way (`formatNumber` in `lib/game.ts`: 12,345) on the phone and the big screen alike.
 
 | Role | Player | Host | Admin |
 | --- | --- | --- | --- |
@@ -90,9 +90,13 @@ No section lines (a coloured rule along a panel's or row's leading edge): the us
 | Focus | 3 px yellow outline, 3 px offset, on every focusable element (global `:focus-visible`) |
 | Hover | primary turns marble; secondary gets a `marble/10` wash; links turn marble. Tailwind limits hover to pointer devices. |
 | Pressed | `scale-[0.98]` on buttons, `scale-[0.97]` on answer tiles. This is the phone's instant "got it" before the server answers. |
+| Answered | On the phone, Selected below. On the Host's question screen, a Player's name chip fills marble (obsidian text) once they answer; a chip still waiting is a `marble/30` outline. |
 | Selected | `ring-4 ring-marble ring-offset-4 ring-offset-obsidian`. The offset keeps the ring legible on every tile; the unselected tiles dim to `opacity-40`. On the phone one tap is the Answer, so Selected is Locked: the tile also carries an obsidian "Locked" pill, and the status line says "Answer locked in". |
 | Disabled | `opacity-40`, `cursor-not-allowed`, no hover or press |
-| Correct / wrong | `success` fill with marble text / `danger` fill with black text. The correct tile stays full strength, the rest dim. On the Host's Reveal the correct option keeps its own colour and takes the Selected ring plus a ✓ and the "Correct answer" label, so it never rests on colour alone; no Player selects on the big screen, so the ring can't be misread. On the phone the Result banner is the fill; in the grid the correct tile gets an obsidian ✓ badge and a wrong pick keeps its ring, an ✕ badge and `opacity-70`. A timeout has no pick: only the ✓. |
+| Correct / wrong | `success` fill with marble text / `danger` fill with black text. The correct tile stays full strength, the rest dim. On the Host's Reveal the correct option keeps its own colour and takes the Selected ring plus the phone's obsidian ✓ badge (`BADGE` in `AnswerGrid.tsx`) and the "Correct answer" label, so it never rests on colour alone; no Player selects on the big screen, so the ring can't be misread. On the phone the Result banner is the fill; in the grid the correct tile gets an obsidian ✓ badge and a wrong pick keeps its ring, an ✕ badge and `opacity-70`. A timeout has no pick: only the ✓. |
+| Lobby | "Waiting for N more player(s)" in `marble/80`, then "✓ Battle ready" in `success-fg` once Start Battle opens, on the Host and every phone at once; the line is keyed on readiness so the change enters (`.reveal`). Counts read "2 of 4 players", like "Question 1 of 10" and "2 of 3 answered". |
+| Place | Words and medals, the same on both screens: 🥇 🥈 🥉 and "1st"–"4th" (`PLACES`, `MEDALS` in `lib/game.ts`). The Host's plinths carry the ordinal; the phone shows its own medal over its yellow ordinal. Standings keep bare numbers, since they are a table. |
+| Waiting | The phone's waits are one screen: a `text-4xl` "Look at the big screen" over a `marble/80` line saying what is coming ("The standings are up", "Your place is coming up…"). A Result says "Next question coming up…", or "That was the last question" after the last one. |
 | Urgent | the timer turns `danger` for the last 5 s; on the phone its pill also pulses (`motion-safe:animate-pulse`), the big screen stays still |
 | Offline | `Reconnecting…` bar, `danger`, fixed to the top. The phone adds "Stay on this page. It reconnects by itself." and dims its answer tiles, which can't be tapped until it's back |
 | Invalid field | `.field-lg` takes a 2 px `danger` border once the visitor has left it invalid (`user-invalid`); the browser's own message says why. Errors in words are `.alert` (`danger-fg` text); a form error also carries `role="alert"` |

@@ -9,14 +9,15 @@ import type { QuestionStart } from "@/lib/game";
  * read from across the room; the phone, glanced at in the hand, also pulses for the last five.
  */
 export function Timer({ question, big = false }: { question: QuestionStart; big?: boolean }) {
-  const [msLeft, setMsLeft] = useState(0);
+  const deadline = Date.parse(question.startedAt) + question.timeLimitSec * 1000;
+  // the true remainder from the first frame, not a red 0 until the first tick
+  const [msLeft, setMsLeft] = useState(() => Math.max(0, deadline - Date.now()));
   useEffect(() => {
-    const deadline = Date.parse(question.startedAt) + question.timeLimitSec * 1000;
     const tick = () => setMsLeft(Math.max(0, deadline - Date.now()));
     tick();
     const timer = setInterval(tick, 100);
     return () => clearInterval(timer);
-  }, [question]);
+  }, [deadline]);
   const seconds = Math.ceil(msLeft / 1000);
   const urgent = seconds <= 5;
   return (

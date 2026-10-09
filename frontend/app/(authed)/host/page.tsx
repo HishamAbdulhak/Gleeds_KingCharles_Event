@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { Brandmark } from "@/components/Brandmark";
 import { Reconnecting } from "@/components/Reconnecting";
 import { publicUrl } from "@/lib/api";
-import { createBattle, fetchLeaderboard, LeaderboardEntry, watchLeaderboard } from "@/lib/game";
+import { createBattle, fetchLeaderboard, formatNumber, LeaderboardEntry, watchLeaderboard } from "@/lib/game";
 
 /**
  * The Host idle screen (spec stories 24–25): the Day Leaderboard, live, and the QR code that brings walk-ups in.
@@ -50,7 +50,7 @@ export default function Host() {
                 <li key={entry.rank} className="flex items-baseline gap-8 text-5xl font-bold">
                   <span className="w-20 text-right tabular-nums text-marble/60">{entry.rank}</span>
                   <span className="flex-1 truncate">{entry.name}</span>
-                  <span className="tabular-nums">{entry.score}</span>
+                  <span className="tabular-nums">{formatNumber(entry.score)}</span>
                 </li>
               ))}
             </ol>
