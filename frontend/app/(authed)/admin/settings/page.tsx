@@ -98,7 +98,9 @@ export default function SettingsPage() {
             </p>
           ) : null}
         </form>
-      ) : null}
+      ) : error ? null : (
+        <p className="text-sm text-marble/60">Loading…</p>
+      )}
     </main>
   );
 }

@@ -82,7 +82,7 @@ export default function PlayGame() {
         <header className="flex flex-col items-center gap-2 text-center">
           <h1 className="text-4xl font-bold">You&apos;re in!</h1>
           {me && (
-            <p className="text-lg">
+            <p className="text-lg wrap-anywhere">
               Playing as <span className="font-bold">{me.name}</span>
             </p>
           )}
@@ -93,7 +93,10 @@ export default function PlayGame() {
           </h2>
           <ul className="flex flex-col gap-2">
             {state.players.map((p) => (
-              <li key={p.id} className="reveal rounded-xl border border-marble/15 px-4 py-3 text-xl font-bold">
+              <li
+                key={p.id}
+                className="reveal rounded-xl border border-marble/15 px-4 py-3 text-xl font-bold wrap-anywhere"
+              >
                 {p.name}
                 {p.id === playerId && <span className="font-normal text-marble/80"> (you)</span>}
               </li>
@@ -157,10 +160,17 @@ export default function PlayGame() {
           <p className="text-base text-marble/80 tabular-nums">
             Question {question.index + 1} of {question.total}
           </p>
-          <h1 className={`font-bold leading-snug ${state.phase === "result" ? "text-xl text-marble/80" : "text-2xl"}`}>
+          <h1
+            className={`font-bold leading-snug wrap-anywhere ${state.phase === "result" ? "text-xl text-marble/80" : "text-2xl"}`}
+          >
             {question.text}
           </h1>
-          {state.phase !== "result" && <Timer question={question} />}
+          {/* stays in view while the thumb scrolls to the last option */}
+          {state.phase !== "result" && (
+            <div className={`sticky z-5 -mx-4 bg-obsidian px-4 py-2 ${online === false ? "top-24" : "top-0"}`}>
+              <Timer question={question} />
+            </div>
+          )}
           <AnswerGrid
             options={question.options}
             selected={state.phase === "question" ? null : state.selected}
@@ -213,7 +223,7 @@ function ResultBanner({ result: { correct, points, streak, score }, answered }: 
       </h2>
       <p className="text-6xl font-bold tabular-nums">+{formatNumber(points)}</p>
       <p className="text-lg">points</p>
-      <p className="mt-2 flex gap-6 text-lg font-bold tabular-nums">
+      <p className="mt-2 flex flex-wrap justify-center gap-x-6 text-lg font-bold tabular-nums">
         <span>Streak {streak}</span>
         <span>Score {formatNumber(score)}</span>
       </p>
@@ -250,7 +260,7 @@ function PrizeProof({ score, rank = null, best }: { score: number | null; rank?:
     <section className="panel flex w-full max-w-sm flex-col gap-4">
       <header>
         <p className="text-lg text-marble/80">Game over</p>
-        {best && <h1 className="text-3xl font-bold">{best.name}</h1>}
+        {best && <h1 className="text-3xl font-bold wrap-anywhere">{best.name}</h1>}
       </header>
       {score !== null && (
         <dl>
@@ -259,7 +269,7 @@ function PrizeProof({ score, rank = null, best }: { score: number | null; rank?:
           </Stat>
         </dl>
       )}
-      <dl className="grid grid-cols-2 gap-4">
+      <dl className="flex flex-wrap gap-x-8 gap-y-4">
         {rank !== null && <Stat label="Rank today">#{formatNumber(rank)}</Stat>}
         {best && best.score !== null && (
           <Stat label="Best today" className="text-yellow">

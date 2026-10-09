@@ -106,6 +106,13 @@ No section lines (a coloured rule along a panel's or row's leading edge): the us
 | Import result | A file's outcome under the import form, naming the file: all in (`success-fg` ✓ "Imported 12 questions"), partly in ("Imported 10 questions. 2 rows were skipped and need fixing:" then the rows), nothing in (`danger-fg` "Import … failed. No questions were imported." plus the rows or the server's reason). An unreachable server says the import may not have run. |
 | Invalid field | `.field` takes a 2 px `danger` border once the visitor has left it invalid (`user-invalid`) or the page marks it `aria-invalid`; the browser's message, or the Admin's own line under the field (`danger-fg`, tied by `aria-describedby`), says why. Errors in words are `.alert` (`danger-fg` text); a form error also carries `role="alert"` |
 
+## Fit
+
+- **Widths**: the phone screens hold from 320 px with no sideways scroll; the Host is laid out for 1920×1080 (its QR is `max(16rem, 41vh)`, 440 px there) and stacks below `lg`; Admin pages narrow their gutter to `p-4` below `sm`, with the brandmark's margin growing to `m-6` to keep its clear space.
+- **Long text**: names and answers can be one unbroken 80-character word. Where they wrap (phone tiles, lobby, prize card, Host option tiles) they take `wrap-anywhere`; where they sit in a row (Host lobby, Standings, Podium, roster chips) they `truncate`, with `min-w-0` on the flex or grid parent so the row can shrink.
+- **The phone's timer** sticks to the top of the question screen (below the Reconnecting… bar while it shows), so it stays in view while the thumb scrolls to the last option.
+- **Dialogs** keep a 16 px gutter on a phone (`w-[calc(100%-2rem)]`), scroll inside when taller than the screen, and wrap their buttons.
+
 ## Motion
 
 - **150 ms ease** for feedback (hover, press, dim). It should feel instant.

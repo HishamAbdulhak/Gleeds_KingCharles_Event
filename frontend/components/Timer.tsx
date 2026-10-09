@@ -29,10 +29,11 @@ export function Timer({ question, big = false }: { question: QuestionStart; big?
         />
       </div>
       <span
-        aria-live="polite"
+        role="timer"
         className={`rounded-full px-3 py-1 text-center font-bold tabular-nums ${big ? "min-w-14 text-6xl" : "min-w-16 text-3xl"} ${urgent ? "bg-danger text-black" : "bg-yellow text-obsidian"} ${urgent && !big ? "motion-safe:animate-pulse" : ""}`}
       >
         {seconds}
+        <span className="sr-only"> seconds left</span>
       </span>
     </div>
   );
