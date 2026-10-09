@@ -254,8 +254,8 @@ class BattleGameTest {
 		assertThat((int) podium.get(0).get("score")).isPositive();
 		assertThat(podium.get(1)).containsEntry("name", "Bob").containsEntry("score", 0);
 		// docs/adr/0003: each phone gets its own name and best Score today (a first Game: this one), and no email
-		assertThat(Stomp.next(ada.queue(), "BEST_SCORE")).isEqualTo(Map.of("name", "Ada", "score", podium.get(0).get("score")));
-		assertThat(Stomp.next(bob.queue(), "BEST_SCORE")).isEqualTo(Map.of("name", "Bob", "score", 0));
+		assertThat(Stomp.next(ada.queue(), "BEST_SCORE")).isEqualTo(Map.of("name", "Ada", "score", podium.get(0).get("score"), "rank", 1));
+		assertThat(Stomp.next(bob.queue(), "BEST_SCORE")).isEqualTo(Map.of("name", "Bob", "score", 0, "rank", 2));
 		assertThat(podium).asString().doesNotContain("@");
 		assertThat(rows(Stomp.next(screen.board(), "DAY_LEADERBOARD"), "top")).as("the Battle's Scores are on the day's board")
 				.extracting(row -> row.get("name")).containsExactly("Ada", "Bob");
@@ -587,7 +587,7 @@ class BattleGameTest {
 		assertThat(Stomp.next(back.queue(), "SYNC")).containsEntry("status", "FINISHED").containsEntry("answered", false);
 		var podium = rows(Stomp.next(back.queue(), "GAME_OVER"), "podium");
 		assertThat(podium).extracting(row -> row.get("name")).containsExactly("Ada", "Bob");
-		assertThat(Stomp.next(back.queue(), "BEST_SCORE")).isEqualTo(Map.of("name", "Ada", "score", podium.get(0).get("score")));
+		assertThat(Stomp.next(back.queue(), "BEST_SCORE")).isEqualTo(Map.of("name", "Ada", "score", podium.get(0).get("score"), "rank", 1));
 	}
 
 	/**

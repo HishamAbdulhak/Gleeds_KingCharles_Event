@@ -135,7 +135,7 @@ export default function PlayGame() {
   }
 
   if (state.phase === "over") {
-    const { podium, score, rank } = state.gameOver;
+    const { podium, score } = state.gameOver;
     const playAgain = (
       <Link href="/play" className="btn btn-primary btn-lg w-full max-w-sm">
         Play again
@@ -150,7 +150,7 @@ export default function PlayGame() {
           </MyPlace>
         ) : (
           <>
-            <PrizeProof score={score} rank={rank} best={state.best} />
+            <PrizeProof score={score} best={state.best} />
             {playAgain}
           </>
         )}
@@ -262,9 +262,9 @@ function Stat({
 /**
  * What the Player shows staff to claim the day's prize (docs/adr/0003): their name and Best Score, which is their
  * email's, not just this Game's, and the reminder to keep it on screen. Staff match both to the live board. The name,
- * Best Score and reminder wait for BEST_SCORE, a moment after GAME_OVER. `rank` is Solo's place on the Day Leaderboard; a Battle shows its place above the card.
+ * Best Score, rank today and reminder wait for BEST_SCORE, a moment after GAME_OVER. A Battle shows its place above the card.
  */
-function PrizeProof({ score, rank = null, best }: { score: number | null; rank?: number | null; best?: BestScore }) {
+function PrizeProof({ score, best }: { score: number | null; best?: BestScore }) {
   return (
     <section className="panel flex w-full max-w-sm flex-col gap-4">
       <header>
@@ -279,7 +279,7 @@ function PrizeProof({ score, rank = null, best }: { score: number | null; rank?:
         </dl>
       )}
       <dl className="flex flex-wrap gap-x-8 gap-y-4">
-        {rank !== null && <Stat label="Rank today">#{formatNumber(rank)}</Stat>}
+        {best?.rank != null && <Stat label="Rank today">#{formatNumber(best.rank)}</Stat>}
         {best && best.score !== null && (
           <Stat label="Best today" className="text-yellow">
             {formatNumber(best.score)}

@@ -67,11 +67,11 @@ export type HostState = { players: { id: string; name: string; answered: boolean
 export type GameOver = { score: number | null; rank: number | null; podium: Standing[] | null };
 
 /**
- * Personal queue, right after GAME_OVER, both Modes: the Player's name and best Score today (the Day Leaderboard's
- * Score for their email, maybe an earlier Game's), which the phone shows to claim the prize — never the email
- * (docs/adr/0003). `score` is null only if a Reset happened mid-Game.
+ * Personal queue, right after GAME_OVER, both Modes: the Player's name, best Score today (the Day Leaderboard's
+ * Score for their email, maybe an earlier Game's) and that entry's rank, which the phone shows to claim the prize —
+ * never the email (docs/adr/0003). `score` and `rank` are null only if a Reset happened mid-Game.
  */
-export type BestScore = { name: string; score: number | null };
+export type BestScore = { name: string; score: number | null; rank: number | null };
 
 /** One row of the Day Leaderboard. */
 export type LeaderboardEntry = { rank: number; name: string; score: number };
