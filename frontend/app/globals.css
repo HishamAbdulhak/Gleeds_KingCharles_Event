@@ -58,7 +58,7 @@
 
   /* a danger border once the visitor has left a field invalid (the browser, or the field's own message, says why) */
   .field {
-    @apply rounded-lg border-2 border-transparent bg-marble px-3 py-2 text-obsidian placeholder:text-obsidian/60 user-invalid:border-danger aria-invalid:border-danger;
+    @apply rounded-lg border-2 border-transparent bg-marble px-3 py-2 text-obsidian placeholder:text-obsidian/75 user-invalid:border-danger aria-invalid:border-danger disabled:cursor-not-allowed disabled:opacity-40;
   }
   /* Player forms: thumb height */
   .field-lg {
@@ -70,7 +70,7 @@
   }
 
   .link {
-    @apply text-yellow underline underline-offset-4 hover:text-marble;
+    @apply text-yellow underline underline-offset-4 transition-colors duration-150 hover:text-marble;
   }
 
   /* Admin status: filled marble when on, a marble/30 outline when off (the Host's answered / waiting chip) */

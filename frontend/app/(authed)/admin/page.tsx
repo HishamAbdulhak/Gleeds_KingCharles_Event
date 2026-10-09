@@ -60,7 +60,7 @@ export default function AdminHome() {
       ) : null}
 
       {/* every panel renders while loading or after a failed load, so Reset is always reachable */}
-      <div className="grid gap-6 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
         <section className="panel flex flex-col gap-3 text-sm">
           <h2 className="text-lg">Question Bank</h2>
           {overview ? (
@@ -68,7 +68,9 @@ export default function AdminHome() {
               {count(overview.questions.length, "question")} · {active} active · {overview.questions.length - active}{" "}
               inactive
             </p>
-          ) : null}
+          ) : error ? null : (
+            <p className="text-marble/60">Loading…</p>
+          )}
           <Link href="/admin/questions" className="link self-start">
             Manage questions
           </Link>
@@ -89,7 +91,9 @@ export default function AdminHome() {
                 <p className="text-success-fg">✓ Ready: enough active questions for a Game.</p>
               )}
             </>
-          ) : null}
+          ) : error ? null : (
+            <p className="text-marble/60">Loading…</p>
+          )}
           <Link href="/admin/settings" className="link self-start">
             Change in Settings
           </Link>

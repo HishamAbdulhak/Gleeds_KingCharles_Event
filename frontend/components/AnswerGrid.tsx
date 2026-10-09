@@ -22,7 +22,8 @@ type Props = {
 /**
  * Four big thumb-friendly option rows. Disables on the first tap; the caller re-enables by passing onSelect again.
  * Each state has a cue besides colour: the Player's tile keeps a ring and says "Locked" until RESULT, which marks the
- * correct tile ✓ and a wrong pick ✕ (a timeout has no pick, so only the ✓).
+ * correct tile ✓ and a wrong pick ✕ (a timeout has no pick, so only the ✓). `scroll-mt-20` keeps a focused tile clear of
+ * the phone's sticky timer.
  */
 export function AnswerGrid({ options, selected, correctOption, onSelect }: Props) {
   const revealed = correctOption !== undefined;
@@ -46,12 +47,12 @@ export function AnswerGrid({ options, selected, correctOption, onSelect }: Props
             disabled={!onSelect}
             onClick={() => onSelect?.(i)}
             aria-pressed={mine}
-            className={`flex min-h-20 items-center gap-4 rounded-xl px-5 py-4 text-left text-xl font-bold transition duration-150 enabled:active:scale-[0.97] disabled:cursor-not-allowed ${OPTION_COLOURS[i]} ${opacity} ${mine ? "ring-4 ring-marble ring-offset-4 ring-offset-obsidian" : ""}`}
+            className={`flex min-h-20 items-center gap-4 scroll-mt-20 rounded-xl px-5 py-4 text-left text-xl font-bold transition duration-150 enabled:active:scale-[0.97] disabled:cursor-not-allowed ${OPTION_COLOURS[i]} ${opacity} ${mine ? "ring-4 ring-marble ring-offset-4 ring-offset-obsidian" : ""}`}
           >
             <span aria-hidden className="w-8 shrink-0 text-center text-3xl">
               {OPTION_SHAPES[i]}
             </span>
-            <span className="flex-1">{option}</span>
+            <span className="min-w-0 flex-1 wrap-anywhere">{option}</span>
             <Badge revealed={revealed} correct={i === correctOption} mine={mine} />
           </button>
         );

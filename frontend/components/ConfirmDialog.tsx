@@ -41,7 +41,7 @@ export function ConfirmDialog({
         e.preventDefault(); // the parent closes it, so `open` stays the truth
         if (!busy) onCancel();
       }}
-      className="panel m-auto w-full max-w-md text-marble backdrop:bg-black/60"
+      className="panel m-auto w-[calc(100%-2rem)] max-w-md text-marble backdrop:bg-black/60"
     >
       {open ? (
         <div className="flex flex-col gap-4">
@@ -49,7 +49,7 @@ export function ConfirmDialog({
             {title}
           </h2>
           <div className="flex flex-col gap-2 text-sm text-marble/80">{children}</div>
-          <div className="flex justify-end gap-3">
+          <div className="flex flex-wrap justify-end gap-3">
             <button type="button" autoFocus disabled={busy} onClick={onCancel} className="btn btn-secondary">
               Cancel
             </button>

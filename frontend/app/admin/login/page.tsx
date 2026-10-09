@@ -57,8 +57,8 @@ export default function AdminLogin() {
   }
 
   return (
-    <main className="flex flex-1 flex-col items-center gap-8 p-8">
-      <Brandmark className="m-2 w-25 self-start" />
+    <main className="flex flex-1 flex-col items-center gap-8 p-4 sm:p-8">
+      <Brandmark className="m-6 w-25 self-start sm:m-2" />
       <form onSubmit={onSubmit} noValidate aria-busy={busy} className="my-auto w-full max-w-sm">
         <fieldset disabled={busy} className="flex flex-col gap-4">
           <h1 className="text-2xl">Admin login</h1>

@@ -71,7 +71,7 @@ export default function HostGame() {
       {/* a new key per screen (and per question) replays the fade, so each change of state enters rather than snaps */}
       <div
         key={screen.phase === "question" ? `question-${screen.question.index}` : screen.phase}
-        className="screen-in flex min-h-0 flex-1 gap-12"
+        className="screen-in flex min-h-0 flex-1 flex-col gap-12 lg:flex-row"
       >
         <Screen screen={screen} />
       </div>
@@ -126,13 +126,15 @@ function Lobby({ pin, players }: { pin: string | null; players: LobbyUpdate["pla
   return (
     <>
       <section className="flex min-w-0 flex-1 flex-col justify-center gap-6 text-center">
-        <p className="text-3xl font-bold text-marble/80">Join at {publicUrl("/join")} with the Battle PIN</p>
+        <p className="text-3xl font-bold wrap-anywhere text-marble/80">
+          Join at {publicUrl("/join")} with the Battle PIN
+        </p>
         {/* six digits at ~0.9 em each with tracking: fills two thirds of the width on any screen */}
         <p className="text-[clamp(5rem,11vw,14rem)] font-bold leading-none tracking-[0.15em] tabular-nums text-yellow">
           {pin ?? "······"}
         </p>
       </section>
-      <aside className="panel flex w-1/3 flex-col gap-8">
+      <aside className="panel flex flex-col gap-8 lg:w-1/3">
         <h1 className="text-6xl font-bold tabular-nums">
           {players.length} of {MAX_PLAYERS} players
         </h1>
@@ -186,7 +188,7 @@ function Asked({ question, roster }: { question: QuestionStart; roster: HostStat
         {question.options.map((option, i) => (
           <div key={i} className={`flex items-center gap-4 rounded-xl p-6 text-4xl font-bold ${OPTION_COLOURS[i]}`}>
             <span aria-hidden>{OPTION_SHAPES[i]}</span>
-            {option}
+            <span className="min-w-0 wrap-anywhere">{option}</span>
           </div>
         ))}
       </div>
@@ -194,11 +196,11 @@ function Asked({ question, roster }: { question: QuestionStart; roster: HostStat
         <p className="text-4xl font-bold tabular-nums">
           {roster.filter((player) => player.answered).length} of {roster.length} answered
         </p>
-        <ul className="flex flex-wrap gap-4 text-2xl font-bold">
+        <ul className="flex min-w-0 flex-wrap gap-4 text-2xl font-bold">
           {roster.map((player) => (
             <li
               key={player.id}
-              className={`rounded-full border-2 px-5 py-2 transition duration-150 ${player.answered ? "border-marble bg-marble text-obsidian" : "border-marble/30 text-marble/70"}`}
+              className={`max-w-full truncate rounded-full border-2 px-5 py-2 transition duration-150 ${player.answered ? "border-marble bg-marble text-obsidian" : "border-marble/30 text-marble/70"}`}
             >
               {player.name}
             </li>
@@ -224,7 +226,7 @@ function Revealed({ question, reveal }: { question: QuestionStart; reveal: Revea
           className={`flex items-center gap-6 rounded-xl p-8 text-6xl font-bold ring-4 ring-marble ring-offset-4 ring-offset-obsidian ${OPTION_COLOURS[correct]}`}
         >
           <span aria-hidden>{OPTION_SHAPES[correct]}</span>
-          <span className="flex-1">{question.options[correct]}</span>
+          <span className="min-w-0 flex-1 wrap-anywhere">{question.options[correct]}</span>
           {/* the phone's correct tile carries the same badge */}
           <span aria-hidden className={`${BADGE} size-16 text-4xl`}>
             ✓
@@ -274,7 +276,7 @@ const STANDING_REST = { row: "text-4xl", rank: "text-marble/60" };
 /** Spec story 33: where everyone stands between questions, with what the last question earned. */
 function Standings({ standings }: { standings: Standing[] }) {
   return (
-    <section className="flex flex-1 flex-col gap-6">
+    <section className="flex min-w-0 flex-1 flex-col gap-6">
       <h1 className="text-6xl font-bold">Standings</h1>
       {/* the rows say what each number is to a screen reader themselves (sr-only), so the header is for the eye */}
       <div aria-hidden className="flex gap-8 px-8 text-2xl font-bold text-marble/60">
@@ -317,7 +319,7 @@ const PODIUM_STEPS = [
 /** The Podium (#9), revealed from the bottom up: 3rd, then 2nd, then 1st, a beat apart. */
 function Podium({ podium }: { podium: Standing[] }) {
   return (
-    <section className="flex flex-1 flex-col items-center justify-end gap-8">
+    <section className="flex min-w-0 flex-1 flex-col items-center justify-end gap-8">
       {/* empty when End Battle closed the lobby before anyone played */}
       <h1 className="text-6xl font-bold">{podium.length > 0 ? "Final podium" : "Battle ended"}</h1>
       <ol className="flex w-full max-w-6xl items-end justify-center gap-8">

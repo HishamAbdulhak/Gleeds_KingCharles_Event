@@ -39,8 +39,8 @@ export default function Host() {
     <main className="flex flex-1 flex-col gap-12 p-12">
       <Reconnecting online={online} />
       <Brandmark className="w-32" />
-      <div className="flex flex-1 gap-16">
-        <section className="flex flex-1 flex-col gap-8">
+      <div className="flex flex-1 flex-col gap-16 lg:flex-row">
+        <section className="flex min-w-0 flex-1 flex-col gap-8">
           <h1 className="text-6xl font-bold">Today&apos;s leaderboard</h1>
           {top.length === 0 ? (
             <p className="text-4xl text-marble/80">No Games yet — scan to be first!</p>
@@ -60,10 +60,17 @@ export default function Host() {
           {/* the instruction and the code are one object, the screen's call to action; Host a Battle is secondary to it */}
           <div className="flex flex-col items-center gap-6 rounded-xl bg-marble p-8 text-obsidian">
             <h2 className="text-6xl font-bold">Scan to play</h2>
-            {/* 440 px: the largest that fits a 1080 px screen with the title above it and the URL and button below */}
-            <QRCodeSVG value={playUrl} size={440} bgColor="var(--color-marble)" fgColor="var(--color-obsidian)" />
+            {/* 41vh (440 px at 1080): the largest that fits a 1080 px screen with the title above it and the URL and button
+                below; it shrinks with a shorter screen, to no less than 16rem. `size` only sets the SVG's own attributes */}
+            <QRCodeSVG
+              value={playUrl}
+              size={440}
+              bgColor="var(--color-marble)"
+              fgColor="var(--color-obsidian)"
+              className="size-[max(16rem,41vh)]"
+            />
           </div>
-          <p className="text-2xl font-bold text-marble/60">{playUrl}</p>
+          <p className="text-2xl font-bold wrap-anywhere text-marble/60">{playUrl}</p>
           <button type="button" onClick={hostBattle} className="btn btn-secondary btn-xl mt-6">
             Host a Battle
           </button>

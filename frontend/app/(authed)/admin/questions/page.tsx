@@ -22,6 +22,7 @@ const NO_FILTER: QuestionFilter = { query: "", category: "", status: "all" };
 
 export default function QuestionBank() {
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState(NO_FILTER);
   const [editing, setEditing] = useState<Partial<Question> | null>(null); // null = dialog closed, {} = new
   const [deleting, setDeleting] = useState<Question | null>(null);
@@ -35,7 +36,8 @@ export default function QuestionBank() {
     () =>
       api<Question[]>("/api/admin/questions")
         .then(setQuestions)
-        .catch((e: Error) => setError(e.message)),
+        .catch((e: Error) => setError(e.message))
+        .finally(() => setLoaded(true)),
     [],
   );
 
@@ -152,14 +154,14 @@ export default function QuestionBank() {
 
       <section className="flex flex-col gap-3">
         <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1">
+          <label className="flex max-w-full flex-col gap-1">
             Search questions
             <input
               type="search"
               value={filter.query}
               onChange={(e) => setFilter({ ...filter, query: e.target.value })}
               placeholder="Question, answer or category"
-              className="field w-72"
+              className="field w-72 max-w-full"
             />
           </label>
           <label className="flex flex-col gap-1">
@@ -198,7 +200,7 @@ export default function QuestionBank() {
           </button>
         </div>
 
-        <div className="overflow-x-auto">
+        <div tabIndex={0} role="region" aria-label="Questions" className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="border-b border-marble/15 text-marble/60">
               <tr>
@@ -244,7 +246,7 @@ export default function QuestionBank() {
                         type="button"
                         onClick={() => setDeleting(q)}
                         aria-label={`Delete: ${q.text}`}
-                        className="text-danger-fg underline underline-offset-4 hover:text-marble"
+                        className="text-danger-fg underline underline-offset-4 transition-colors duration-150 hover:text-marble"
                       >
                         Delete
                       </button>
@@ -255,7 +257,9 @@ export default function QuestionBank() {
               {shown.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="p-2 text-marble/60">
-                    {questions.length > 0 ? (
+                    {!loaded ? (
+                      "Loading questions…"
+                    ) : questions.length > 0 ? (
                       <>
                         No questions match.{" "}
                         <button type="button" onClick={() => setFilter(NO_FILTER)} className="link">
@@ -279,7 +283,7 @@ export default function QuestionBank() {
           setEditing(null);
           setError(null);
         }}
-        className="panel m-auto w-full max-w-lg text-marble backdrop:bg-black/60"
+        className="panel m-auto w-[calc(100%-2rem)] max-w-lg text-marble backdrop:bg-black/60"
       >
         {editing ? (
           <form key={editing.id ?? "new"} onSubmit={save} className="flex flex-col gap-3 text-sm">
@@ -321,7 +325,7 @@ export default function QuestionBank() {
               <input name="category" defaultValue={editing.category ?? ""} className="field" />
             </label>
             {error ? errorAlert : null}
-            <div className="flex justify-end gap-3">
+            <div className="flex flex-wrap justify-end gap-3">
               <button type="button" onClick={() => setEditing(null)} className="btn btn-secondary">
                 Cancel
               </button>
