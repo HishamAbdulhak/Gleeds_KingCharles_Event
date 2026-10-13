@@ -21,13 +21,22 @@ final class Fixtures {
 				.body(Map.of("email", ADMIN_EMAIL, "password", ADMIN_PASSWORD)).retrieve().body(Map.class).get("token");
 	}
 
-	/** Empties the Games and the Question Bank, then seeds {@code n} questions (Q1…, options a–d) and a Game size of {@code n}. */
+	/**
+	 * Empties the Games and the Question Bank, then seeds {@code n} King Charles questions (Q1…, options a–d) and a Game
+	 * of {@code n} of them.
+	 */
 	static void questionBank(JdbcTemplate jdbc, int n, int correctOption, int timeLimitSec) {
 		jdbc.execute("TRUNCATE game, question CASCADE");
-		jdbc.update("UPDATE settings SET questions_per_game = ?", n);
+		perGame(jdbc, n, 0, 0);
 		for (int i = 1; i <= n; i++) {
-			jdbc.update("INSERT INTO question (text, option_a, option_b, option_c, option_d, correct_option, time_limit_sec) "
-					+ "VALUES (?, 'a', 'b', 'c', 'd', ?, ?)", "Q" + i, correctOption, timeLimitSec);
+			jdbc.update("INSERT INTO question (text, option_a, option_b, option_c, option_d, correct_option, time_limit_sec, "
+					+ "category) VALUES (?, 'a', 'b', 'c', 'd', ?, ?, 'King Charles')", "Q" + i, correctOption, timeLimitSec);
 		}
+	}
+
+	/** Each Game's mix: how many King Charles, UK–Saudi and Gleeds questions it draws. */
+	static void perGame(JdbcTemplate jdbc, int kingCharles, int ukSaudi, int gleeds) {
+		jdbc.update("UPDATE settings SET king_charles_per_game = ?, uk_saudi_per_game = ?, gleeds_per_game = ?",
+				kingCharles, ukSaudi, gleeds);
 	}
 }

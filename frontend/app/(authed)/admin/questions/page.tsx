@@ -3,12 +3,17 @@
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import {
+  CATEGORIES,
+  Category,
+  categoryCounts,
+  shortCategories,
+  shortfall,
   count,
   filterQuestions,
   ImportResult,
   importOutcome,
   LETTERS,
-  NO_CATEGORY,
+  Mix,
   OPTION_KEYS,
   Question,
   QuestionFilter,
@@ -22,6 +27,7 @@ const NO_FILTER: QuestionFilter = { query: "", category: "", status: "all" };
 
 export default function QuestionBank() {
   const [questions, setQuestions] = useState<Question[]>([]);
+  const [mix, setMix] = useState<Mix | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [filter, setFilter] = useState(NO_FILTER);
   const [editing, setEditing] = useState<Partial<Question> | null>(null); // null = dialog closed, {} = new
@@ -43,6 +49,9 @@ export default function QuestionBank() {
 
   useEffect(() => {
     reload();
+    api<Mix>("/api/admin/settings")
+      .then(setMix)
+      .catch((e: Error) => setError(e.message));
   }, [reload]);
 
   useEffect(() => {
@@ -70,7 +79,6 @@ export default function QuestionBank() {
       ...Object.fromEntries(f), // text, optionA–D
       correctOption: Number(f.get("correctOption")),
       timeLimitSec: Number(f.get("timeLimitSec")),
-      category: f.get("category") || null,
     });
     setBusy(true);
     const ok = await run(
@@ -120,7 +128,7 @@ export default function QuestionBank() {
   }
 
   const shown = filterQuestions(questions, filter);
-  const categories = [...new Set(questions.flatMap((q) => (q.category ? [q.category] : [])))].sort();
+  const counts = mix ? categoryCounts(questions, mix) : null;
 
   const errorAlert = (
     <p role="alert" className="text-sm text-danger-fg">
@@ -153,8 +161,9 @@ export default function QuestionBank() {
           </button>
         </form>
         <p className="text-xs text-marble/60">
-          Columns: text, a, b, c, d, correct (A–D), and optionally time_limit (seconds) and category. The first row is
-          the header, columns in any order. Valid rows are added; rows with problems are listed so you can fix them.
+          Columns: text, a, b, c, d, correct (A–D), category, and optionally time_limit (seconds). Category is one of{" "}
+          {CATEGORIES.map((c) => c.name).join(", ")}, in any case. The first row is the header, columns in any order.
+          Valid rows are added; rows with problems are listed so you can fix them.
         </p>
         {lastImport ? <ImportFeedback state={lastImport} /> : null}
       </section>
@@ -175,16 +184,15 @@ export default function QuestionBank() {
             Category
             <select
               value={filter.category}
-              onChange={(e) => setFilter({ ...filter, category: e.target.value })}
+              onChange={(e) => setFilter({ ...filter, category: e.target.value as Category | "" })}
               className="field"
             >
               <option value="">All categories</option>
-              {categories.map((c) => (
-                <option key={c} value={c}>
-                  {c}
+              {CATEGORIES.map((c) => (
+                <option key={c.name} value={c.name}>
+                  {c.name}
                 </option>
               ))}
-              <option value={NO_CATEGORY}>No category</option>
             </select>
           </label>
           <label className="flex flex-col gap-1">
@@ -207,6 +215,20 @@ export default function QuestionBank() {
           </button>
         </div>
 
+        {counts && mix ? (
+          <div aria-live="polite" className="flex flex-col gap-1">
+            <p className="text-marble/80 tabular-nums">
+              Active: {counts.map((c) => `${c.name} ${c.active}`).join(" · ")}
+            </p>
+            {/* the server's own rule (QuestionBank.draw): a Game can't start while any category is short */}
+            {shortCategories(questions, mix).map((c) => (
+              <p key={c.name} role="alert" className="text-danger-fg tabular-nums">
+                {shortfall(c)} Activate or add more.
+              </p>
+            ))}
+          </div>
+        ) : null}
+
         <div tabIndex={0} role="region" aria-label="Questions" className="overflow-x-auto">
           <table className="w-full text-left">
             <thead className="border-b border-marble/15 text-marble/60">
@@ -227,7 +249,7 @@ export default function QuestionBank() {
                     <span className="font-bold">{LETTERS[q.correctOption]}</span> {q[OPTION_KEYS[q.correctOption]]}
                   </td>
                   <td className="p-2 text-right whitespace-nowrap tabular-nums">{q.timeLimitSec} s</td>
-                  <td className="p-2">{q.category ?? "—"}</td>
+                  <td className="p-2 whitespace-nowrap">{q.category}</td>
                   <td className="p-2">
                     <span className={`chip ${q.active ? "chip-on" : ""}`}>{q.active ? "Active" : "Inactive"}</span>
                   </td>
@@ -328,8 +350,17 @@ export default function QuestionBank() {
               />
             </label>
             <label className="flex flex-col gap-1">
-              Category (optional)
-              <input name="category" defaultValue={editing.category ?? ""} className="field" />
+              Category
+              <select name="category" required defaultValue={editing.category ?? ""} className="field">
+                <option value="" disabled>
+                  Choose a category
+                </option>
+                {CATEGORIES.map((c) => (
+                  <option key={c.name} value={c.name}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
             </label>
             {error ? errorAlert : null}
             <div className="flex flex-wrap justify-end gap-3">

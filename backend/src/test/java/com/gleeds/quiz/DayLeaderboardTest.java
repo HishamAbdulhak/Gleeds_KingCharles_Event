@@ -53,7 +53,7 @@ class DayLeaderboardTest {
 
 	long question(String text) {
 		return jdbc.queryForObject("INSERT INTO question (text, option_a, option_b, option_c, option_d, correct_option, "
-				+ "time_limit_sec) VALUES (?, 'a', 'b', 'c', 'd', 1, ?) RETURNING id", Long.class, text, TIME_LIMIT_SEC);
+				+ "time_limit_sec, category) VALUES (?, 'a', 'b', 'c', 'd', 1, ?, 'King Charles') RETURNING id", Long.class, text, TIME_LIMIT_SEC);
 	}
 
 	/** A finished Solo Game whose Question Set is both questions. */
@@ -155,7 +155,7 @@ class DayLeaderboardTest {
 	/** docs/adr/0003: the phone's proof is the email's best Score today, so a worse Replay still shows the earlier one. */
 	@Test
 	void aReplayThatScoresLowerStillReportsTheEarlierBestUnderTheNewName() throws Exception {
-		jdbc.update("UPDATE settings SET questions_per_game = 1");
+		Fixtures.perGame(jdbc, 1, 0, 0);
 		player(game(Instant.now().minusSeconds(60)), "Ada", "ada@example.com", 9000);   // more than one question can earn
 
 		var ending = playSolo("Ada Lovelace", "ADA@example.com");
@@ -167,7 +167,7 @@ class DayLeaderboardTest {
 	/** A Reset mid-Game: the Game started before it, so it never counts, and the phone has no Score or rank today. */
 	@Test
 	void aResetMidGameLeavesTheBestScoreWithoutScoreOrRank() throws Exception {
-		jdbc.update("UPDATE settings SET questions_per_game = 1");
+		Fixtures.perGame(jdbc, 1, 0, 0);
 
 		var ending = playSolo("Ada", "ada@example.com", () -> client.post().uri("/api/admin/reset")
 				.header("Authorization", "Bearer " + Fixtures.adminToken(port)).retrieve().toBodilessEntity());
@@ -179,7 +179,7 @@ class DayLeaderboardTest {
 	@Test
 	@SuppressWarnings("unchecked")
 	void adminReceivesTheBoardWhenAGameFinishesAndTheGameOverCarriesTheRank() throws Exception {
-		jdbc.update("UPDATE settings SET questions_per_game = 1");
+		Fixtures.perGame(jdbc, 1, 0, 0);
 		player(game(Instant.now().minusSeconds(60)), "Bob", "bob@example.com", 100);
 		var admin = Stomp.connectAsAdmin(port);
 		var pushed = Stomp.subscribe(admin, "/topic/leaderboard");
@@ -201,7 +201,7 @@ class DayLeaderboardTest {
 	 */
 	@Test
 	void resetEmptiesTheBoardAndPushesItEmptyButKeepsEveryGame() throws Exception {
-		jdbc.update("UPDATE settings SET questions_per_game = 1");
+		Fixtures.perGame(jdbc, 1, 0, 0);
 		var bobsGame = game(Instant.now().minusSeconds(60));
 		player(bobsGame, "Bob", "bob@example.com", 100);
 		var admin = Stomp.connectAsAdmin(port);
@@ -236,7 +236,7 @@ class DayLeaderboardTest {
 
 	@Test
 	void playerTokenCannotSubscribeToTheLeaderboardTopic() throws Exception {
-		jdbc.update("UPDATE settings SET questions_per_game = 1");
+		Fixtures.perGame(jdbc, 1, 0, 0);
 		var started = client.post().uri("/api/solo").body(Map.of("name", "Ada", "email", "ada@example.com"))
 				.retrieve().body(Map.class);
 		var errors = new Stomp.ErrorFrames();
@@ -249,7 +249,7 @@ class DayLeaderboardTest {
 
 	@Test
 	void playerTokenCannotSubscribeToTheLeaderboardTopicByWildcard() throws Exception {
-		jdbc.update("UPDATE settings SET questions_per_game = 1");
+		Fixtures.perGame(jdbc, 1, 0, 0);
 		var started = client.post().uri("/api/solo").body(Map.of("name", "Ada", "email", "ada@example.com"))
 				.retrieve().body(Map.class);
 		var errors = new Stomp.ErrorFrames();

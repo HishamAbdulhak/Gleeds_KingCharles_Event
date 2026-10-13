@@ -3,6 +3,7 @@ package com.gleeds.quiz;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.tuple;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -54,7 +55,7 @@ class QuestionBankTest {
 
 	static Map<String, Object> question(String text) {
 		return new HashMap<>(Map.of("text", text, "optionA", "A", "optionB", "B", "optionC", "C", "optionD", "D",
-				"correctOption", 2, "timeLimitSec", 30, "category", "ROYAL"));
+				"correctOption", 2, "timeLimitSec", 30, "category", "King Charles"));
 	}
 
 	List<Map<String, Object>> list() {
@@ -75,7 +76,7 @@ class QuestionBankTest {
 		var questions = list();
 		assertThat(questions).hasSize(1);
 		assertThat(questions.get(0)).containsEntry("text", "Who is the King?").containsEntry("correctOption", 2)
-				.containsEntry("timeLimitSec", 30).containsEntry("category", "ROYAL").containsEntry("active", true);
+				.containsEntry("timeLimitSec", 30).containsEntry("category", "King Charles").containsEntry("active", true);
 	}
 
 	@Test
@@ -84,11 +85,36 @@ class QuestionBankTest {
 		q.put("optionB", " ");
 		q.put("correctOption", 4);
 		q.put("timeLimitSec", 3);
+		q.put("category", "Royal");
 
 		assertThatThrownBy(() -> admin.post().uri("/api/admin/questions").body(q).retrieve().toBodilessEntity())
 				.isInstanceOfSatisfying(HttpClientErrorException.BadRequest.class, e -> assertThat(e.getResponseBodyAsString())
-						.contains("optionB").contains("correctOption").contains("timeLimitSec"));
+						.contains("optionB").contains("correctOption").contains("timeLimitSec")
+						.contains("must be one of King Charles, UK–Saudi, Gleeds"));
 		assertThat(list()).isEmpty();
+	}
+
+	@Test
+	void aQuestionWithoutACategoryIs400() {
+		var q = question("No category");
+		q.remove("category");
+
+		assertThatThrownBy(() -> admin.post().uri("/api/admin/questions").body(q).retrieve().toBodilessEntity())
+				.isInstanceOfSatisfying(HttpClientErrorException.BadRequest.class,
+						e -> assertThat(e.getResponseBodyAsString()).contains("category"));
+		assertThat(list()).isEmpty();
+	}
+
+	@Test
+	void aCategoryInAnyCaseOrWithAHyphenIsStoredByItsCanonicalName() {
+		var id = create("Old text");
+		var q = question("Treaty?");
+		q.put("category", "  uk-SAUDI ");
+
+		admin.put().uri("/api/admin/questions/{id}", id).body(q).retrieve().toBodilessEntity();
+
+		assertThat(list()).singleElement().satisfies(saved -> assertThat(saved).containsEntry("category", "UK–Saudi"));
+		assertThat(jdbc.queryForObject("SELECT category FROM question WHERE id = ?", String.class, id)).isEqualTo("UK–Saudi");
 	}
 
 	@SuppressWarnings("unchecked")
@@ -162,14 +188,16 @@ class QuestionBankTest {
 		assertThat(status).isEqualTo(HttpStatus.NOT_FOUND);
 	}
 
-	// --- import: the client's sheet, header + 4 rows, row 4 has an invalid `correct` ---
+	// --- import: the client's sheet, header + 6 rows; row 4 has an invalid `correct`, rows 6 and 7 no valid category ---
 
 	static final String[][] SHEET = {
 			{ "Text", "A", "B", "C", "D", "Correct", "Time_Limit", "Category" },
-			{ "Q1", "a1", "b1", "c1", "d1", "C", "30", "ROYAL" },
-			{ "Q2", "a2", "b2", "c2", "d2", "a", "", "" },
-			{ "Q3", "a3", "b3", "c3", "d3", "E", "20", "" },
-			{ "Q4", "a4", "b4", "c4", "d4", "D", "15", "UK_SAUDI" } };
+			{ "Q1", "a1", "b1", "c1", "d1", "C", "30", "King Charles" },
+			{ "Q2", "a2", "b2", "c2", "d2", "a", "", "uk-saudi" },
+			{ "Q3", "a3", "b3", "c3", "d3", "E", "20", "Gleeds" },
+			{ "Q4", "a4", "b4", "c4", "d4", "D", "15", "GLEEDS" },
+			{ "Q5", "a5", "b5", "c5", "d5", "A", "20", "Royal" },
+			{ "Q6", "a6", "b6", "c6", "d6", "A", "20", "" } };
 
 	static byte[] csv(String[][] rows) {
 		return Arrays.stream(rows).map(r -> String.join(",", r)).collect(Collectors.joining("\n")).getBytes(UTF_8);
@@ -211,19 +239,19 @@ class QuestionBankTest {
 	void assertSheetImported(Map<String, Object> result) {
 		assertThat(result).containsEntry("imported", 3);
 		var errors = (List<Map<String, Object>>) result.get("errors");
-		assertThat(errors).singleElement().satisfies(e -> {
-			assertThat(e).containsEntry("row", 4);
-			assertThat((String) e.get("message")).containsIgnoringCase("correct");
-		});
+		assertThat(errors).extracting(e -> e.get("row"), e -> e.get("message")).containsExactly(
+				tuple(4, "correct must be A–D (got 'E')"),
+				tuple(6, "category must be one of King Charles, UK–Saudi, Gleeds (got 'Royal')"),
+				tuple(7, "category must be one of King Charles, UK–Saudi, Gleeds (got '')"));
 
 		var questions = list();
 		assertThat(questions).extracting(q -> q.get("text")).containsExactly("Q1", "Q2", "Q4");
 		assertThat(questions.get(0)).containsEntry("correctOption", 2).containsEntry("timeLimitSec", 30)
-				.containsEntry("category", "ROYAL").containsEntry("active", true);
-		assertThat(questions.get(1)).containsEntry("correctOption", 0).containsEntry("timeLimitSec", 20);
-		assertThat(questions.get(1).get("category")).isNull();
+				.containsEntry("category", "King Charles").containsEntry("active", true);
+		assertThat(questions.get(1)).containsEntry("correctOption", 0).containsEntry("timeLimitSec", 20)
+				.containsEntry("category", "UK–Saudi");
 		assertThat(questions.get(2)).containsEntry("correctOption", 3).containsEntry("timeLimitSec", 15)
-				.containsEntry("category", "UK_SAUDI");
+				.containsEntry("category", "Gleeds");
 	}
 
 	@Test
@@ -240,7 +268,7 @@ class QuestionBankTest {
 	void importWithoutRequiredColumnsIs400WithTheMissingNames() {
 		assertThatThrownBy(() -> importFile("bad.csv", "text,a,b\nQ,1,2".getBytes(UTF_8)))
 				.isInstanceOfSatisfying(HttpClientErrorException.BadRequest.class,
-						e -> assertThat(e.getResponseBodyAsString()).contains("c, d, correct"));
+						e -> assertThat(e.getResponseBodyAsString()).contains("c, d, correct, category"));
 		assertThat(list()).isEmpty();
 	}
 }

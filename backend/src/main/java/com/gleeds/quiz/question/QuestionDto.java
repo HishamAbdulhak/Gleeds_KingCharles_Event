@@ -18,6 +18,6 @@ public record QuestionDto(
 		@NotBlank String optionD,
 		@NotNull @Min(0) @Max(3) Integer correctOption,
 		@Min(5) @Max(120) Integer timeLimitSec,
-		String category,
+		@NotNull(message = "must be one of " + Category.NAMES) Category category,   // an unknown name parses to null
 		Boolean active) {
 }

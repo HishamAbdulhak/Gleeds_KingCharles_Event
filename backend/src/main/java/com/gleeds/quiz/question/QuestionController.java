@@ -77,8 +77,8 @@ public class QuestionController {
 		return repo.findById(id).orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND));
 	}
 
-	// --- Import: the client's sheet, header text,a,b,c,d,correct,time_limit,category (case-insensitive, last two
-	// optional), correct as A–D. Row numbers in errors are the sheet's own (header = 1). ---
+	// --- Import: the client's sheet, header text,a,b,c,d,correct,time_limit,category (case-insensitive, time_limit
+	// optional), correct as A–D, category as Category.parse reads it. Row numbers in errors are the sheet's own (header = 1). ---
 
 	record RowError(int row, String message) {
 	}
@@ -97,7 +97,7 @@ public class QuestionController {
 		}
 	}
 
-	private static final List<String> REQUIRED = List.of("text", "a", "b", "c", "d", "correct");
+	private static final List<String> REQUIRED = List.of("text", "a", "b", "c", "d", "correct", "category");
 	/** Excel writes CSV as UTF-8 with a byte-order mark, which would otherwise glue itself to the first header. */
 	private static final String BOM = "﻿";
 
@@ -137,11 +137,16 @@ public class QuestionController {
 				}
 			}
 
-			var category = cell.apply("category");
+			var category = Category.parse(cell.apply("category"));
+			if (category == null) {
+				problems.add("category must be one of " + Category.NAMES + " (got '" + cell.apply("category") + "')");
+			}
+
 			var dto = new QuestionDto(null, cell.apply("text"), cell.apply("a"), cell.apply("b"), cell.apply("c"),
-					cell.apply("d"), correctOption, timeLimit, category.isBlank() ? null : category, null);
-			// correctOption is null only when the letter parse above already reported it
-			validator.validate(dto).stream().filter(v -> !v.getPropertyPath().toString().equals("correctOption"))
+					cell.apply("d"), correctOption, timeLimit, category, null);
+			// correctOption and category are null only when the parses above already reported them
+			validator.validate(dto).stream()
+					.filter(v -> !List.of("correctOption", "category").contains(v.getPropertyPath().toString()))
 					.map(QuestionController::describe).sorted().forEach(problems::add);
 
 			if (problems.isEmpty()) {

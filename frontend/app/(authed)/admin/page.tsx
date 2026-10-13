@@ -3,11 +3,11 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { count, Question } from "@/lib/admin";
+import { count, describeMix, Mix, perGameTotal, Question, shortCategories, shortfall } from "@/lib/admin";
 import { api } from "@/lib/api";
 import { fetchLeaderboard, formatNumber, LeaderboardEntry } from "@/lib/game";
 
-type Overview = { questions: Question[]; questionsPerGame: number; top: LeaderboardEntry[] };
+type Overview = { questions: Question[]; mix: Mix; top: LeaderboardEntry[] };
 
 /** What the Admin checks before doors open: the Bank can fill a Game, and the Day Leaderboard (Reset, stories 43–44). */
 export default function AdminHome() {
@@ -19,12 +19,8 @@ export default function AdminHome() {
 
   const load = useCallback(
     () =>
-      Promise.all([
-        api<Question[]>("/api/admin/questions"),
-        api<{ questionsPerGame: number }>("/api/admin/settings"),
-        fetchLeaderboard(),
-      ])
-        .then(([questions, { questionsPerGame }, top]) => setOverview({ questions, questionsPerGame, top }))
+      Promise.all([api<Question[]>("/api/admin/questions"), api<Mix>("/api/admin/settings"), fetchLeaderboard()])
+        .then(([questions, mix, top]) => setOverview({ questions, mix, top }))
         .catch((e: Error) => setError(e.message)),
     [],
   );
@@ -48,6 +44,7 @@ export default function AdminHome() {
   }
 
   const active = overview?.questions.filter((q) => q.active).length ?? 0;
+  const short = overview ? shortCategories(overview.questions, overview.mix) : [];
 
   return (
     <main className="flex flex-col gap-6">
@@ -80,13 +77,19 @@ export default function AdminHome() {
           <h2 className="text-lg">Games</h2>
           {overview ? (
             <>
-              <p className="tabular-nums">Each Game draws {count(overview.questionsPerGame, "question")}.</p>
-              {/* the server's own rule (QuestionBank.draw): a Game can't start with fewer active questions */}
-              {active < overview.questionsPerGame ? (
-                <p role="alert" className="text-danger-fg">
-                  A Game needs {count(overview.questionsPerGame, "active question")}; the Bank has {active}. Activate or
-                  add more before doors open.
-                </p>
+              <p className="tabular-nums">
+                Each Game draws {count(perGameTotal(overview.mix), "question")}: {describeMix(overview.mix)}.
+              </p>
+              {/* the server's own rule (QuestionBank.draw): a Game can't start while any category is short */}
+              {short.length > 0 ? (
+                <div role="alert" className="flex flex-col gap-1 text-danger-fg">
+                  {short.map((c) => (
+                    <p key={c.name} className="tabular-nums">
+                      {shortfall(c)}
+                    </p>
+                  ))}
+                  <p>Activate or add more before doors open.</p>
+                </div>
               ) : (
                 <p className="text-success-fg">✓ Ready: enough active questions for a Game.</p>
               )}
