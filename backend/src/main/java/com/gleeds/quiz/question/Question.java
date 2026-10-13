@@ -35,7 +35,7 @@ public class Question {
 	private int correctOption;
 
 	private int timeLimitSec = 20;   // matches the column default in V1__init.sql
-	private String category;
+	private String category;   // a Category's label; the column's CHECK allows only those (V4__category_mix.sql)
 	private boolean active = true;
 
 	protected Question() {
@@ -57,13 +57,13 @@ public class Question {
 		optionD = dto.optionD();
 		correctOption = dto.correctOption();
 		timeLimitSec = dto.timeLimitSec() == null ? timeLimitSec : dto.timeLimitSec();
-		category = dto.category();
+		category = dto.category().label();
 		active = dto.active() == null ? active : dto.active();
 	}
 
 	public QuestionDto toDto() {
-		return new QuestionDto(id, text, optionA, optionB, optionC, optionD, correctOption, timeLimitSec, category,
-				active);
+		return new QuestionDto(id, text, optionA, optionB, optionC, optionD, correctOption, timeLimitSec,
+				Category.parse(category), active);
 	}
 
 	public void deactivate() {

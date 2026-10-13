@@ -8,9 +8,9 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface QuestionRepository extends JpaRepository<Question, Long> {
 
-	/** A Question Set draw: up to {@code n} random active questions (fewer if the Bank is short). */
-	@Query(value = "SELECT * FROM question WHERE active ORDER BY random() LIMIT :n", nativeQuery = true)
-	List<Question> drawActive(int n);
+	/** One Category's share of a Question Set: up to {@code n} random active questions with that label (fewer if short). */
+	@Query(value = "SELECT * FROM question WHERE active AND category = :category ORDER BY random() LIMIT :n", nativeQuery = true)
+	List<Question> drawActive(String category, int n);
 
 	/** Deletes the question unless a Game's Question Set references it (game_question is ON DELETE RESTRICT). */
 	@Modifying
