@@ -97,10 +97,10 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 ### Domain model / schema
 
 - **admin_user**: id, email (unique), bcrypt password hash. Seeded by migration from environment variables.
-- **question**: text, four option texts, correct option index 0–3, time limit in seconds (5–120, default 20), optional category, active flag.
-- **settings**: exactly one row: `questions_per_game` (default 10) and `leaderboard_since` (timestamp; default epoch). Reset sets `leaderboard_since` to now.
+- **question**: text, four option texts, correct option index 0–3, time limit in seconds (5–120, default 20), category (required: `King Charles`, `UK–Saudi` or `Gleeds`, `docs/adr/0007`), active flag.
+- **settings**: exactly one row: the per-Game mix `king_charles_per_game`, `uk_saudi_per_game`, `gleeds_per_game` (default 4 / 3 / 3, each ≥ 0, sum ≥ 1; questions per Game is the sum) and `leaderboard_since` (timestamp; default epoch). Reset sets `leaderboard_since` to now.
 - **game**: id (UUID), `mode` (SOLO | BATTLE), `pin` (6 chars, unique, null for Solo), `status` (LOBBY | QUESTION | REVEAL | LEADERBOARD | FINISHED), current question index, question started-at, created-at, ended-at. Solo Games skip LOBBY/LEADERBOARD and go QUESTION → REVEAL → QUESTION … → FINISHED automatically.
-- **game_question**: (game, position) → question. The Question Set is drawn at Game creation: `questions_per_game` random active questions. Snapshotting the draw keeps history stable if a question is later edited or deactivated.
+- **game_question**: (game, position) → question. The Question Set is drawn at Game creation: each Category's per-Game number of random active questions, shuffled together; a Category with too few active questions refuses the Game with a conflict naming it. Snapshotting the draw keeps history stable if a question is later edited or deactivated.
 - **player**: id (UUID), game, name, email, `session_token` (UUID, unique; used for STOMP auth and reconnect), score, streak, joined-at. Unique (game, email): a second join with the same email in the same Game returns the existing seat and token (reconnect), not an error.
 - **answer**: game, player, question, selected option, correct flag, response ms, points, submitted-at. Unique (player, question) enforces one Answer at the database level as well as in memory.
 - No `battle` table. A Battle is a Game with mode BATTLE.
@@ -135,8 +135,8 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 ### Admin API
 
 - Login returns a JWT valid for 24 h.
-- Question CRUD; import accepts CSV or XLSX with header `text,a,b,c,d,correct,time_limit,category` (correct as A–D; time limit and category optional), inserts valid rows, and returns per-row errors for the rest.
-- Settings read/update (questions per Game); Reset.
+- Question CRUD; import accepts CSV or XLSX with header `text,a,b,c,d,correct,time_limit,category` (correct as A–D; time limit optional; category required, matched case-insensitively with a hyphen accepted for the dash), inserts valid rows, and returns per-row errors for the rest.
+- Settings read/update (the per-Game mix); Reset.
 - Security: everything under the admin and host-command paths requires the ADMIN role; Solo start, Battle join, the leaderboard read and the WebSocket endpoint are public.
 
 ### Frontend routes
@@ -145,7 +145,7 @@ Both Modes use identical scoring (speed decay + Streak), and every Game draws th
 - `/join` — Battle join (PIN, name, email, and the same notice).
 - `/play/[gameId]` — Player view for both Modes (question, result, game-over).
 - `/host` — Host idle (Day Leaderboard + QR, "Host a Battle"); `/host/[gameId]` — Battle lobby / question / reveal / leaderboard / Podium.
-- `/admin/login`, `/admin/questions`, `/admin/settings` (questions per Game + Reset).
+- `/admin/login`, `/admin/questions`, `/admin/settings` (the per-Game mix + Reset).
 
 ## Testing Decisions
 

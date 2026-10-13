@@ -39,7 +39,15 @@ A Battle's waiting state, from "Host a Battle" until the Host starts it: Players
 _Avoid_: Waiting room, room
 
 **Question Bank**:
-All questions an Admin has entered or imported, from which Games draw.
+All questions an Admin has entered or imported, from which Games draw. Every question has a Category.
+
+**Category**:
+The theme of a question: exactly one of King Charles, UK–Saudi or Gleeds. Every Game draws a fixed number from each, the Mix the Admin sets (4 / 3 / 3 by default; `docs/adr/0007`).
+_Avoid_: Topic, tag
+
+**Mix**:
+How many questions of each Category every Game draws, set by the Admin in Settings. A Game's length is its sum.
+_Avoid_: Ratio, split, quota
 
 **Answer**:
 A Player's single, final choice for one question. A Player cannot change or repeat an Answer.
@@ -78,7 +86,7 @@ _Avoid_: Clear, wipe, delete scores
 The same email playing another Game. Allowed; only the best Score counts on the Day Leaderboard.
 
 **Question Set**:
-The fixed-size random draw from the Question Bank that one Game plays. Every Game in the day has the same size.
+The random draw from the Question Bank that one Game plays: each Category's per-Game number of active questions, shuffled together. Every Game in the day has the same size and the same mix.
 _Avoid_: Quiz, round, pack
 
 **Seat**:
